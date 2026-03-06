@@ -4,4 +4,5 @@ data class ResumeDto(
     val id: Long,
     val title: String,
     val isPrimary: Boolean,
+    val versions: List<ResumeVersionDto>,
 )
