@@ -5,4 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface QuestionRepository : JpaRepository<QuestionEntity, Long> {
     fun findByIsActiveTrue(): List<QuestionEntity>
+
+    fun findByIdAndIsActiveTrue(id: Long): QuestionEntity?
 }
