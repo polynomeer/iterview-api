@@ -6,6 +6,9 @@ import com.example.interviewplatform.resume.dto.CreateResumeVersionRequest
 import com.example.interviewplatform.resume.dto.ResumeDto
 import com.example.interviewplatform.resume.dto.ResumeVersionDto
 import com.example.interviewplatform.resume.service.ResumeService
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.security.SecurityRequirement
+import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -14,6 +17,8 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
+@Tag(name = "Resume")
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/resumes")
 class ResumeController(
@@ -21,13 +26,16 @@ class ResumeController(
     private val currentUserProvider: CurrentUserProvider,
 ) {
     @GetMapping
+    @Operation(summary = "List current user resumes")
     fun listResumes(): List<ResumeDto> = resumeService.listUserResumes(currentUserProvider.currentUserId())
 
     @PostMapping
+    @Operation(summary = "Create resume container")
     fun createResume(@Valid @RequestBody request: CreateResumeRequest): ResumeDto =
         resumeService.createResume(currentUserProvider.currentUserId(), request)
 
     @PostMapping("/{resumeId}/versions")
+    @Operation(summary = "Create resume version")
     fun createResumeVersion(
         @PathVariable resumeId: Long,
         @Valid @RequestBody request: CreateResumeVersionRequest,

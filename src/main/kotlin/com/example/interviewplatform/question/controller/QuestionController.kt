@@ -5,12 +5,15 @@ import com.example.interviewplatform.question.dto.QuestionDetailResponse
 import com.example.interviewplatform.question.dto.QuestionListItemDto
 import com.example.interviewplatform.question.dto.QuestionSearchFilter
 import com.example.interviewplatform.question.service.QuestionService
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
+@Tag(name = "Questions")
 @RestController
 @RequestMapping("/api/questions")
 class QuestionController(
@@ -18,6 +21,7 @@ class QuestionController(
     private val currentUserProvider: CurrentUserProvider,
 ) {
     @GetMapping
+    @Operation(summary = "List active questions")
     fun listQuestions(
         @RequestParam(required = false) categoryId: Long?,
         @RequestParam(required = false) tag: String?,
@@ -39,6 +43,7 @@ class QuestionController(
     )
 
     @GetMapping("/{questionId}")
+    @Operation(summary = "Get question detail")
     fun getQuestionDetail(@PathVariable questionId: Long): QuestionDetailResponse =
         questionService.getQuestionDetail(questionId, currentUserProvider.currentUserIdOrNull())
 }

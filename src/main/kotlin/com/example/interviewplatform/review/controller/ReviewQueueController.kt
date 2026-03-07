@@ -4,12 +4,17 @@ import com.example.interviewplatform.common.service.CurrentUserProvider
 import com.example.interviewplatform.review.dto.ReviewQueueActionResponseDto
 import com.example.interviewplatform.review.dto.ReviewQueueItemDto
 import com.example.interviewplatform.review.service.ReviewQueueService
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.security.SecurityRequirement
+import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
+@Tag(name = "Review Queue")
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/review-queue")
 class ReviewQueueController(
@@ -17,13 +22,16 @@ class ReviewQueueController(
     private val currentUserProvider: CurrentUserProvider,
 ) {
     @GetMapping
+    @Operation(summary = "List pending review queue items")
     fun listPending(): List<ReviewQueueItemDto> = reviewQueueService.listPending(currentUserProvider.currentUserId())
 
     @PostMapping("/{queueId}/skip")
+    @Operation(summary = "Skip review queue item")
     fun skip(@PathVariable queueId: Long): ReviewQueueActionResponseDto =
         reviewQueueService.skip(currentUserProvider.currentUserId(), queueId)
 
     @PostMapping("/{queueId}/done")
+    @Operation(summary = "Complete review queue item")
     fun done(@PathVariable queueId: Long): ReviewQueueActionResponseDto =
         reviewQueueService.done(currentUserProvider.currentUserId(), queueId)
 }

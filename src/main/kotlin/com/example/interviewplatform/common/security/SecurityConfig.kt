@@ -3,6 +3,7 @@ package com.example.interviewplatform.common.security
 import com.example.interviewplatform.auth.security.AuthTokenFilter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.security.config.Customizer
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
@@ -22,6 +23,7 @@ class SecurityConfig(
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .csrf { it.disable() }
+            .cors(Customizer.withDefaults())
             .formLogin { it.disable() }
             .httpBasic { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
@@ -31,7 +33,14 @@ class SecurityConfig(
             }
             .authorizeHttpRequests {
                 it
-                    .requestMatchers("/api/health", "/api/auth/signup", "/api/auth/login").permitAll()
+                    .requestMatchers(
+                        "/api/health",
+                        "/api/auth/signup",
+                        "/api/auth/login",
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                    ).permitAll()
                     .requestMatchers("/api/me/**").authenticated()
                     .requestMatchers("/api/resumes/**", "/api/resume-versions/**").authenticated()
                     .requestMatchers("/api/questions/*/answers/**", "/api/answer-attempts/**").authenticated()
