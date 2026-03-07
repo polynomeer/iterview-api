@@ -114,3 +114,16 @@ SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun
 2. `./gradlew bootRun`
 3. Verify health: `curl http://localhost:8080/api/health`
 4. Use Swagger UI: `http://localhost:8080/swagger-ui.html`
+
+## CI
+
+GitHub Actions workflow: [`.github/workflows/ci.yml`](/Users/hammac/Projects/iterview-api/.github/workflows/ci.yml)
+
+- triggers on pull requests and pushes to `main`
+- uses Java 21 (Temurin)
+- uses Gradle dependency/build caching
+- runs:
+  - `./gradlew --no-daemon build`
+  - `./gradlew --no-daemon test`
+
+CI test execution relies on Testcontainers for PostgreSQL-backed integration tests, so Docker support on the runner is expected.
