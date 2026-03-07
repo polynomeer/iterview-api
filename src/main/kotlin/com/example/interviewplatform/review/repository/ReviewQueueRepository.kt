@@ -7,11 +7,13 @@ import org.springframework.data.jpa.repository.Query
 import java.time.Instant
 
 interface ReviewQueueRepository : JpaRepository<ReviewQueueEntity, Long> {
-    fun findByUserIdAndStatusAndScheduledForLessThanEqualOrderByPriorityDescScheduledForAsc(
+    fun findByUserIdAndStatusAndScheduledForLessThanEqualOrderByScheduledForAscPriorityDesc(
         userId: Long,
         status: String,
         scheduledFor: Instant,
     ): List<ReviewQueueEntity>
+
+    fun findByIdAndUserId(id: Long, userId: Long): ReviewQueueEntity?
 
     @Modifying
     @Query(
@@ -48,6 +50,23 @@ interface ReviewQueueRepository : JpaRepository<ReviewQueueEntity, Long> {
         questionId: Long,
         currentStatus: String,
         newStatus: String,
+        updatedAt: Instant,
+    ): Int
+
+    @Modifying
+    @Query(
+        """
+        update ReviewQueueEntity r
+        set r.status = :status,
+            r.updatedAt = :updatedAt
+        where r.id = :id and r.userId = :userId and r.status = :expectedStatus
+        """,
+    )
+    fun updateStatusById(
+        id: Long,
+        userId: Long,
+        expectedStatus: String,
+        status: String,
         updatedAt: Instant,
     ): Int
 }
