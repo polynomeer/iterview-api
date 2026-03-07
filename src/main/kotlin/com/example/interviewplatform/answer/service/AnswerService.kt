@@ -20,7 +20,6 @@ import com.example.interviewplatform.question.repository.QuestionRepository
 import com.example.interviewplatform.question.repository.UserQuestionProgressRepository
 import com.example.interviewplatform.resume.repository.ResumeRepository
 import com.example.interviewplatform.resume.repository.ResumeVersionRepository
-import com.example.interviewplatform.review.service.ArchiveDecisionService
 import com.example.interviewplatform.review.service.RetrySchedulingService
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -37,8 +36,8 @@ class AnswerService(
     private val resumeRepository: ResumeRepository,
     private val userQuestionProgressRepository: UserQuestionProgressRepository,
     private val scoringService: ScoringService,
+    private val answerPolicyService: AnswerPolicyService,
     private val retrySchedulingService: RetrySchedulingService,
-    private val archiveDecisionService: ArchiveDecisionService,
     private val clockService: ClockService,
 ) {
     @Transactional
@@ -72,7 +71,12 @@ class AnswerService(
 
         val previousProgress = userQuestionProgressRepository.findByUserIdAndQuestionId(userId, questionId)
         val totalAttemptCount = (previousProgress?.totalAttemptCount ?: 0) + 1
-        val shouldArchive = archiveDecisionService.shouldArchive(score.totalScore, totalAttemptCount)
+        val policy = answerPolicyService.evaluate(
+            score = score,
+            attemptCount = totalAttemptCount,
+            answerMode = savedAttempt.answerMode,
+        )
+        val shouldArchive = policy.archive
 
         val nextReviewAt = if (shouldArchive) {
             retrySchedulingService.clearPendingForArchived(userId, questionId, now)
@@ -82,7 +86,7 @@ class AnswerService(
                 userId = userId,
                 questionId = questionId,
                 answerAttemptId = savedAttempt.id,
-                score = score.totalScore,
+                policy = policy,
                 now = now,
             )
         }

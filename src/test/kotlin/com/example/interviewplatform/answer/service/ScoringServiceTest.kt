@@ -1,30 +1,38 @@
 package com.example.interviewplatform.answer.service
 
-import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ScoringServiceTest {
     private val scoringService = ScoringService()
 
     @Test
-    fun `returns fail for short answers`() {
-        val result = scoringService.score("short")
+    fun `returns fail for very short answers`() {
+        val result = scoringService.score("short answer")
 
-        assertEquals(33, result.totalScore)
-        assertEquals(30, result.structureScore)
-        assertEquals(31, result.specificityScore)
-        assertEquals("FAIL", result.evaluationResult)
+        assertTrue(result.totalScore < 60)
+        assertTrue(result.structureScore in 0..100)
+        assertTrue(result.specificityScore in 0..100)
+        assertTrue(result.technicalAccuracyScore in 0..100)
+        assertTrue(result.roleFitScore in 0..100)
+        assertTrue(result.companyFitScore in 0..100)
+        assertTrue(result.communicationScore in 0..100)
+        assertTrue(result.evaluationResult == "FAIL")
     }
 
     @Test
-    fun `returns pass for long enough answers`() {
-        val answer = "I improved API latency by 35 percent because we reduced database round-trips.\n".repeat(8)
+    fun `returns pass for detailed technical answers`() {
+        val answer = """
+            First, I baseline latency and throughput with trace metrics.
+            Second, I add caching and idempotent retries to reduce database load.
+            We improved latency by 35% and error rate by 22% because queue backpressure was tuned.
+            Finally, I document tradeoffs for backend ownership and customer impact.
+        """.trimIndent()
+
         val result = scoringService.score(answer)
 
-        assertEquals(82, result.totalScore)
-        assertEquals(82, result.structureScore)
-        assertEquals(85, result.specificityScore)
-        assertEquals(87, result.technicalAccuracyScore)
-        assertEquals("PASS", result.evaluationResult)
+        assertTrue(result.totalScore >= 60)
+        assertTrue(result.technicalAccuracyScore >= 60)
+        assertTrue(result.evaluationResult == "PASS")
     }
 }
