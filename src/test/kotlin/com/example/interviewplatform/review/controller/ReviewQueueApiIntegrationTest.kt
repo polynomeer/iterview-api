@@ -91,6 +91,25 @@ class ReviewQueueApiIntegrationTest {
         assertStatus(secondQueueId, "done")
     }
 
+    @Test
+    fun `review queue returns not found for missing item`() {
+        mockMvc.perform(post("/api/review-queue/999999/skip").header("Authorization", authHeader))
+            .andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `review queue returns conflict when item already transitioned`() {
+        val questionId = insertQuestion("Conflict Question")
+        val attemptId = insertAttempt(questionId)
+        val queueId = insertQueue(questionId, attemptId, 50, "now() - interval '1 hour'")
+
+        mockMvc.perform(post("/api/review-queue/$queueId/done").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+
+        mockMvc.perform(post("/api/review-queue/$queueId/skip").header("Authorization", authHeader))
+            .andExpect(status().isConflict)
+    }
+
     private fun assertStatus(queueId: Long, expectedStatus: String) {
         val status = jdbcTemplate.queryForObject(
             "SELECT status FROM review_queue WHERE id = ?",

@@ -99,6 +99,30 @@ class ArchiveApiIntegrationTest {
             .andExpect(jsonPath("$[1]").doesNotExist())
     }
 
+    @Test
+    fun `archive endpoint omits archived status rows without archived timestamp`() {
+        val questionId = insertQuestion("Missing ArchivedAt", "MEDIUM")
+
+        jdbcTemplate.update(
+            """
+            INSERT INTO user_question_progress (
+                user_id, question_id, latest_answer_attempt_id, best_answer_attempt_id, latest_score, best_score,
+                total_attempt_count, unanswered_count, current_status, archived_at, last_answered_at, next_review_at,
+                mastery_level, created_at, updated_at
+            ) VALUES (
+                1, ?, NULL, NULL, 75, 79,
+                2, 0, 'archived', NULL, now(), NULL,
+                'intermediate', now(), now()
+            )
+            """.trimIndent(),
+            questionId,
+        )
+
+        mockMvc.perform(get("/api/archive").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0]").doesNotExist())
+    }
+
     private fun insertQuestion(title: String, difficulty: String): Long {
         val categoryId = jdbcTemplate.queryForObject("SELECT id FROM categories WHERE name = 'System Design'", Long::class.java)
         return jdbcTemplate.queryForObject(

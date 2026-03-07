@@ -173,6 +173,35 @@ class HomeApiIntegrationTest {
         assertTrue(otherQuestion > 0)
     }
 
+    @Test
+    fun `home summary stats include pending and archived counts`() {
+        val qPending = insertQuestion("Pending Retry", "MEDIUM", true)
+        val qArchived = insertQuestion("Archived Entry", "EASY", true)
+
+        insertPendingReview(qPending, insertAttempt(qPending), 90, "now() - interval '1 hour'")
+        insertPendingReview(qArchived, insertAttempt(qArchived), 70, "now() - interval '1 hour'")
+
+        jdbcTemplate.update(
+            """
+            INSERT INTO user_question_progress (
+                user_id, question_id, latest_answer_attempt_id, best_answer_attempt_id, latest_score, best_score,
+                total_attempt_count, unanswered_count, current_status, archived_at, last_answered_at, next_review_at,
+                mastery_level, created_at, updated_at
+            ) VALUES (
+                1, ?, NULL, NULL, 90, 92,
+                3, 0, 'archived', now(), now(), NULL,
+                'advanced', now(), now()
+            )
+            """.trimIndent(),
+            qArchived,
+        )
+
+        mockMvc.perform(get("/api/home").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.summaryStats.pendingReviewCount").value(1))
+            .andExpect(jsonPath("$.summaryStats.archivedQuestionCount").value(1))
+    }
+
     private fun insertQuestion(title: String, difficulty: String, active: Boolean): Long {
         val categoryId = jdbcTemplate.queryForObject("SELECT id FROM categories WHERE name = 'System Design'", Long::class.java)
         return jdbcTemplate.queryForObject(

@@ -148,4 +148,30 @@ class ProfileApiIntegrationTest {
             .andExpect(jsonPath("$.targetCompanies.length()").value(2))
             .andExpect(jsonPath("$.targetCompanies[0].companyId").value(googleId))
     }
+
+    @Test
+    fun `put target companies rejects duplicate company ids`() {
+        val amazonId = jdbcTemplate.queryForObject(
+            "SELECT id FROM companies WHERE normalized_name = 'amazon'",
+            Long::class.java,
+        )!!
+
+        val payload = objectMapper.writeValueAsString(
+            mapOf(
+                "companies" to listOf(
+                    mapOf("companyId" to amazonId, "priorityOrder" to 1),
+                    mapOf("companyId" to amazonId, "priorityOrder" to 2),
+                ),
+            ),
+        )
+
+        mockMvc.perform(
+            put("/api/me/target-companies")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload),
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error.message").value("Duplicate companyId entries are not allowed"))
+    }
 }

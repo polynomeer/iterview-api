@@ -179,6 +179,51 @@ class AnswerApiIntegrationTest {
             .andExpect(jsonPath("$[1].attemptNo").value(1))
     }
 
+    @Test
+    fun `submit rejects resume version owned by another user`() {
+        val questionId = insertQuestion(title = "Ownership validation")
+        jdbcTemplate.update(
+            """
+            INSERT INTO users (id, email, password_hash, provider, provider_user_id, status, created_at, updated_at)
+            VALUES (2, 'resume-owner@example.com', NULL, 'local', NULL, 'ACTIVE', now(), now())
+            """.trimIndent(),
+        )
+        val resumeId = jdbcTemplate.queryForObject(
+            """
+            INSERT INTO resumes (user_id, title, is_primary, created_at, updated_at)
+            VALUES (2, 'Other user resume', true, now(), now())
+            RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+        )!!
+        val resumeVersionId = jdbcTemplate.queryForObject(
+            """
+            INSERT INTO resume_versions (resume_id, version_no, file_url, raw_text, parsed_json, summary_text, is_active, uploaded_at, created_at)
+            VALUES (?, 1, 'https://files.example.com/other.pdf', 'raw', '{}', 'summary', true, now(), now())
+            RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            resumeId,
+        )
+
+        mockMvc.perform(
+            post("/api/questions/$questionId/answers")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "resumeVersionId" to resumeVersionId,
+                            "answerMode" to "text",
+                            "contentText" to "Ownership check",
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error.message").value("Invalid resumeVersionId: $resumeVersionId"))
+    }
+
     private fun submitAnswer(questionId: Long, contentText: String): String {
         val result = mockMvc.perform(
             post("/api/questions/$questionId/answers")

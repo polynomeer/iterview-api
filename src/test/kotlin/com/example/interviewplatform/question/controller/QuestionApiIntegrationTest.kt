@@ -222,6 +222,39 @@ class QuestionApiIntegrationTest {
             .andExpect(status().isNotFound)
     }
 
+    @Test
+    fun `detail is public and omits user progress without auth`() {
+        val categoryId = idByName("categories", "name", "System Design")
+        val questionId = insertQuestion(
+            categoryId = categoryId,
+            title = "Public detail",
+            body = "Visible to anonymous users",
+            difficulty = "MEDIUM",
+            qualityStatus = "approved",
+            isActive = true,
+        )
+
+        jdbcTemplate.update(
+            """
+            INSERT INTO user_question_progress (
+                user_id, question_id, latest_answer_attempt_id, best_answer_attempt_id, latest_score, best_score,
+                total_attempt_count, unanswered_count, current_status, archived_at, last_answered_at, next_review_at,
+                mastery_level, created_at, updated_at
+            ) VALUES (
+                1, ?, NULL, NULL, 75, 80,
+                2, 0, 'in_progress', NULL, now(), now() + interval '2 days',
+                'intermediate', now(), now()
+            )
+            """.trimIndent(),
+            questionId,
+        )
+
+        mockMvc.perform(get("/api/questions/$questionId"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.question.id").value(questionId))
+            .andExpect(jsonPath("$.userProgressSummary").doesNotExist())
+    }
+
     private fun idByName(table: String, column: String, value: String): Long = jdbcTemplate.queryForObject(
         "SELECT id FROM $table WHERE $column = ?",
         Long::class.java,

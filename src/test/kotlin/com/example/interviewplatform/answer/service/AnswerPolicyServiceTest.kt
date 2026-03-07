@@ -95,6 +95,49 @@ class AnswerPolicyServiceTest {
         assertTrue(decision.weakDimensions.contains("technicalAccuracy"))
     }
 
+    @Test
+    fun `skip mode always schedules high priority retry`() {
+        val decision = service.evaluate(
+            score = score(
+                total = 95,
+                structure = 95,
+                specificity = 95,
+                technical = 95,
+                roleFit = 95,
+                companyFit = 95,
+                communication = 95,
+            ),
+            attemptCount = 5,
+            answerMode = "skip",
+        )
+
+        assertFalse(decision.archive)
+        assertTrue(decision.needsRetry)
+        assertEquals("skipped_or_unanswered", decision.retryReasonType)
+        assertEquals(100, decision.retryPriority)
+        assertEquals(1L, decision.retryDelayDays)
+    }
+
+    @Test
+    fun `strong score does not archive before minimum attempt count`() {
+        val decision = service.evaluate(
+            score = score(
+                total = 92,
+                structure = 90,
+                specificity = 90,
+                technical = 92,
+                roleFit = 86,
+                companyFit = 82,
+                communication = 90,
+            ),
+            attemptCount = 1,
+            answerMode = "text",
+        )
+
+        assertFalse(decision.archive)
+        assertFalse(decision.needsRetry)
+    }
+
     private fun score(
         total: Int,
         structure: Int,

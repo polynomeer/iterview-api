@@ -5,6 +5,7 @@ import com.example.interviewplatform.dailycard.dto.HomeResponseDto
 import com.example.interviewplatform.dailycard.dto.HomeRetryQuestionDto
 import com.example.interviewplatform.dailycard.dto.HomeSummaryStatsDto
 import com.example.interviewplatform.question.dto.LearningMaterialDto
+import com.example.interviewplatform.question.mapper.QuestionMapper
 import com.example.interviewplatform.question.repository.LearningMaterialRepository
 import com.example.interviewplatform.question.repository.QuestionLearningMaterialRepository
 import com.example.interviewplatform.question.repository.QuestionRepository
@@ -97,15 +98,7 @@ class HomeService(
             .sortedByDescending { it.relevanceScore }
             .mapNotNull { edge -> materialsById[edge.id.learningMaterialId] }
             .distinctBy { it.id }
-            .map {
-                LearningMaterialDto(
-                    id = it.id,
-                    title = it.title,
-                    materialType = it.materialType,
-                    contentUrl = it.contentUrl,
-                    sourceName = it.sourceName,
-                )
-            }
+            .map(QuestionMapper::toLearningMaterialDto)
     }
 
     private companion object {

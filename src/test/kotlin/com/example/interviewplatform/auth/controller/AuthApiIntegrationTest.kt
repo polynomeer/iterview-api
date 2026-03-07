@@ -91,6 +91,28 @@ class AuthApiIntegrationTest {
     }
 
     @Test
+    fun `invalid bearer token is rejected for protected endpoints`() {
+        mockMvc.perform(get("/api/me").header("Authorization", "Bearer invalid-token"))
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `auth rules protect core mvp endpoints`() {
+        mockMvc.perform(get("/api/resumes"))
+            .andExpect(status().isUnauthorized)
+        mockMvc.perform(get("/api/home"))
+            .andExpect(status().isUnauthorized)
+        mockMvc.perform(get("/api/review-queue"))
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `public question endpoints are accessible without auth`() {
+        mockMvc.perform(get("/api/questions"))
+            .andExpect(status().isOk)
+    }
+
+    @Test
     fun `current user resolution uses bearer token identity`() {
         jdbcTemplate.update(
             """

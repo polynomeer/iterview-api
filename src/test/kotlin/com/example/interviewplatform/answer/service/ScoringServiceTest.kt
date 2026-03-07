@@ -35,4 +35,23 @@ class ScoringServiceTest {
         assertTrue(result.technicalAccuracyScore >= 60)
         assertTrue(result.evaluationResult == "PASS")
     }
+
+    @Test
+    fun `caps scores at upper bound for very long keyword rich answers`() {
+        val richAnswer = buildString {
+            repeat(120) {
+                append("First we optimized latency and throughput with cache retry idempotent observability backend customer scale. ")
+            }
+        }
+
+        val result = scoringService.score(richAnswer)
+
+        assertTrue(result.totalScore in 0..100)
+        assertTrue(result.structureScore in 0..100)
+        assertTrue(result.specificityScore in 0..100)
+        assertTrue(result.technicalAccuracyScore in 0..100)
+        assertTrue(result.roleFitScore in 0..100)
+        assertTrue(result.companyFitScore in 0..100)
+        assertTrue(result.communicationScore in 0..100)
+    }
 }
