@@ -1,6 +1,7 @@
 package com.example.interviewplatform.user.service
 
 import com.example.interviewplatform.common.service.ClockService
+import com.example.interviewplatform.common.exception.DomainValidationException
 import com.example.interviewplatform.resume.repository.ResumeRepository
 import com.example.interviewplatform.resume.repository.ResumeVersionRepository
 import com.example.interviewplatform.user.dto.ActiveResumeVersionSummaryDto
@@ -85,7 +86,7 @@ class UserProfileService(
         val targetScore = request.targetScoreThreshold ?: existing.targetScoreThreshold
         val passScore = request.passScoreThreshold ?: existing.passScoreThreshold
         if (passScore > targetScore) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "passScoreThreshold cannot exceed targetScoreThreshold")
+            throw DomainValidationException("passScoreThreshold cannot exceed targetScoreThreshold")
         }
 
         val now = clockService.now()
