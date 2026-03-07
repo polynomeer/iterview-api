@@ -1,5 +1,6 @@
 package com.example.interviewplatform.resume.controller
 
+import com.example.interviewplatform.auth.service.TokenService
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -32,6 +33,11 @@ class ResumeApiIntegrationTest {
     @Autowired
     private lateinit var objectMapper: ObjectMapper
 
+    @Autowired
+    private lateinit var tokenService: TokenService
+
+    private lateinit var authHeader: String
+
     @BeforeEach
     fun setUp() {
         jdbcTemplate.update("DELETE FROM resume_versions")
@@ -46,6 +52,7 @@ class ResumeApiIntegrationTest {
             VALUES (1, 'resume-dev@example.com', NULL, 'local', NULL, 'ACTIVE', now(), now())
             """.trimIndent(),
         )
+        authHeader = "Bearer ${tokenService.issueToken(1, "resume-dev@example.com")}"
     }
 
     @Test
@@ -58,6 +65,7 @@ class ResumeApiIntegrationTest {
         )
         val createResumeResult = mockMvc.perform(
             post("/api/resumes")
+                .header("Authorization", authHeader)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createResumePayload),
         )
@@ -77,6 +85,7 @@ class ResumeApiIntegrationTest {
         )
         val createVersionResult = mockMvc.perform(
             post("/api/resumes/$resumeId/versions")
+                .header("Authorization", authHeader)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createVersionPayload),
         )
@@ -87,13 +96,13 @@ class ResumeApiIntegrationTest {
 
         val versionId = objectMapper.readTree(createVersionResult.response.contentAsString).get("id").asLong()
 
-        mockMvc.perform(post("/api/resume-versions/$versionId/activate"))
+        mockMvc.perform(post("/api/resume-versions/$versionId/activate").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.resumeId").value(resumeId))
             .andExpect(jsonPath("$.versionId").value(versionId))
             .andExpect(jsonPath("$.versionNo").value(1))
 
-        mockMvc.perform(get("/api/resumes"))
+        mockMvc.perform(get("/api/resumes").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$[0].id").value(resumeId))
             .andExpect(jsonPath("$[0].versions.length()").value(1))

@@ -1,5 +1,6 @@
 package com.example.interviewplatform.question.controller
 
+import com.example.interviewplatform.auth.service.TokenService
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -26,6 +27,11 @@ class QuestionApiIntegrationTest {
     @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
 
+    @Autowired
+    private lateinit var tokenService: TokenService
+
+    private lateinit var authHeader: String
+
     @BeforeEach
     fun setUp() {
         jdbcTemplate.update("DELETE FROM user_question_progress")
@@ -42,6 +48,7 @@ class QuestionApiIntegrationTest {
             VALUES (1, 'question-user@example.com', NULL, 'local', NULL, 'ACTIVE', now(), now())
             """.trimIndent(),
         )
+        authHeader = "Bearer ${tokenService.issueToken(1, "question-user@example.com")}"
     }
 
     @Test
@@ -111,6 +118,7 @@ class QuestionApiIntegrationTest {
 
         mockMvc.perform(
             get("/api/questions")
+                .header("Authorization", authHeader)
                 .param("categoryId", categoryId.toString())
                 .param("tag", "scalability")
                 .param("companyId", companyId.toString())
@@ -187,7 +195,7 @@ class QuestionApiIntegrationTest {
             questionId,
         )
 
-        mockMvc.perform(get("/api/questions/$questionId"))
+        mockMvc.perform(get("/api/questions/$questionId").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.question.id").value(questionId))
             .andExpect(jsonPath("$.tags[0].name").value("scalability"))
@@ -210,7 +218,7 @@ class QuestionApiIntegrationTest {
             isActive = false,
         )
 
-        mockMvc.perform(get("/api/questions/$questionId"))
+        mockMvc.perform(get("/api/questions/$questionId").header("Authorization", authHeader))
             .andExpect(status().isNotFound)
     }
 

@@ -1,5 +1,6 @@
 package com.example.interviewplatform.review.controller
 
+import com.example.interviewplatform.auth.service.TokenService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -28,6 +29,11 @@ class ReviewQueueApiIntegrationTest {
     @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
 
+    @Autowired
+    private lateinit var tokenService: TokenService
+
+    private lateinit var authHeader: String
+
     @BeforeEach
     fun setUp() {
         jdbcTemplate.update("DELETE FROM answer_feedback_items")
@@ -49,6 +55,7 @@ class ReviewQueueApiIntegrationTest {
             VALUES (1, 'review-user@example.com', NULL, 'local', NULL, 'ACTIVE', now(), now())
             """.trimIndent(),
         )
+        authHeader = "Bearer ${tokenService.issueToken(1, "review-user@example.com")}"
     }
 
     @Test
@@ -65,17 +72,17 @@ class ReviewQueueApiIntegrationTest {
         val secondQueueId = insertQueue(q2, a2, 80, "now() - interval '1 hour'")
         insertQueue(q3, a3, 40, "now() - interval '1 hour'")
 
-        mockMvc.perform(get("/api/review-queue"))
+        mockMvc.perform(get("/api/review-queue").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$[0].id").value(firstQueueId))
             .andExpect(jsonPath("$[1].id").value(secondQueueId))
 
-        mockMvc.perform(post("/api/review-queue/$firstQueueId/skip"))
+        mockMvc.perform(post("/api/review-queue/$firstQueueId/skip").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.id").value(firstQueueId))
             .andExpect(jsonPath("$.status").value("skipped"))
 
-        mockMvc.perform(post("/api/review-queue/$secondQueueId/done"))
+        mockMvc.perform(post("/api/review-queue/$secondQueueId/done").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.id").value(secondQueueId))
             .andExpect(jsonPath("$.status").value("done"))

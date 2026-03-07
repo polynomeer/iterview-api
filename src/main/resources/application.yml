@@ -18,3 +18,8 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+
+auth:
+  token:
+    secret: ${AUTH_TOKEN_SECRET:dev-only-secret-change-me}
+    ttl-seconds: ${AUTH_TOKEN_TTL_SECONDS:86400}

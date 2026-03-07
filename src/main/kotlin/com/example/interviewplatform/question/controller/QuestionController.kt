@@ -40,5 +40,5 @@ class QuestionController(
 
     @GetMapping("/{questionId}")
     fun getQuestionDetail(@PathVariable questionId: Long): QuestionDetailResponse =
-        questionService.getQuestionDetail(questionId, currentUserProvider.currentUserId())
+        questionService.getQuestionDetail(questionId, currentUserProvider.currentUserIdOrNull())
 }

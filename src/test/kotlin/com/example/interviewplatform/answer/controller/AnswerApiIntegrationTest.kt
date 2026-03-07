@@ -1,5 +1,6 @@
 package com.example.interviewplatform.answer.controller
 
+import com.example.interviewplatform.auth.service.TokenService
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -34,6 +35,11 @@ class AnswerApiIntegrationTest {
     @Autowired
     private lateinit var objectMapper: ObjectMapper
 
+    @Autowired
+    private lateinit var tokenService: TokenService
+
+    private lateinit var authHeader: String
+
     @BeforeEach
     fun setUp() {
         jdbcTemplate.update("DELETE FROM answer_feedback_items")
@@ -54,6 +60,7 @@ class AnswerApiIntegrationTest {
             VALUES (1, 'answer-user@example.com', NULL, 'local', NULL, 'ACTIVE', now(), now())
             """.trimIndent(),
         )
+        authHeader = "Bearer ${tokenService.issueToken(1, "answer-user@example.com")}"
     }
 
     @Test
@@ -69,7 +76,7 @@ class AnswerApiIntegrationTest {
         assertCount("SELECT COUNT(*) FROM answer_feedback_items WHERE answer_attempt_id = ?", 2, answerAttemptId)
         assertCount("SELECT COUNT(*) FROM user_question_progress WHERE user_id = 1 AND question_id = ?", 1, questionId)
 
-        mockMvc.perform(get("/api/answer-attempts/$answerAttemptId"))
+        mockMvc.perform(get("/api/answer-attempts/$answerAttemptId").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.answerAttempt.id").value(answerAttemptId))
             .andExpect(jsonPath("$.score.totalScore").isNumber)
@@ -105,6 +112,7 @@ class AnswerApiIntegrationTest {
 
         mockMvc.perform(
             post("/api/questions/$questionId/answers")
+                .header("Authorization", authHeader)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     objectMapper.writeValueAsString(
@@ -130,6 +138,7 @@ class AnswerApiIntegrationTest {
 
         mockMvc.perform(
             post("/api/questions/$questionId/answers")
+                .header("Authorization", authHeader)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     objectMapper.writeValueAsString(
@@ -164,7 +173,7 @@ class AnswerApiIntegrationTest {
         )
         assertEquals(listOf(1, 2), attempts)
 
-        mockMvc.perform(get("/api/questions/$questionId/answers"))
+        mockMvc.perform(get("/api/questions/$questionId/answers").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$[0].attemptNo").value(2))
             .andExpect(jsonPath("$[1].attemptNo").value(1))
@@ -173,6 +182,7 @@ class AnswerApiIntegrationTest {
     private fun submitAnswer(questionId: Long, contentText: String): String {
         val result = mockMvc.perform(
             post("/api/questions/$questionId/answers")
+                .header("Authorization", authHeader)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     objectMapper.writeValueAsString(

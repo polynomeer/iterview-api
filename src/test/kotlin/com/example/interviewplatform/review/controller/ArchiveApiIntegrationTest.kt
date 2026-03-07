@@ -1,5 +1,6 @@
 package com.example.interviewplatform.review.controller
 
+import com.example.interviewplatform.auth.service.TokenService
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -26,6 +27,11 @@ class ArchiveApiIntegrationTest {
     @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
 
+    @Autowired
+    private lateinit var tokenService: TokenService
+
+    private lateinit var authHeader: String
+
     @BeforeEach
     fun setUp() {
         jdbcTemplate.update("DELETE FROM answer_feedback_items")
@@ -47,6 +53,7 @@ class ArchiveApiIntegrationTest {
             VALUES (1, 'archive-user@example.com', NULL, 'local', NULL, 'ACTIVE', now(), now())
             """.trimIndent(),
         )
+        authHeader = "Bearer ${tokenService.issueToken(1, "archive-user@example.com")}"
     }
 
     @Test
@@ -84,7 +91,7 @@ class ArchiveApiIntegrationTest {
             activeQuestionId,
         )
 
-        mockMvc.perform(get("/api/archive"))
+        mockMvc.perform(get("/api/archive").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$[0].questionId").value(archivedQuestionId))
             .andExpect(jsonPath("$[0].title").value("Archived Question"))

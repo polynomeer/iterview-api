@@ -1,5 +1,6 @@
 package com.example.interviewplatform.user.controller
 
+import com.example.interviewplatform.auth.service.TokenService
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -33,6 +34,11 @@ class ProfileApiIntegrationTest {
     @Autowired
     private lateinit var objectMapper: ObjectMapper
 
+    @Autowired
+    private lateinit var tokenService: TokenService
+
+    private lateinit var authHeader: String
+
     @BeforeEach
     fun setUp() {
         jdbcTemplate.update("DELETE FROM user_target_companies")
@@ -45,11 +51,12 @@ class ProfileApiIntegrationTest {
             VALUES (1, 'dev@example.com', NULL, 'local', NULL, 'ACTIVE', now(), now())
             """.trimIndent(),
         )
+        authHeader = "Bearer ${tokenService.issueToken(1, "dev@example.com")}"
     }
 
     @Test
     fun `get me returns aggregated payload`() {
-        mockMvc.perform(get("/api/me"))
+        mockMvc.perform(get("/api/me").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.profile.nickname").doesNotExist())
             .andExpect(jsonPath("$.settings.targetScoreThreshold").value(80))
@@ -75,6 +82,7 @@ class ProfileApiIntegrationTest {
 
         mockMvc.perform(
             patch("/api/me/profile")
+                .header("Authorization", authHeader)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(profileBody),
         )
@@ -94,6 +102,7 @@ class ProfileApiIntegrationTest {
 
         mockMvc.perform(
             patch("/api/me/settings")
+                .header("Authorization", authHeader)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(settingsBody),
         )
@@ -125,6 +134,7 @@ class ProfileApiIntegrationTest {
 
         mockMvc.perform(
             put("/api/me/target-companies")
+                .header("Authorization", authHeader)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload),
         )
@@ -133,7 +143,7 @@ class ProfileApiIntegrationTest {
             .andExpect(jsonPath("$.companies[0].companyId").value(googleId))
             .andExpect(jsonPath("$.companies[0].priorityOrder").value(1))
 
-        mockMvc.perform(get("/api/me"))
+        mockMvc.perform(get("/api/me").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.targetCompanies.length()").value(2))
             .andExpect(jsonPath("$.targetCompanies[0].companyId").value(googleId))

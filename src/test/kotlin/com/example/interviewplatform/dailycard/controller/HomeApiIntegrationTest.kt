@@ -1,5 +1,6 @@
 package com.example.interviewplatform.dailycard.controller
 
+import com.example.interviewplatform.auth.service.TokenService
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -26,6 +27,11 @@ class HomeApiIntegrationTest {
     @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
 
+    @Autowired
+    private lateinit var tokenService: TokenService
+
+    private lateinit var authHeader: String
+
     @BeforeEach
     fun setUp() {
         jdbcTemplate.update("DELETE FROM answer_feedback_items")
@@ -48,6 +54,7 @@ class HomeApiIntegrationTest {
             VALUES (1, 'home-user@example.com', NULL, 'local', NULL, 'ACTIVE', now(), now())
             """.trimIndent(),
         )
+        authHeader = "Bearer ${tokenService.issueToken(1, "home-user@example.com")}"
     }
 
     @Test
@@ -121,7 +128,7 @@ class HomeApiIntegrationTest {
             mainQuestionId,
         )
 
-        mockMvc.perform(get("/api/home"))
+        mockMvc.perform(get("/api/home").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.todayQuestion.dailyCardId").value(mainCardId))
             .andExpect(jsonPath("$.todayQuestion.questionId").value(mainQuestionId))

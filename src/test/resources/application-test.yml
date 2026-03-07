@@ -9,3 +9,8 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+
+auth:
+  token:
+    secret: test-only-secret
+    ttl-seconds: 86400

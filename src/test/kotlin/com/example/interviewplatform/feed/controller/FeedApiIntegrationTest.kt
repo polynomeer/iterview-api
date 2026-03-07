@@ -1,5 +1,6 @@
 package com.example.interviewplatform.feed.controller
 
+import com.example.interviewplatform.auth.service.TokenService
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -32,6 +33,11 @@ class FeedApiIntegrationTest {
     @Autowired
     private lateinit var objectMapper: ObjectMapper
 
+    @Autowired
+    private lateinit var tokenService: TokenService
+
+    private lateinit var authHeader: String
+
     @BeforeEach
     fun setUp() {
         jdbcTemplate.update("DELETE FROM user_target_companies")
@@ -49,6 +55,7 @@ class FeedApiIntegrationTest {
             VALUES (1, 'feed-user@example.com', NULL, 'local', NULL, 'ACTIVE', now(), now())
             """.trimIndent(),
         )
+        authHeader = "Bearer ${tokenService.issueToken(1, "feed-user@example.com")}"
     }
 
     @Test
@@ -99,7 +106,7 @@ class FeedApiIntegrationTest {
             qPopular,
         )
 
-        mockMvc.perform(get("/api/feed"))
+        mockMvc.perform(get("/api/feed").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.popular[0].questionId").value(qPopular))
             .andExpect(jsonPath("$.popular[0].title").value("Popular Question"))
@@ -133,7 +140,7 @@ class FeedApiIntegrationTest {
             amazonId,
         )
 
-        val response = mockMvc.perform(get("/api/feed"))
+        val response = mockMvc.perform(get("/api/feed").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andReturn()
             .response
@@ -153,7 +160,7 @@ class FeedApiIntegrationTest {
     fun `feed keeps stable sections with limited data`() {
         val questionId = insertQuestion("Only Question", "EASY", true)
 
-        mockMvc.perform(get("/api/feed"))
+        mockMvc.perform(get("/api/feed").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.popular[0].questionId").value(questionId))
             .andExpect(jsonPath("$.trending[0].questionId").value(questionId))

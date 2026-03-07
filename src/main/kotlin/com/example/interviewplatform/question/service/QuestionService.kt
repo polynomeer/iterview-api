@@ -63,11 +63,11 @@ class QuestionService(
     }
 
     @Transactional(readOnly = true)
-    fun getQuestionDetail(questionId: Long, userId: Long): QuestionDetailResponse {
+    fun getQuestionDetail(questionId: Long, userId: Long?): QuestionDetailResponse {
         val question = questionRepository.findByIdAndIsActiveTrue(questionId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found: $questionId")
         val context = loadContext(questionIds = listOf(questionId), categoryIds = listOf(question.categoryId))
-        val progress = userQuestionProgressRepository.findByUserIdAndQuestionId(userId, questionId)
+        val progress = userId?.let { userQuestionProgressRepository.findByUserIdAndQuestionId(it, questionId) }
 
         return QuestionMapper.toDetailResponse(
             question = question,
