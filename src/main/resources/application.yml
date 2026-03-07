@@ -1,10 +1,8 @@
 spring:
+  profiles:
+    default: local
   application:
     name: iterview-api
-  datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/iterview}
-    username: ${DB_USERNAME:iterview}
-    password: ${DB_PASSWORD:iterview}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -21,7 +19,6 @@ server:
 
 auth:
   token:
-    secret: ${AUTH_TOKEN_SECRET:dev-only-secret-change-me}
     ttl-seconds: ${AUTH_TOKEN_TTL_SECONDS:86400}
 
 springdoc:
@@ -29,12 +26,4 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
-    enabled: ${SWAGGER_UI_ENABLED:true}
-
-app:
-  cors:
-    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
-    allowed-methods: ${APP_CORS_ALLOWED_METHODS:GET,POST,PATCH,PUT,DELETE,OPTIONS}
-    allowed-headers: ${APP_CORS_ALLOWED_HEADERS:*}
-    allow-credentials: ${APP_CORS_ALLOW_CREDENTIALS:true}
-    max-age-seconds: ${APP_CORS_MAX_AGE_SECONDS:3600}
+    enabled: ${SWAGGER_UI_ENABLED:false}

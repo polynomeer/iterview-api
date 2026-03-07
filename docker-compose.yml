@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: iterview-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-iterview}
+      POSTGRES_USER: ${POSTGRES_USER:-iterview}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iterview}
+    volumes:
+      - iterview-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-iterview} -d ${POSTGRES_DB:-iterview}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  iterview-postgres-data:
