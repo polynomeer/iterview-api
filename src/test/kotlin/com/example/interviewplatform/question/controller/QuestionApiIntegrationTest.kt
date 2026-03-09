@@ -1,6 +1,7 @@
 package com.example.interviewplatform.question.controller
 
 import com.example.interviewplatform.auth.service.TokenService
+import com.example.interviewplatform.support.TestDatabaseCleaner
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -34,14 +35,7 @@ class QuestionApiIntegrationTest {
 
     @BeforeEach
     fun setUp() {
-        jdbcTemplate.update("DELETE FROM user_question_progress")
-        jdbcTemplate.update("DELETE FROM question_learning_materials")
-        jdbcTemplate.update("DELETE FROM question_roles")
-        jdbcTemplate.update("DELETE FROM question_companies")
-        jdbcTemplate.update("DELETE FROM question_tags")
-        jdbcTemplate.update("DELETE FROM learning_materials")
-        jdbcTemplate.update("DELETE FROM questions")
-        jdbcTemplate.update("DELETE FROM users WHERE id = 1")
+        TestDatabaseCleaner.reset(jdbcTemplate)
         jdbcTemplate.update(
             """
             INSERT INTO users (id, email, password_hash, provider, provider_user_id, status, created_at, updated_at)

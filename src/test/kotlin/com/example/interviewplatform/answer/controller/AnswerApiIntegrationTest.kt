@@ -1,6 +1,7 @@
 package com.example.interviewplatform.answer.controller
 
 import com.example.interviewplatform.auth.service.TokenService
+import com.example.interviewplatform.support.TestDatabaseCleaner
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -42,17 +43,7 @@ class AnswerApiIntegrationTest {
 
     @BeforeEach
     fun setUp() {
-        jdbcTemplate.update("DELETE FROM answer_feedback_items")
-        jdbcTemplate.update("DELETE FROM answer_scores")
-        jdbcTemplate.update("DELETE FROM review_queue")
-        jdbcTemplate.update("DELETE FROM user_question_progress")
-        jdbcTemplate.update("DELETE FROM answer_attempts")
-        jdbcTemplate.update("DELETE FROM question_learning_materials")
-        jdbcTemplate.update("DELETE FROM question_roles")
-        jdbcTemplate.update("DELETE FROM question_companies")
-        jdbcTemplate.update("DELETE FROM question_tags")
-        jdbcTemplate.update("DELETE FROM questions")
-        jdbcTemplate.update("DELETE FROM users WHERE id = 1")
+        TestDatabaseCleaner.reset(jdbcTemplate)
 
         jdbcTemplate.update(
             """

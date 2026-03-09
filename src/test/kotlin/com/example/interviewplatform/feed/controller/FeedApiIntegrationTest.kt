@@ -1,6 +1,7 @@
 package com.example.interviewplatform.feed.controller
 
 import com.example.interviewplatform.auth.service.TokenService
+import com.example.interviewplatform.support.TestDatabaseCleaner
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -40,14 +41,7 @@ class FeedApiIntegrationTest {
 
     @BeforeEach
     fun setUp() {
-        jdbcTemplate.update("DELETE FROM user_target_companies")
-        jdbcTemplate.update("DELETE FROM user_question_progress")
-        jdbcTemplate.update("DELETE FROM question_learning_materials")
-        jdbcTemplate.update("DELETE FROM question_roles")
-        jdbcTemplate.update("DELETE FROM question_companies")
-        jdbcTemplate.update("DELETE FROM question_tags")
-        jdbcTemplate.update("DELETE FROM questions")
-        jdbcTemplate.update("DELETE FROM users WHERE id = 1")
+        TestDatabaseCleaner.reset(jdbcTemplate)
 
         jdbcTemplate.update(
             """

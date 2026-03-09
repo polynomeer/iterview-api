@@ -1,6 +1,7 @@
 package com.example.interviewplatform.auth.controller
 
 import com.example.interviewplatform.auth.service.TokenService
+import com.example.interviewplatform.support.TestDatabaseCleaner
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -38,10 +39,7 @@ class AuthApiIntegrationTest {
 
     @BeforeEach
     fun setUp() {
-        jdbcTemplate.update("DELETE FROM user_target_companies")
-        jdbcTemplate.update("DELETE FROM user_settings")
-        jdbcTemplate.update("DELETE FROM user_profiles")
-        jdbcTemplate.update("DELETE FROM users WHERE email like 'auth-%@example.com'")
+        TestDatabaseCleaner.reset(jdbcTemplate)
     }
 
     @Test

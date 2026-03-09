@@ -1,6 +1,7 @@
 package com.example.interviewplatform.dailycard.controller
 
 import com.example.interviewplatform.auth.service.TokenService
+import com.example.interviewplatform.support.TestDatabaseCleaner
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -39,9 +40,7 @@ class DailyCardApiIntegrationTest {
 
     @BeforeEach
     fun setUp() {
-        jdbcTemplate.update("DELETE FROM daily_cards")
-        jdbcTemplate.update("DELETE FROM questions")
-        jdbcTemplate.update("DELETE FROM users WHERE id IN (1, 2)")
+        TestDatabaseCleaner.reset(jdbcTemplate)
 
         jdbcTemplate.update(
             """
