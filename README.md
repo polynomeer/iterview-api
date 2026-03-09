@@ -108,7 +108,9 @@ SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun
 - `DB_USERNAME`
 - `DB_PASSWORD`
 - `AUTH_TOKEN_SECRET`
-- `APP_CORS_ALLOWED_ORIGINS`
+- `APP_CORS_ALLOWED_ORIGINS` or `APP_CORS_ALLOWED_ORIGIN_PATTERNS`
+
+In `prod`, the application now fails fast at startup if neither CORS setting is provided.
 
 ## Migrations and Seed Data
 
