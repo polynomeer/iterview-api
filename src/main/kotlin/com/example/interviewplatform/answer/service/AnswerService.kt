@@ -250,6 +250,7 @@ class AnswerService(
         val isBest = previousBest == null || latestScore > previousBest
         val bestAttemptId = if (isBest) attempt.id else previousProgress!!.bestAnswerAttemptId
         val bestScore = if (isBest) latestScore else previousBest!!
+        val unansweredCount = (previousProgress?.unansweredCount ?: 0) + unansweredIncrementFor(attempt.answerMode)
 
         return UserQuestionProgressEntity(
             id = previousProgress?.id ?: 0,
@@ -260,7 +261,7 @@ class AnswerService(
             latestScore = latestScore,
             bestScore = bestScore,
             totalAttemptCount = totalAttemptCount,
-            unansweredCount = 0,
+            unansweredCount = unansweredCount,
             currentStatus = progressStatus,
             archivedAt = if (shouldArchive) now else null,
             lastAnsweredAt = now,
@@ -285,6 +286,11 @@ class AnswerService(
         totalScore >= 85 -> "advanced"
         totalScore >= 70 -> "intermediate"
         else -> "beginner"
+    }
+
+    private fun unansweredIncrementFor(answerMode: String): Int = when (answerMode.trim().lowercase()) {
+        "skip", "unanswered" -> 1
+        else -> 0
     }
 
     private companion object {

@@ -20,6 +20,7 @@ interface ReviewQueueRepository : JpaRepository<ReviewQueueEntity, Long> {
         """
         update ReviewQueueEntity r
         set r.triggerAnswerAttemptId = :triggerAnswerAttemptId,
+            r.reasonType = :reasonType,
             r.priority = :priority,
             r.scheduledFor = :scheduledFor,
             r.updatedAt = :updatedAt
@@ -31,6 +32,7 @@ interface ReviewQueueRepository : JpaRepository<ReviewQueueEntity, Long> {
         questionId: Long,
         status: String,
         triggerAnswerAttemptId: Long,
+        reasonType: String,
         priority: Int,
         scheduledFor: Instant,
         updatedAt: Instant,

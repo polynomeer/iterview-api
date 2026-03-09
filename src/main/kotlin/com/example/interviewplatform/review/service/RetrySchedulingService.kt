@@ -28,6 +28,7 @@ class RetrySchedulingService(
             questionId = questionId,
             status = STATUS_PENDING,
             triggerAnswerAttemptId = answerAttemptId,
+            reasonType = policy.retryReasonType,
             priority = policy.retryPriority,
             scheduledFor = scheduledFor,
             updatedAt = now,

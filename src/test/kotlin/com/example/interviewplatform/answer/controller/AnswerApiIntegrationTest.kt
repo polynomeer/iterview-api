@@ -180,6 +180,57 @@ class AnswerApiIntegrationTest {
     }
 
     @Test
+    fun `retry reschedule updates pending reason type and unanswered count`() {
+        val questionId = insertQuestion(title = "Retry reason refresh")
+
+        mockMvc.perform(
+            post("/api/questions/$questionId/answers")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "answerMode" to "skip",
+                            "contentText" to "skipped by user",
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.progressStatus").value("retry_pending"))
+
+        mockMvc.perform(
+            post("/api/questions/$questionId/answers")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "answerMode" to "text",
+                            "contentText" to "short",
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.progressStatus").value("retry_pending"))
+
+        val reasonType = jdbcTemplate.queryForObject(
+            "SELECT reason_type FROM review_queue WHERE user_id = 1 AND question_id = ? AND status = 'pending'",
+            String::class.java,
+            questionId,
+        )
+        val unansweredCount = jdbcTemplate.queryForObject(
+            "SELECT unanswered_count FROM user_question_progress WHERE user_id = 1 AND question_id = ?",
+            Int::class.java,
+            questionId,
+        )
+
+        assertEquals("low_total", reasonType)
+        assertEquals(1, unansweredCount)
+    }
+
+    @Test
     fun `submit rejects resume version owned by another user`() {
         val questionId = insertQuestion(title = "Ownership validation")
         jdbcTemplate.update(
