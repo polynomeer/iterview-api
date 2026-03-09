@@ -70,6 +70,15 @@ API defaults:
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
 
+### 3) Optional: load dummy data
+```bash
+PGPASSWORD=iterview psql -h localhost -p 5432 -U iterview -d iterview -f scripts/seed_dummy_data.sql
+```
+
+Demo login after seeding:
+- email: `demo@example.com`
+- password: `password123`
+
 ## Spring Profile Configuration
 
 - `application.yml`: shared defaults (JPA/Flyway/common settings)
