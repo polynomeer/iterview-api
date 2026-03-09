@@ -9,7 +9,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
 class CorsConfig(
-    @Value("\${app.cors.allowed-origins:http://localhost:3000,http://127.0.0.1:3000}")
+    @Value("\${app.cors.allowed-origins:http://localhost:3000,http://127.0.0.1:3000,http://localhost:4173,http://127.0.0.1:4173,http://localhost:5173,http://127.0.0.1:5173}")
     private val allowedOrigins: String,
     @Value("\${app.cors.allowed-methods:GET,POST,PATCH,PUT,DELETE,OPTIONS}")
     private val allowedMethods: String,

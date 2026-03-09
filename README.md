@@ -90,7 +90,7 @@ SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun
 - `AUTH_TOKEN_SECRET` (default: `dev-only-secret-change-me`)
 - `AUTH_TOKEN_TTL_SECONDS` (default: `86400`)
 - `SERVER_PORT` (default: `8080`)
-- `APP_CORS_ALLOWED_ORIGINS` (default: `http://localhost:3000,http://127.0.0.1:3000`)
+- `APP_CORS_ALLOWED_ORIGINS` (default: `http://localhost:3000,http://127.0.0.1:3000,http://localhost:4173,http://127.0.0.1:4173,http://localhost:5173,http://127.0.0.1:5173`)
 - `SWAGGER_UI_ENABLED` (default: `true` in `local`)
 
 ### Required in `prod` profile
