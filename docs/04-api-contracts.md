@@ -9,34 +9,42 @@ Formats:
 - timestamps use ISO-8601 strings
 - numeric score fields are in the `0-100` range
 
-Authentication:
-- bearer token: `Authorization: Bearer <token>`
-- public endpoints:
-  - `GET /api/health`
-  - `POST /api/auth/signup`
-  - `POST /api/auth/login`
-  - `GET /api/questions`
-  - `GET /api/questions/{questionId}`
-- authenticated endpoints:
-  - `GET /api/auth/me`
-  - `GET /api/me`
-  - `PATCH /api/me/profile`
-  - `PATCH /api/me/settings`
-  - `PUT /api/me/target-companies`
-  - `GET /api/resumes`
-  - `POST /api/resumes`
-  - `POST /api/resumes/{resumeId}/versions`
-  - `POST /api/resume-versions/{versionId}/activate`
-  - `GET /api/home`
-  - `POST /api/daily-cards/{dailyCardId}/open`
-  - `POST /api/questions/{questionId}/answers`
-  - `GET /api/questions/{questionId}/answers`
-  - `GET /api/answer-attempts/{answerAttemptId}`
-  - `GET /api/review-queue`
-  - `POST /api/review-queue/{queueId}/skip`
-  - `POST /api/review-queue/{queueId}/done`
-  - `GET /api/archive`
-  - `GET /api/feed`
+Contract policy:
+- endpoints listed under "Current API" match the existing backend implementation
+- endpoints listed under "Planned Additive API" describe the next product slices and must not be treated as already implemented
+- existing field names must remain backward compatible
+
+## Authentication
+Bearer token:
+- `Authorization: Bearer <token>`
+
+Public endpoints:
+- `GET /api/health`
+- `POST /api/auth/signup`
+- `POST /api/auth/login`
+- `GET /api/questions`
+- `GET /api/questions/{questionId}`
+
+Authenticated endpoints:
+- `GET /api/auth/me`
+- `GET /api/me`
+- `PATCH /api/me/profile`
+- `PATCH /api/me/settings`
+- `PUT /api/me/target-companies`
+- `GET /api/resumes`
+- `POST /api/resumes`
+- `POST /api/resumes/{resumeId}/versions`
+- `POST /api/resume-versions/{versionId}/activate`
+- `GET /api/home`
+- `POST /api/daily-cards/{dailyCardId}/open`
+- `POST /api/questions/{questionId}/answers`
+- `GET /api/questions/{questionId}/answers`
+- `GET /api/answer-attempts/{answerAttemptId}`
+- `GET /api/review-queue`
+- `POST /api/review-queue/{queueId}/skip`
+- `POST /api/review-queue/{queueId}/done`
+- `GET /api/archive`
+- `GET /api/feed`
 
 ## Standard Error Response
 All error responses use this shape:
@@ -49,7 +57,7 @@ All error responses use this shape:
     "status": 400,
     "message": "Request validation failed",
     "path": "/api/auth/signup",
-    "timestamp": "2026-03-09T04:00:00Z",
+    "timestamp": "2026-03-11T04:00:00Z",
     "details": [
       {
         "field": "email",
@@ -61,16 +69,17 @@ All error responses use this shape:
 ```
 
 Common error codes:
-- `VALIDATION_ERROR` for bean validation failures
-- `BAD_REQUEST` for domain validation failures
-- `UNAUTHORIZED` for missing or invalid authentication
-- `FORBIDDEN` for access denial
-- `NOT_FOUND` for missing resources
-- `CONFLICT` for state transition conflicts
-- `INTERNAL_SERVER_ERROR` for unexpected server errors
+- `VALIDATION_ERROR`
+- `BAD_REQUEST`
+- `UNAUTHORIZED`
+- `FORBIDDEN`
+- `NOT_FOUND`
+- `CONFLICT`
+- `INTERNAL_SERVER_ERROR`
 
-## Health
-### GET /api/health
+## Current API
+### Health
+#### `GET /api/health`
 Auth:
 - public
 
@@ -81,8 +90,8 @@ Response:
 }
 ```
 
-## Authentication
-### POST /api/auth/signup
+### Authentication
+#### `POST /api/auth/signup`
 Auth:
 - public
 
@@ -107,7 +116,7 @@ Response:
 }
 ```
 
-### POST /api/auth/login
+#### `POST /api/auth/login`
 Auth:
 - public
 
@@ -122,7 +131,7 @@ Request:
 Response:
 - same shape as `POST /api/auth/signup`
 
-### GET /api/auth/me
+#### `GET /api/auth/me`
 Auth:
 - required
 
@@ -134,8 +143,8 @@ Response:
 }
 ```
 
-## Profile
-### GET /api/me
+### Profile
+#### `GET /api/me`
 Auth:
 - required
 
@@ -158,7 +167,7 @@ Response:
     "resumeTitle": "Platform Resume",
     "versionId": 22,
     "versionNo": 2,
-    "uploadedAt": "2026-03-09T04:00:00Z"
+    "uploadedAt": "2026-03-11T04:00:00Z"
   },
   "targetCompanies": [
     {
@@ -170,7 +179,11 @@ Response:
 }
 ```
 
-### PATCH /api/me/profile
+Notes:
+- this remains the primary current-user aggregate
+- future readiness or radar summaries should be additive fields, not a replacement payload
+
+#### `PATCH /api/me/profile`
 Auth:
 - required
 
@@ -192,7 +205,7 @@ Response:
 }
 ```
 
-### PATCH /api/me/settings
+#### `PATCH /api/me/settings`
 Auth:
 - required
 
@@ -219,7 +232,7 @@ Response:
 Notes:
 - `passScoreThreshold` must not exceed `targetScoreThreshold`
 
-### PUT /api/me/target-companies
+#### `PUT /api/me/target-companies`
 Auth:
 - required
 
@@ -257,12 +270,8 @@ Response:
 }
 ```
 
-Notes:
-- duplicate `companyId` values are rejected
-- invalid `companyId` values are rejected
-
-## Resume
-### GET /api/resumes
+### Resume
+#### `GET /api/resumes`
 Auth:
 - required
 
@@ -282,14 +291,18 @@ Response:
         "parsedJson": "{\"skills\":[\"kotlin\"]}",
         "summaryText": "First version",
         "isActive": false,
-        "uploadedAt": "2026-03-09T04:00:00Z"
+        "uploadedAt": "2026-03-11T04:00:00Z"
       }
     ]
   }
 ]
 ```
 
-### POST /api/resumes
+Notes:
+- `parsedJson` is the current extension point for resume-derived signals
+- future resume intelligence APIs should reference `resumeVersionId`
+
+#### `POST /api/resumes`
 Auth:
 - required
 
@@ -302,9 +315,9 @@ Request:
 ```
 
 Response:
-- `ResumeDto` object, same shape as one list item from `GET /api/resumes`
+- `ResumeDto`, same shape as one list item from `GET /api/resumes`
 
-### POST /api/resumes/{resumeId}/versions
+#### `POST /api/resumes/{resumeId}/versions`
 Auth:
 - required
 
@@ -328,11 +341,11 @@ Response:
   "parsedJson": "{\"skills\":[\"kotlin\",\"spring\"]}",
   "summaryText": "Second version",
   "isActive": false,
-  "uploadedAt": "2026-03-09T04:00:00Z"
+  "uploadedAt": "2026-03-11T04:00:00Z"
 }
 ```
 
-### POST /api/resume-versions/{versionId}/activate
+#### `POST /api/resume-versions/{versionId}/activate`
 Auth:
 - required
 
@@ -342,12 +355,12 @@ Response:
   "resumeId": 10,
   "versionId": 22,
   "versionNo": 2,
-  "activatedAt": "2026-03-09T04:00:00Z"
+  "activatedAt": "2026-03-11T04:00:00Z"
 }
 ```
 
-## Questions
-### GET /api/questions
+### Questions
+#### `GET /api/questions`
 Auth:
 - public
 
@@ -359,10 +372,6 @@ Query parameters:
 - `difficulty`
 - `status`
 - `search`
-
-Notes:
-- inactive questions are excluded by default
-- `tag`, `difficulty`, and `status` are matched case-insensitively
 
 Response:
 ```json
@@ -400,7 +409,11 @@ Response:
 ]
 ```
 
-### GET /api/questions/{questionId}
+Notes:
+- inactive questions are excluded by default
+- `tag`, `difficulty`, and `status` are matched case-insensitively
+
+#### `GET /api/questions/{questionId}`
 Auth:
 - public
 
@@ -427,8 +440,8 @@ Response:
     "latestScore": 72.5,
     "bestScore": 81.0,
     "totalAttemptCount": 3,
-    "lastAnsweredAt": "2026-03-09T04:00:00Z",
-    "nextReviewAt": "2026-03-11T04:00:00Z",
+    "lastAnsweredAt": "2026-03-11T04:00:00Z",
+    "nextReviewAt": "2026-03-13T04:00:00Z",
     "masteryLevel": "intermediate"
   }
 }
@@ -436,9 +449,10 @@ Response:
 
 Notes:
 - `userProgressSummary` is only included when the request is authenticated
+- future tree or skill metadata should be additive or exposed via dedicated endpoints
 
-## Home
-### GET /api/home
+### Home and Daily Cards
+#### `GET /api/home`
 Auth:
 - required
 
@@ -450,7 +464,7 @@ Response:
     "questionId": 100,
     "title": "Design a resilient queue",
     "difficulty": "HARD",
-    "cardDate": "2026-03-09",
+    "cardDate": "2026-03-11",
     "cardType": "retry",
     "status": "new"
   },
@@ -461,7 +475,7 @@ Response:
       "title": "Explain cache invalidation",
       "difficulty": "MEDIUM",
       "priority": 80,
-      "scheduledFor": "2026-03-09T04:00:00Z"
+      "scheduledFor": "2026-03-11T04:00:00Z"
     }
   ],
   "learningMaterials": [],
@@ -474,7 +488,11 @@ Response:
 }
 ```
 
-### POST /api/daily-cards/{dailyCardId}/open
+Notes:
+- this is the current home contract
+- future radar or resume-risk previews should be added as optional fields
+
+#### `POST /api/daily-cards/{dailyCardId}/open`
 Auth:
 - required
 
@@ -483,15 +501,12 @@ Response:
 {
   "id": 15,
   "status": "opened",
-  "openedAt": "2026-03-09T04:00:00Z"
+  "openedAt": "2026-03-11T04:00:00Z"
 }
 ```
 
-Notes:
-- repeated open calls are idempotent
-
-## Answer Attempts
-### POST /api/questions/{questionId}/answers
+### Answers
+#### `POST /api/questions/{questionId}/answers`
 Auth:
 - required
 
@@ -537,8 +552,9 @@ Response:
 Notes:
 - low-quality answers can create or update a retry queue item
 - `answerMode` values like `skip` and `unanswered` trigger retry behavior
+- future analysis depth should not remove or rename `scoreSummary`
 
-### GET /api/questions/{questionId}/answers
+#### `GET /api/questions/{questionId}/answers`
 Auth:
 - required
 
@@ -549,7 +565,7 @@ Response:
     "id": 200,
     "attemptNo": 2,
     "answerMode": "text",
-    "submittedAt": "2026-03-09T04:00:00Z",
+    "submittedAt": "2026-03-11T04:00:00Z",
     "scoreSummary": {
       "totalScore": 74,
       "structureScore": 70,
@@ -564,7 +580,7 @@ Response:
 ]
 ```
 
-### GET /api/answer-attempts/{answerAttemptId}
+#### `GET /api/answer-attempts/{answerAttemptId}`
 Auth:
 - required
 
@@ -578,7 +594,7 @@ Response:
     "attemptNo": 2,
     "answerMode": "text",
     "contentText": "First, I would clarify the traffic pattern...",
-    "submittedAt": "2026-03-09T04:00:00Z"
+    "submittedAt": "2026-03-11T04:00:00Z"
   },
   "score": {
     "totalScore": 74,
@@ -596,15 +612,15 @@ Response:
     "latestScore": 74,
     "bestScore": 81,
     "totalAttemptCount": 3,
-    "lastAnsweredAt": "2026-03-09T04:00:00Z",
+    "lastAnsweredAt": "2026-03-11T04:00:00Z",
     "nextReviewAt": null,
     "masteryLevel": "intermediate"
   }
 }
 ```
 
-## Review Queue
-### GET /api/review-queue
+### Review Queue
+#### `GET /api/review-queue`
 Auth:
 - required
 
@@ -618,13 +634,13 @@ Response:
     "questionDifficulty": "MEDIUM",
     "reasonType": "low_total",
     "priority": 100,
-    "scheduledFor": "2026-03-09T04:00:00Z",
+    "scheduledFor": "2026-03-11T04:00:00Z",
     "status": "pending"
   }
 ]
 ```
 
-### POST /api/review-queue/{queueId}/skip
+#### `POST /api/review-queue/{queueId}/skip`
 Auth:
 - required
 
@@ -633,11 +649,11 @@ Response:
 {
   "id": 31,
   "status": "skipped",
-  "updatedAt": "2026-03-09T04:00:00Z"
+  "updatedAt": "2026-03-11T04:00:00Z"
 }
 ```
 
-### POST /api/review-queue/{queueId}/done
+#### `POST /api/review-queue/{queueId}/done`
 Auth:
 - required
 
@@ -646,16 +662,12 @@ Response:
 {
   "id": 31,
   "status": "done",
-  "updatedAt": "2026-03-09T04:00:00Z"
+  "updatedAt": "2026-03-11T04:00:00Z"
 }
 ```
 
-Notes:
-- missing queue ids return `404`
-- non-pending queue items return `409`
-
-## Archive
-### GET /api/archive
+### Archive
+#### `GET /api/archive`
 Auth:
 - required
 
@@ -666,15 +678,15 @@ Response:
     "questionId": 100,
     "title": "Design a resilient queue",
     "difficulty": "HARD",
-    "archivedAt": "2026-03-09T04:00:00Z",
+    "archivedAt": "2026-03-11T04:00:00Z",
     "bestScore": 92,
     "totalAttemptCount": 3
   }
 ]
 ```
 
-## Feed
-### GET /api/feed
+### Feed
+#### `GET /api/feed`
 Auth:
 - required
 
@@ -697,7 +709,147 @@ Response:
 }
 ```
 
-Notes:
-- `GET /api/feed` currently requires authentication
-- `GET /api/home` currently requires authentication
-- `GET /api/questions` and `GET /api/questions/{questionId}` remain public
+## Planned Additive API
+These contracts align the new product direction with the current system. They are intentionally additive.
+
+### Resume Intelligence
+#### `GET /api/resume-versions/{versionId}/skills`
+Purpose:
+- return extracted or confirmed skills for one immutable resume version
+
+Response:
+```json
+{
+  "resumeVersionId": 22,
+  "items": [
+    {
+      "skillName": "Spring Boot",
+      "skillCategory": "BACKEND",
+      "sourceText": "Built REST APIs with Spring Boot",
+      "confidenceScore": 0.94,
+      "confirmed": true
+    }
+  ],
+  "generatedAt": "2026-03-11T04:00:00Z"
+}
+```
+
+#### `GET /api/resume-versions/{versionId}/experiences`
+Purpose:
+- return structured experience claims extracted from the active or selected resume version
+
+#### `GET /api/resume-versions/{versionId}/risks`
+Purpose:
+- expose resume claims that likely require deeper interview defense
+
+Response:
+```json
+{
+  "resumeVersionId": 22,
+  "items": [
+    {
+      "id": 901,
+      "title": "Performance improvement claim",
+      "description": "Response time improved by 40 percent",
+      "severity": "HIGH",
+      "riskType": "impact_claim"
+    }
+  ]
+}
+```
+
+### Question Tree and Follow-Up
+#### `GET /api/questions/{questionId}/tree`
+Purpose:
+- expose the current question as a rooted follow-up tree with user progress-aware node states
+
+Response:
+```json
+{
+  "root": {
+    "questionId": 100,
+    "title": "What is a transaction?",
+    "nodeStatus": "answered",
+    "children": [
+      {
+        "questionId": 101,
+        "title": "Explain ACID.",
+        "nodeStatus": "answered",
+        "children": []
+      },
+      {
+        "questionId": 102,
+        "title": "Explain isolation levels.",
+        "nodeStatus": "weak",
+        "children": []
+      }
+    ]
+  }
+}
+```
+
+#### `GET /api/questions/{questionId}/recommended-followups`
+Purpose:
+- return the next best child or related questions based on progress, resume signals, and weak skill coverage
+
+### Skill Radar and Gap Analysis
+#### `GET /api/skills/radar`
+Purpose:
+- return current skill-category scores derived from answer history
+
+Response:
+```json
+{
+  "categories": [
+    {
+      "categoryCode": "DATABASE",
+      "label": "Database",
+      "score": 44,
+      "benchmarkScore": 61,
+      "gapScore": 17
+    }
+  ],
+  "updatedAt": "2026-03-11T04:00:00Z"
+}
+```
+
+#### `GET /api/skills/gaps`
+Purpose:
+- return categories or skills ranked by readiness gap
+
+#### `GET /api/skills/progress`
+Purpose:
+- return trend data for category improvements over time
+
+### Home Extensions
+#### Future additive fields for `GET /api/home`
+These should be optional and backward compatible:
+
+```json
+{
+  "skillRadarPreview": [
+    {
+      "categoryCode": "DATABASE",
+      "score": 44,
+      "gapScore": 17
+    }
+  ],
+  "weakSkillHighlights": [
+    {
+      "categoryCode": "DATABASE",
+      "label": "Database",
+      "gapScore": 17
+    }
+  ],
+  "resumeRiskPreview": [
+    {
+      "questionId": 210,
+      "title": "How did you measure the 40 percent latency improvement?",
+      "severity": "HIGH"
+    }
+  ]
+}
+```
+
+### Interview Learning Loop
+Mock interview APIs remain out of scope for the current codebase unless explicitly requested. If introduced later, they must live beside the existing question-answer-review model rather than bypass it.

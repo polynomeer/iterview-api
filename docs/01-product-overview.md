@@ -1,39 +1,100 @@
 # 01-product-overview
 
 ## Product Summary
-This backend supports an interview practice service modeled after algorithm problem-solving platforms.
+This project is an interview preparation backend for experienced software engineers.
 
-The service helps users:
-- practice one or more interview questions every day
-- improve weak answers through repeated attempts
-- archive mastered answers
-- keep answer history over time
-- personalize questions based on role, experience, target companies, and resume version
+The updated product direction is:
+- resume-driven interview preparation
+- answer-driven learning and retry loops
+- skill radar and gap analysis
+- question tree and follow-up visualization
+- personalized daily practice grounded in the user's role, target companies, and resume history
 
-## MVP Backend Responsibilities
-- persist user profile and settings
-- manage target companies
-- manage resume containers and resume versions
-- serve question catalog and detail
-- generate and serve daily cards
-- accept answer attempts
-- evaluate answers and store scores
-- persist feedback items
-- maintain user-question aggregate progress
-- manage retry queue
-- serve archive and feed data
+The current implementation already provides the learning backbone:
+- user profile and settings
+- target companies
+- resume containers and immutable resume versions
+- question catalog and question detail
+- answer submission, scoring, and feedback persistence
+- user-question progress aggregation
+- retry queue, archive flow, daily card generation, and feed data
 
-## Core Product Rules
-- questions are global
-- answer attempts are append-only
-- user progress is aggregate state
-- retry scheduling is persisted
-- archive status is explicit
-- resume versions remain historically traceable
+The next product evolution should extend those capabilities rather than replace them.
 
-## Out of Scope
-- social/community lounge
+## Core Product Loop
+The intended learning loop for this system is:
+
+```text
+Resume Version
+-> Resume Signals
+-> Question Selection
+-> Answer Submission
+-> Score + Feedback
+-> Progress + Review Queue
+-> Skill Radar + Gap Analysis
+-> Next Recommended Question
+```
+
+This is an additive evolution of the current backend, not a new product line.
+
+## Product Pillars
+### 1. Resume Intelligence
+- store resume versions as immutable records
+- derive structured resume signals from a selected resume version
+- surface high-risk resume claims that likely trigger follow-up questions
+- support resume-based question recommendation without breaking the existing catalog flow
+
+### 2. Structured Question Learning
+- keep the current global question catalog
+- add follow-up relationships so a question can belong to a tree or graph
+- let users understand both breadth and depth of their preparation
+
+### 3. Answer Analysis and Review
+- keep answer attempts append-only
+- keep scoring centralized in one service
+- enrich analysis output so weak patterns, follow-up readiness, and skill gaps can be derived from answer history
+- preserve current retry scheduling and archive semantics
+
+### 4. Skill and Readiness Insights
+- calculate skill-category performance from answer history
+- compare user progress against role and career-stage benchmarks
+- feed those insights back into home recommendations, review queue prioritization, and resume defense preparation
+
+## Current Scope vs Extension Scope
+### Implemented Today
+- authentication and current-user profile APIs
+- resume list, create, version upload, and activation APIs
+- question list and detail APIs
+- answer submission, answer history, and answer detail APIs
+- review queue, archive, home, and feed APIs
+- scoring, retry scheduling, and archive decisions
+
+### Planned Additive Extensions
+- resume extraction snapshots for skills, experiences, and resume risks
+- question relationship modeling for follow-up trees
+- richer answer analysis beyond the current score + feedback rows
+- skill radar, gap analysis, and benchmark APIs
+- stronger home dashboard summaries tied to readiness and risk
+
+### Explicitly Out of Scope Unless Requested
 - mock interview sessions
-- audio transcription pipeline
-- public answer publishing
+- live voice or streaming interview features
+- public answer publishing or comparison
 - GitHub sync
+- community or lounge features
+- admin moderation tooling
+
+## Product Rules
+- questions are global shared assets
+- answer attempts remain immutable after submission
+- resume versions remain immutable historical records
+- user progress is cached aggregate state per user-question pair
+- retry scheduling is persisted, not recomputed ad hoc on every read
+- archived questions must stay out of the active retry loop unless explicitly reset
+- new intelligence features should reuse current progress, answer, and resume records where possible
+
+## User Value
+The updated product should help a user answer three questions every time they open the app:
+- What should I practice today?
+- Where am I weak relative to my resume and target role?
+- Which follow-up questions am I still not ready to defend?
