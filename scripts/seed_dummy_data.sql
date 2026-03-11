@@ -531,4 +531,200 @@ WHERE u.email = 'demo@example.com'
         AND rq.status = 'pending'
   );
 
+INSERT INTO resume_skill_snapshots (
+    resume_version_id,
+    skill_id,
+    skill_name,
+    source_text,
+    confidence_score,
+    is_confirmed,
+    created_at,
+    updated_at
+)
+SELECT
+    rv.id,
+    s.id,
+    v.skill_name,
+    v.source_text,
+    v.confidence_score,
+    TRUE,
+    now(),
+    now()
+FROM (
+    VALUES
+        ('Spring Boot', 'Built backend APIs with Spring Boot and Kotlin', 0.98),
+        ('PostgreSQL', 'Optimized PostgreSQL queries and data access patterns', 0.93),
+        ('Redis', 'Introduced Redis caching to reduce response times', 0.94),
+        ('Kafka', 'Operated Kafka-based asynchronous event flows', 0.88)
+) AS v(skill_name, source_text, confidence_score)
+JOIN users u ON u.email = 'demo@example.com'
+JOIN resumes r ON r.user_id = u.id AND r.title = 'Demo Resume'
+JOIN resume_versions rv ON rv.resume_id = r.id AND rv.version_no = 1
+LEFT JOIN skills s ON s.name = v.skill_name
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM resume_skill_snapshots rss
+    WHERE rss.resume_version_id = rv.id
+      AND rss.skill_name = v.skill_name
+);
+
+INSERT INTO resume_experience_snapshots (
+    resume_version_id,
+    project_name,
+    summary_text,
+    impact_text,
+    source_text,
+    risk_level,
+    display_order,
+    is_confirmed,
+    created_at,
+    updated_at
+)
+SELECT
+    rv.id,
+    v.project_name,
+    v.summary_text,
+    v.impact_text,
+    v.source_text,
+    v.risk_level,
+    v.display_order,
+    TRUE,
+    now(),
+    now()
+FROM (
+    VALUES
+        ('Queue Reliability Platform', 'Built a resilient queue processing pipeline for failure-heavy workloads.', 'Reduced duplicate processing incidents by introducing idempotent handlers and dead-letter policies.', 'Built Kafka-based asynchronous processing with retries and backpressure control.', 'medium', 1),
+        ('API Performance Improvement', 'Improved read-heavy API latency through layered caching.', 'Reduced p95 latency by roughly 40 percent during peak traffic windows.', 'Introduced Redis caching to improve response time by 40 percent.', 'high', 2)
+) AS v(project_name, summary_text, impact_text, source_text, risk_level, display_order)
+JOIN users u ON u.email = 'demo@example.com'
+JOIN resumes r ON r.user_id = u.id AND r.title = 'Demo Resume'
+JOIN resume_versions rv ON rv.resume_id = r.id AND rv.version_no = 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM resume_experience_snapshots res
+    WHERE res.resume_version_id = rv.id
+      AND res.display_order = v.display_order
+);
+
+INSERT INTO resume_risk_items (
+    resume_version_id,
+    resume_experience_snapshot_id,
+    linked_question_id,
+    risk_type,
+    title,
+    description,
+    severity,
+    created_at,
+    updated_at
+)
+SELECT
+    rv.id,
+    res.id,
+    q.id,
+    v.risk_type,
+    v.title,
+    v.description,
+    v.severity,
+    now(),
+    now()
+FROM (
+    VALUES
+        (2, 'impact_claim', 'Latency improvement claim', 'You claim a 40 percent latency improvement and should be ready to defend the measurement method.', 'HIGH', 'How did you measure the 40 percent latency improvement?'),
+        (1, 'architecture_claim', 'Queue reliability claim', 'You mention retries and backpressure, which is likely to trigger deeper follow-up questions on failure handling.', 'MEDIUM', 'How do you handle poison messages?')
+) AS v(display_order, risk_type, title, description, severity, linked_question_title)
+JOIN users u ON u.email = 'demo@example.com'
+JOIN resumes r ON r.user_id = u.id AND r.title = 'Demo Resume'
+JOIN resume_versions rv ON rv.resume_id = r.id AND rv.version_no = 1
+JOIN resume_experience_snapshots res ON res.resume_version_id = rv.id AND res.display_order = v.display_order
+LEFT JOIN questions q ON q.title = v.linked_question_title
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM resume_risk_items rri
+    WHERE rri.resume_version_id = rv.id
+      AND rri.title = v.title
+);
+
+INSERT INTO answer_analyses (
+    answer_attempt_id,
+    overall_score,
+    depth_score,
+    clarity_score,
+    accuracy_score,
+    example_score,
+    tradeoff_score,
+    confidence_score,
+    strength_summary,
+    weakness_summary,
+    recommended_next_step,
+    created_at
+)
+SELECT
+    aa.id,
+    v.overall_score,
+    v.depth_score,
+    v.clarity_score,
+    v.accuracy_score,
+    v.example_score,
+    v.tradeoff_score,
+    v.confidence_score,
+    v.strength_summary,
+    v.weakness_summary,
+    v.recommended_next_step,
+    now()
+FROM (
+    VALUES
+        ('Design a resilient queue', 89.0, 86.0, 88.0, 92.0, 83.0, 84.0, 82.0, 'Strong reliability framing with good structure.', 'Could still explain retention and poison-message tradeoffs in more detail.', 'Practice a deeper follow-up on dead-letter queues and replay policies.'),
+        ('Explain cache invalidation', 51.0, 46.0, 58.0, 49.0, 44.0, 43.0, 41.0, 'The answer names key concepts like TTL and invalidation events.', 'The answer lacks a concrete consistency model and production example.', 'Re-answer with one concrete cache-aside or write-through example and failure handling.')
+) AS v(question_title, overall_score, depth_score, clarity_score, accuracy_score, example_score, tradeoff_score, confidence_score, strength_summary, weakness_summary, recommended_next_step)
+JOIN users u ON u.email = 'demo@example.com'
+JOIN questions q ON q.title = v.question_title
+JOIN answer_attempts aa ON aa.user_id = u.id AND aa.question_id = q.id AND aa.attempt_no = 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM answer_analyses an
+    WHERE an.answer_attempt_id = aa.id
+);
+
+INSERT INTO skill_category_scores (
+    user_id,
+    skill_category_id,
+    score,
+    answered_question_count,
+    weak_question_count,
+    benchmark_score,
+    gap_score,
+    calculated_at,
+    created_at,
+    updated_at
+)
+SELECT
+    u.id,
+    sc.id,
+    v.score,
+    v.answered_question_count,
+    v.weak_question_count,
+    v.benchmark_score,
+    v.gap_score,
+    now(),
+    now(),
+    now()
+FROM (
+    VALUES
+        ('BACKEND', 74.0, 2, 1, 84.0, 10.0),
+        ('DATABASE', 48.0, 1, 1, 76.0, 28.0),
+        ('SYSTEM_DESIGN', 67.0, 2, 1, 74.0, 7.0),
+        ('ARCHITECTURE', 63.0, 1, 0, 72.0, 9.0),
+        ('TESTING', 56.0, 1, 0, 70.0, 14.0)
+) AS v(skill_category_code, score, answered_question_count, weak_question_count, benchmark_score, gap_score)
+JOIN users u ON u.email = 'demo@example.com'
+JOIN skill_categories sc ON sc.code = v.skill_category_code
+ON CONFLICT (user_id, skill_category_id) DO UPDATE
+SET score = EXCLUDED.score,
+    answered_question_count = EXCLUDED.answered_question_count,
+    weak_question_count = EXCLUDED.weak_question_count,
+    benchmark_score = EXCLUDED.benchmark_score,
+    gap_score = EXCLUDED.gap_score,
+    calculated_at = EXCLUDED.calculated_at,
+    updated_at = now();
+
 COMMIT;
