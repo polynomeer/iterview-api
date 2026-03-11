@@ -188,6 +188,76 @@ class HomeApiIntegrationTest {
             .andExpect(jsonPath("$.summaryStats.archivedQuestionCount").value(1))
     }
 
+    @Test
+    fun `home includes weak skills radar preview and resume risk preview`() {
+        seedSkillCategory("BACKEND", "Backend", 1)
+        val skillCategoryId = idByName("skill_categories", "code", "BACKEND")
+        val benchmarkRoleId = idByName("job_roles", "name", "Backend Engineer")
+        jdbcTemplate.update(
+            """
+            INSERT INTO user_profiles (user_id, nickname, job_role_id, years_of_experience, avg_score, archived_question_count, answer_visibility_default, created_at, updated_at)
+            VALUES (1, 'home-user', ?, 6, 0, 0, 'private', now(), now())
+            """.trimIndent(),
+            benchmarkRoleId,
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO career_benchmarks (job_role_id, experience_band_code, skill_category_id, benchmark_score, created_at, updated_at)
+            VALUES (?, 'SENIOR', ?, 84, now(), now())
+            ON CONFLICT (job_role_id, experience_band_code, skill_category_id) DO UPDATE
+            SET benchmark_score = EXCLUDED.benchmark_score,
+                updated_at = now()
+            """.trimIndent(),
+            benchmarkRoleId,
+            skillCategoryId,
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO skill_category_scores (user_id, skill_category_id, score, answered_question_count, weak_question_count, benchmark_score, gap_score, calculated_at, created_at, updated_at)
+            VALUES (1, ?, 45, 1, 1, 84, 39, now(), now(), now())
+            ON CONFLICT (user_id, skill_category_id) DO UPDATE
+            SET score = EXCLUDED.score,
+                weak_question_count = EXCLUDED.weak_question_count,
+                benchmark_score = EXCLUDED.benchmark_score,
+                gap_score = EXCLUDED.gap_score,
+                updated_at = now()
+            """.trimIndent(),
+            skillCategoryId,
+        )
+
+        val riskQuestionId = insertQuestion("Resume Risk Question", "MEDIUM", true)
+        val resumeId = jdbcTemplate.queryForObject(
+            "INSERT INTO resumes (user_id, title, is_primary, created_at, updated_at) VALUES (1, 'Home Resume', true, now(), now()) RETURNING id",
+            Long::class.java,
+        )!!
+        val resumeVersionId = jdbcTemplate.queryForObject(
+            """
+            INSERT INTO resume_versions (
+                resume_id, version_no, file_url, file_name, file_type, raw_text, parsed_json, summary_text, parsing_status, is_active, uploaded_at, created_at
+            ) VALUES (
+                ?, 1, 'https://files.example.com/home.pdf', 'home.pdf', 'pdf', 'raw', '{}', 'summary', 'completed', true, now(), now()
+            ) RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            resumeId,
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO resume_risk_items (
+                resume_version_id, resume_experience_snapshot_id, linked_question_id, risk_type, title, description, severity, created_at, updated_at
+            ) VALUES (?, NULL, ?, 'impact_claim', 'Risk', 'Description', 'HIGH', now(), now())
+            """.trimIndent(),
+            resumeVersionId,
+            riskQuestionId,
+        )
+
+        mockMvc.perform(get("/api/home").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.skillRadarPreview[0].categoryCode").isNotEmpty)
+            .andExpect(jsonPath("$.weakSkillHighlights[0].categoryCode").isNotEmpty)
+            .andExpect(jsonPath("$.resumeRiskPreview[0].questionId").value(riskQuestionId))
+    }
+
     private fun insertQuestion(title: String, difficulty: String, active: Boolean): Long {
         val categoryId = jdbcTemplate.queryForObject("SELECT id FROM categories WHERE name = 'System Design'", Long::class.java)
         return jdbcTemplate.queryForObject(
@@ -230,4 +300,26 @@ class HomeApiIntegrationTest {
             attemptId,
             priority,
         )
+
+    private fun seedSkillCategory(code: String, name: String, displayOrder: Int) {
+        jdbcTemplate.update(
+            """
+            INSERT INTO skill_categories (code, name, display_order, created_at, updated_at)
+            VALUES (?, ?, ?, now(), now())
+            ON CONFLICT (code) DO UPDATE
+            SET name = EXCLUDED.name,
+                display_order = EXCLUDED.display_order,
+                updated_at = now()
+            """.trimIndent(),
+            code,
+            name,
+            displayOrder,
+        )
+    }
+
+    private fun idByName(table: String, column: String, value: String): Long = jdbcTemplate.queryForObject(
+        "SELECT id FROM $table WHERE $column = ?",
+        Long::class.java,
+        value,
+    )
 }

@@ -9,6 +9,12 @@ data class HomeResponseDto(
     val todayQuestion: HomeQuestionDto?,
     @field:Schema(description = "Retry questions that should be surfaced separately from the main card")
     val retryQuestions: List<HomeRetryQuestionDto>,
+    @field:Schema(description = "Preview of current skill radar categories")
+    val skillRadarPreview: List<HomeSkillRadarPreviewDto> = emptyList(),
+    @field:Schema(description = "Weak skill highlights based on current benchmark gaps")
+    val weakSkillHighlights: List<HomeWeakSkillDto> = emptyList(),
+    @field:Schema(description = "Resume risk questions that likely need defense practice")
+    val resumeRiskPreview: List<HomeResumeRiskQuestionDto> = emptyList(),
     @field:Schema(description = "Learning materials linked to surfaced questions")
     val learningMaterials: List<LearningMaterialDto>,
     @field:Schema(description = "High-level counts for the home screen")

@@ -1,15 +1,22 @@
 package com.example.interviewplatform.dailycard.service
 
 import com.example.interviewplatform.dailycard.dto.HomeQuestionDto
+import com.example.interviewplatform.dailycard.dto.HomeResumeRiskQuestionDto
 import com.example.interviewplatform.dailycard.dto.HomeResponseDto
 import com.example.interviewplatform.dailycard.dto.HomeRetryQuestionDto
+import com.example.interviewplatform.dailycard.dto.HomeSkillRadarPreviewDto
 import com.example.interviewplatform.dailycard.dto.HomeSummaryStatsDto
+import com.example.interviewplatform.dailycard.dto.HomeWeakSkillDto
 import com.example.interviewplatform.question.dto.LearningMaterialDto
 import com.example.interviewplatform.question.mapper.QuestionMapper
 import com.example.interviewplatform.question.repository.LearningMaterialRepository
 import com.example.interviewplatform.question.repository.QuestionLearningMaterialRepository
 import com.example.interviewplatform.question.repository.QuestionRepository
 import com.example.interviewplatform.question.repository.UserQuestionProgressRepository
+import com.example.interviewplatform.resume.repository.ResumeRepository
+import com.example.interviewplatform.resume.repository.ResumeRiskItemRepository
+import com.example.interviewplatform.resume.repository.ResumeVersionRepository
+import com.example.interviewplatform.skill.service.SkillRadarService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -20,6 +27,10 @@ class HomeService(
     private val questionLearningMaterialRepository: QuestionLearningMaterialRepository,
     private val learningMaterialRepository: LearningMaterialRepository,
     private val userQuestionProgressRepository: UserQuestionProgressRepository,
+    private val skillRadarService: SkillRadarService,
+    private val resumeRepository: ResumeRepository,
+    private val resumeVersionRepository: ResumeVersionRepository,
+    private val resumeRiskItemRepository: ResumeRiskItemRepository,
 ) {
     @Transactional
     fun getHome(userId: Long): HomeResponseDto {
@@ -65,6 +76,9 @@ class HomeService(
             retryQuestions.forEach { add(it.questionId) }
         }
         val learningMaterials = loadLearningMaterials(materialQuestionIds.toList())
+        val radar = skillRadarService.getRadar(userId)
+        val gaps = skillRadarService.getGaps(userId)
+        val resumeRiskPreview = loadResumeRiskPreview(userId)
 
         val summaryStats = HomeSummaryStatsDto(
             dailyQuestionCount = if (todayQuestion == null) 0 else 1,
@@ -78,6 +92,21 @@ class HomeService(
         return HomeResponseDto(
             todayQuestion = todayQuestion,
             retryQuestions = retryQuestions,
+            skillRadarPreview = radar.categories.take(3).map {
+                HomeSkillRadarPreviewDto(
+                    categoryCode = it.categoryCode,
+                    score = it.score,
+                    gapScore = it.gapScore,
+                )
+            },
+            weakSkillHighlights = gaps.take(3).map {
+                HomeWeakSkillDto(
+                    categoryCode = it.categoryCode,
+                    label = it.label,
+                    gapScore = it.gapScore,
+                )
+            },
+            resumeRiskPreview = resumeRiskPreview,
             learningMaterials = learningMaterials,
             summaryStats = summaryStats,
         )
@@ -99,6 +128,27 @@ class HomeService(
             .mapNotNull { edge -> materialsById[edge.id.learningMaterialId] }
             .distinctBy { it.id }
             .map(QuestionMapper::toLearningMaterialDto)
+    }
+
+    private fun loadResumeRiskPreview(userId: Long): List<HomeResumeRiskQuestionDto> {
+        val resume = resumeRepository.findByUserIdOrderByIsPrimaryDescCreatedAtDesc(userId).firstOrNull() ?: return emptyList()
+        val version = resumeVersionRepository.findByResumeIdOrderByVersionNoAsc(resume.id).findLast { it.isActive }
+            ?: resumeVersionRepository.findTopByResumeIdOrderByVersionNoDesc(resume.id)
+            ?: return emptyList()
+        val risks = resumeRiskItemRepository.findByResumeVersionIdOrderBySeverityDescIdAsc(version.id)
+        if (risks.isEmpty()) {
+            return emptyList()
+        }
+        val questionById = questionRepository.findAllById(risks.mapNotNull { it.linkedQuestionId }).associateBy { it.id }
+        return risks.mapNotNull { risk ->
+            val questionId = risk.linkedQuestionId ?: return@mapNotNull null
+            val question = questionById[questionId] ?: return@mapNotNull null
+            HomeResumeRiskQuestionDto(
+                questionId = questionId,
+                title = question.title,
+                severity = risk.severity,
+            )
+        }.take(3)
     }
 
     private companion object {
