@@ -1,0 +1,8 @@
+package com.example.interviewplatform.interview.dto
+
+data class InterviewSessionSummaryDto(
+    val totalQuestions: Int,
+    val answeredQuestions: Int,
+    val remainingQuestions: Int,
+    val averageScore: Double?,
+)
