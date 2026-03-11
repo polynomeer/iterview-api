@@ -249,6 +249,114 @@ class QuestionApiIntegrationTest {
             .andExpect(jsonPath("$.userProgressSummary").doesNotExist())
     }
 
+    @Test
+    fun `tree endpoint returns follow up hierarchy with derived node statuses`() {
+        val categoryId = idByName("categories", "name", "System Design")
+        val rootQuestionId = insertQuestion(categoryId, "Root question", "Root body", "HARD", "approved", true)
+        val answeredChildId = insertQuestion(categoryId, "Answered child", "Body", "MEDIUM", "approved", true)
+        val weakChildId = insertQuestion(categoryId, "Weak child", "Body", "MEDIUM", "approved", true)
+        val grandchildId = insertQuestion(categoryId, "Grandchild", "Body", "EASY", "approved", true)
+
+        jdbcTemplate.update(
+            "INSERT INTO question_relationships (parent_question_id, child_question_id, relationship_type, depth, display_order, created_at) VALUES (?, ?, 'follow_up', 1, 1, now())",
+            rootQuestionId,
+            answeredChildId,
+        )
+        jdbcTemplate.update(
+            "INSERT INTO question_relationships (parent_question_id, child_question_id, relationship_type, depth, display_order, created_at) VALUES (?, ?, 'follow_up', 1, 2, now())",
+            rootQuestionId,
+            weakChildId,
+        )
+        jdbcTemplate.update(
+            "INSERT INTO question_relationships (parent_question_id, child_question_id, relationship_type, depth, display_order, created_at) VALUES (?, ?, 'follow_up', 2, 1, now())",
+            weakChildId,
+            grandchildId,
+        )
+
+        insertProgress(answeredChildId, 82.0, "in_progress")
+        insertProgress(weakChildId, 49.0, "retry_pending")
+
+        mockMvc.perform(get("/api/questions/$rootQuestionId/tree").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.root.questionId").value(rootQuestionId))
+            .andExpect(jsonPath("$.root.nodeStatus").value("unanswered"))
+            .andExpect(jsonPath("$.root.children[0].questionId").value(answeredChildId))
+            .andExpect(jsonPath("$.root.children[0].nodeStatus").value("answered"))
+            .andExpect(jsonPath("$.root.children[1].questionId").value(weakChildId))
+            .andExpect(jsonPath("$.root.children[1].nodeStatus").value("weak"))
+            .andExpect(jsonPath("$.root.children[1].children[0].questionId").value(grandchildId))
+            .andExpect(jsonPath("$.root.children[1].children[0].nodeStatus").value("unanswered"))
+    }
+
+    @Test
+    fun `recommended followups and resume based questions use new intelligence structures`() {
+        seedSkillCategory("BACKEND", "Backend", 1)
+        seedSkill("Redis", "BACKEND")
+        seedSkill("Kafka", "BACKEND")
+
+        val categoryId = idByName("categories", "name", "System Design")
+        val rootQuestionId = insertQuestion(categoryId, "Root followup question", "Body", "HARD", "approved", true)
+        val followupId = insertQuestion(categoryId, "Resume followup", "Body", "MEDIUM", "approved", true)
+        val resumeQuestionId = insertQuestion(categoryId, "Resume based root", "Body", "MEDIUM", "approved", true)
+
+        jdbcTemplate.update(
+            "INSERT INTO question_relationships (parent_question_id, child_question_id, relationship_type, depth, display_order, created_at) VALUES (?, ?, 'follow_up', 1, 1, now())",
+            rootQuestionId,
+            followupId,
+        )
+        insertProgress(followupId, 92.0, "archived")
+
+        val kafkaSkillId = idByName("skills", "name", "Kafka")
+        val redisSkillId = idByName("skills", "name", "Redis")
+        jdbcTemplate.update(
+            "INSERT INTO question_skill_mappings (question_id, skill_id, weight, created_at) VALUES (?, ?, 0.90, now())",
+            followupId,
+            kafkaSkillId,
+        )
+        jdbcTemplate.update(
+            "INSERT INTO question_skill_mappings (question_id, skill_id, weight, created_at) VALUES (?, ?, 0.95, now())",
+            resumeQuestionId,
+            redisSkillId,
+        )
+
+        val resumeId = jdbcTemplate.queryForObject(
+            "INSERT INTO resumes (user_id, title, is_primary, created_at, updated_at) VALUES (1, 'Current Resume', true, now(), now()) RETURNING id",
+            Long::class.java,
+        )!!
+        val versionId = jdbcTemplate.queryForObject(
+            """
+            INSERT INTO resume_versions (
+                resume_id, version_no, file_url, file_name, file_type, raw_text, parsed_json, summary_text, parsing_status, is_active, uploaded_at, created_at
+            ) VALUES (
+                ?, 1, 'https://files.example.com/resume.pdf', 'resume.pdf', 'pdf',
+                'Worked with Redis and Kafka', '{"skills":["Redis","Kafka"]}', 'Summary', 'completed', true, now(), now()
+            ) RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            resumeId,
+        )
+        jdbcTemplate.update(
+            "INSERT INTO resume_skill_snapshots (resume_version_id, skill_id, skill_name, source_text, confidence_score, is_confirmed, created_at, updated_at) VALUES (?, ?, 'Redis', 'Redis experience', 0.9, true, now(), now())",
+            versionId,
+            redisSkillId,
+        )
+        jdbcTemplate.update(
+            "INSERT INTO resume_skill_snapshots (resume_version_id, skill_id, skill_name, source_text, confidence_score, is_confirmed, created_at, updated_at) VALUES (?, ?, 'Kafka', 'Kafka experience', 0.9, true, now(), now())",
+            versionId,
+            kafkaSkillId,
+        )
+
+        mockMvc.perform(get("/api/questions/$rootQuestionId/recommended-followups").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].questionId").value(followupId))
+            .andExpect(jsonPath("$[0].nodeStatus").value("strong"))
+
+        mockMvc.perform(get("/api/questions/resume-based").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].questionId").value(resumeQuestionId))
+            .andExpect(jsonPath("$[0].matchedSkills[0]").isNotEmpty)
+    }
+
     private fun idByName(table: String, column: String, value: String): Long = jdbcTemplate.queryForObject(
         "SELECT id FROM $table WHERE $column = ?",
         Long::class.java,
@@ -280,4 +388,56 @@ class QuestionApiIntegrationTest {
         qualityStatus,
         isActive,
     )
+
+    private fun insertProgress(questionId: Long, latestScore: Double, currentStatus: String) {
+        jdbcTemplate.update(
+            """
+            INSERT INTO user_question_progress (
+                user_id, question_id, latest_answer_attempt_id, best_answer_attempt_id, latest_score, best_score,
+                total_attempt_count, unanswered_count, current_status, archived_at, last_answered_at, next_review_at,
+                mastery_level, created_at, updated_at
+            ) VALUES (
+                1, ?, NULL, NULL, ?, ?, 1, 0, ?, NULL, now(), now() + interval '1 day', 'intermediate', now(), now()
+            )
+            """.trimIndent(),
+            questionId,
+            latestScore,
+            latestScore,
+            currentStatus,
+        )
+    }
+
+    private fun seedSkillCategory(code: String, name: String, displayOrder: Int) {
+        jdbcTemplate.update(
+            """
+            INSERT INTO skill_categories (code, name, display_order, created_at, updated_at)
+            VALUES (?, ?, ?, now(), now())
+            ON CONFLICT (code) DO UPDATE
+            SET name = EXCLUDED.name,
+                display_order = EXCLUDED.display_order,
+                updated_at = now()
+            """.trimIndent(),
+            code,
+            name,
+            displayOrder,
+        )
+    }
+
+    private fun seedSkill(name: String, categoryCode: String) {
+        jdbcTemplate.update(
+            """
+            INSERT INTO skills (skill_category_id, name, description, created_at, updated_at)
+            SELECT sc.id, ?, ?, now(), now()
+            FROM skill_categories sc
+            WHERE sc.code = ?
+            ON CONFLICT (name) DO UPDATE
+            SET skill_category_id = EXCLUDED.skill_category_id,
+                description = EXCLUDED.description,
+                updated_at = now()
+            """.trimIndent(),
+            name,
+            "$name description",
+            categoryCode,
+        )
+    }
 }

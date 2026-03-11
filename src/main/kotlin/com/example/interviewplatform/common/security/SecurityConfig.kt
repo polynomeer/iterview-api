@@ -43,6 +43,7 @@ class SecurityConfig(
                     ).permitAll()
                     .requestMatchers("/api/me/**").authenticated()
                     .requestMatchers("/api/resumes/**", "/api/resume-versions/**").authenticated()
+                    .requestMatchers("/api/questions/resume-based").authenticated()
                     .requestMatchers("/api/questions/*/answers/**", "/api/answer-attempts/**").authenticated()
                     .requestMatchers("/api/home/**", "/api/daily-cards/**").authenticated()
                     .requestMatchers("/api/review-queue/**", "/api/archive/**").authenticated()
