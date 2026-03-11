@@ -2,6 +2,7 @@ package com.example.interviewplatform.answer.controller
 
 import com.example.interviewplatform.answer.dto.AnswerAttemptDetailResponseDto
 import com.example.interviewplatform.answer.dto.AnswerAttemptListItemDto
+import com.example.interviewplatform.answer.dto.AnswerAnalysisDto
 import com.example.interviewplatform.answer.dto.SubmitAnswerRequest
 import com.example.interviewplatform.answer.dto.SubmitAnswerResponseDto
 import com.example.interviewplatform.answer.service.AnswerService
@@ -43,4 +44,9 @@ class AnswerController(
     @Operation(summary = "Get answer attempt detail")
     fun getAnswerAttempt(@PathVariable answerAttemptId: Long): AnswerAttemptDetailResponseDto =
         answerService.getAnswerAttempt(currentUserProvider.currentUserId(), answerAttemptId)
+
+    @GetMapping("/answer-attempts/{answerAttemptId}/analysis")
+    @Operation(summary = "Get answer analysis")
+    fun getAnswerAnalysis(@PathVariable answerAttemptId: Long): AnswerAnalysisDto =
+        answerService.getAnswerAnalysis(currentUserProvider.currentUserId(), answerAttemptId)
 }

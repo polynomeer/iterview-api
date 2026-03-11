@@ -64,6 +64,7 @@ class AnswerApiIntegrationTest {
 
         assertCount("SELECT COUNT(*) FROM answer_attempts WHERE id = ?", 1, answerAttemptId)
         assertCount("SELECT COUNT(*) FROM answer_scores WHERE answer_attempt_id = ?", 1, answerAttemptId)
+        assertCount("SELECT COUNT(*) FROM answer_analyses WHERE answer_attempt_id = ?", 1, answerAttemptId)
         assertCount("SELECT COUNT(*) FROM answer_feedback_items WHERE answer_attempt_id = ?", 2, answerAttemptId)
         assertCount("SELECT COUNT(*) FROM user_question_progress WHERE user_id = 1 AND question_id = ?", 1, questionId)
 
@@ -73,6 +74,13 @@ class AnswerApiIntegrationTest {
             .andExpect(jsonPath("$.score.totalScore").isNumber)
             .andExpect(jsonPath("$.feedback[0].id").isNumber)
             .andExpect(jsonPath("$.progressSummary.totalAttemptCount").value(1))
+
+        mockMvc.perform(get("/api/answer-attempts/$answerAttemptId/analysis").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.answerAttemptId").value(answerAttemptId))
+            .andExpect(jsonPath("$.overallScore").isNumber)
+            .andExpect(jsonPath("$.strengthSummary").isNotEmpty)
+            .andExpect(jsonPath("$.weaknessSummary").isNotEmpty)
     }
 
     @Test

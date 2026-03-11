@@ -2,10 +2,12 @@ package com.example.interviewplatform.answer.mapper
 
 import com.example.interviewplatform.answer.dto.AnswerAttemptDetailResponseDto
 import com.example.interviewplatform.answer.dto.AnswerAttemptDto
+import com.example.interviewplatform.answer.dto.AnswerAnalysisDto
 import com.example.interviewplatform.answer.dto.AnswerAttemptListItemDto
 import com.example.interviewplatform.answer.dto.AnswerFeedbackItemDto
 import com.example.interviewplatform.answer.dto.ScoreSummaryDto
 import com.example.interviewplatform.answer.dto.SubmitAnswerResponseDto
+import com.example.interviewplatform.answer.entity.AnswerAnalysisEntity
 import com.example.interviewplatform.answer.entity.AnswerAttemptEntity
 import com.example.interviewplatform.answer.entity.AnswerFeedbackItemEntity
 import com.example.interviewplatform.answer.entity.AnswerScoreEntity
@@ -82,5 +84,20 @@ object AnswerMapper {
         companyFitScore = entity.companyFitScore.toInt(),
         communicationScore = entity.communicationScore.toInt(),
         evaluationResult = entity.evaluationResult,
+    )
+
+    fun toAnalysisDto(entity: AnswerAnalysisEntity): AnswerAnalysisDto = AnswerAnalysisDto(
+        answerAttemptId = entity.answerAttemptId,
+        overallScore = entity.overallScore,
+        depthScore = entity.depthScore,
+        clarityScore = entity.clarityScore,
+        accuracyScore = entity.accuracyScore,
+        exampleScore = entity.exampleScore,
+        tradeoffScore = entity.tradeoffScore,
+        confidenceScore = entity.confidenceScore,
+        strengthSummary = entity.strengthSummary,
+        weaknessSummary = entity.weaknessSummary,
+        recommendedNextStep = entity.recommendedNextStep,
+        createdAt = entity.createdAt,
     )
 }

@@ -2,14 +2,17 @@ package com.example.interviewplatform.answer.service
 
 import com.example.interviewplatform.answer.dto.AnswerAttemptDetailResponseDto
 import com.example.interviewplatform.answer.dto.AnswerAttemptListItemDto
+import com.example.interviewplatform.answer.dto.AnswerAnalysisDto
 import com.example.interviewplatform.answer.dto.AnswerFeedbackItemDto
 import com.example.interviewplatform.answer.dto.ScoreSummaryDto
 import com.example.interviewplatform.answer.dto.SubmitAnswerRequest
 import com.example.interviewplatform.answer.dto.SubmitAnswerResponseDto
+import com.example.interviewplatform.answer.entity.AnswerAnalysisEntity
 import com.example.interviewplatform.answer.entity.AnswerAttemptEntity
 import com.example.interviewplatform.answer.entity.AnswerFeedbackItemEntity
 import com.example.interviewplatform.answer.entity.AnswerScoreEntity
 import com.example.interviewplatform.answer.mapper.AnswerMapper
+import com.example.interviewplatform.answer.repository.AnswerAnalysisRepository
 import com.example.interviewplatform.answer.repository.AnswerAttemptRepository
 import com.example.interviewplatform.answer.repository.AnswerFeedbackItemRepository
 import com.example.interviewplatform.answer.repository.AnswerScoreRepository
@@ -28,6 +31,7 @@ import org.springframework.web.server.ResponseStatusException
 
 @Service
 class AnswerService(
+    private val answerAnalysisRepository: AnswerAnalysisRepository,
     private val answerAttemptRepository: AnswerAttemptRepository,
     private val answerScoreRepository: AnswerScoreRepository,
     private val answerFeedbackItemRepository: AnswerFeedbackItemRepository,
@@ -36,6 +40,7 @@ class AnswerService(
     private val resumeRepository: ResumeRepository,
     private val userQuestionProgressRepository: UserQuestionProgressRepository,
     private val scoringService: ScoringService,
+    private val answerAnalysisService: AnswerAnalysisService,
     private val answerPolicyService: AnswerPolicyService,
     private val retrySchedulingService: RetrySchedulingService,
     private val clockService: ClockService,
@@ -68,6 +73,14 @@ class AnswerService(
 
         val feedbackEntities = buildFeedback(score, savedAttempt.id, now)
         val savedFeedback = answerFeedbackItemRepository.saveAll(feedbackEntities)
+        answerAnalysisRepository.save(
+            answerAnalysisService.analyze(
+                attempt = savedAttempt,
+                score = score,
+                feedback = savedFeedback.map(AnswerMapper::toFeedbackDto),
+                now = now,
+            ),
+        )
 
         val previousProgress = userQuestionProgressRepository.findByUserIdAndQuestionId(userId, questionId)
         val totalAttemptCount = (previousProgress?.totalAttemptCount ?: 0) + 1
@@ -145,6 +158,23 @@ class AnswerService(
             feedback = feedback.map(AnswerMapper::toFeedbackDto),
             progressSummary = progress?.let(::toProgressSummary),
         )
+    }
+
+    @Transactional(readOnly = true)
+    fun getAnswerAnalysis(userId: Long, answerAttemptId: Long): AnswerAnalysisDto {
+        val attempt = answerAttemptRepository.findByIdAndUserId(answerAttemptId, userId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Answer attempt not found: $answerAttemptId")
+        val score = answerScoreRepository.findById(answerAttemptId)
+            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Answer score not found: $answerAttemptId") }
+        val feedback = answerFeedbackItemRepository.findByAnswerAttemptIdOrderByDisplayOrderAsc(answerAttemptId)
+        val persisted = answerAnalysisRepository.findByAnswerAttemptId(answerAttemptId)
+        val analysis = persisted ?: answerAnalysisService.analyze(
+            attempt = attempt,
+            score = AnswerMapper.toScoreSummary(score),
+            feedback = feedback.map(AnswerMapper::toFeedbackDto),
+            now = score.evaluatedAt,
+        )
+        return AnswerMapper.toAnalysisDto(analysis)
     }
 
     private fun requireActiveQuestion(questionId: Long) {
