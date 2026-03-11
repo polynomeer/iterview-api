@@ -17,7 +17,10 @@ object ResumeMapper {
         id = entity.id,
         versionNo = entity.versionNo,
         fileUrl = entity.fileUrl,
+        fileName = entity.fileName,
+        fileType = entity.fileType,
         summaryText = entity.summaryText,
+        parsingStatus = entity.parsingStatus,
         isActive = entity.isActive,
         uploadedAt = entity.uploadedAt,
     )

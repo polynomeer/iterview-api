@@ -133,6 +133,44 @@ class ResumeApiIntegrationTest {
         assertEquals(listOf(version1Id, version2Id), resumeVersionIds)
     }
 
+    @Test
+    fun `latest resume and extracted resume intelligence endpoints return version snapshots`() {
+        seedSkillCategory("BACKEND", "Backend", 1)
+        seedSkill("Spring Boot", "BACKEND")
+        seedSkill("Redis", "BACKEND")
+
+        val resumeId = createResume("Parser Ready Resume")
+        val versionId = createResumeVersion(
+            resumeId = resumeId,
+            fileUrl = "https://files.example.com/parser-ready-resume.pdf",
+            summaryText = "Built backend APIs with Spring Boot and improved Redis cache latency by 40 percent.",
+            rawText = "Built backend APIs with Spring Boot. Improved Redis cache latency by 40 percent.",
+            parsedJson = "{\"skills\":[\"Spring Boot\",\"Redis\"]}",
+        )
+
+        mockMvc.perform(get("/api/resumes/latest").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.id").value(resumeId))
+            .andExpect(jsonPath("$.versions[0].id").value(versionId))
+            .andExpect(jsonPath("$.versions[0].parsingStatus").value("completed"))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/skills").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.resumeVersionId").value(versionId))
+            .andExpect(jsonPath("$.items.length()").value(2))
+            .andExpect(jsonPath("$.items[0].skillName").isNotEmpty)
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/experiences").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.resumeVersionId").value(versionId))
+            .andExpect(jsonPath("$.items.length()").value(2))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/risks").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.resumeVersionId").value(versionId))
+            .andExpect(jsonPath("$.items.length()").value(1))
+    }
+
     private fun createResume(title: String): Long {
         val payload = objectMapper.writeValueAsString(
             mapOf(
@@ -151,12 +189,18 @@ class ResumeApiIntegrationTest {
         return objectMapper.readTree(result.response.contentAsString).get("id").asLong()
     }
 
-    private fun createResumeVersion(resumeId: Long, fileUrl: String, summaryText: String): Long {
+    private fun createResumeVersion(
+        resumeId: Long,
+        fileUrl: String,
+        summaryText: String,
+        rawText: String = "resume text",
+        parsedJson: String = "{\"skills\":[\"kotlin\"]}",
+    ): Long {
         val payload = objectMapper.writeValueAsString(
             mapOf(
                 "fileUrl" to fileUrl,
-                "rawText" to "resume text",
-                "parsedJson" to "{\"skills\":[\"kotlin\"]}",
+                "rawText" to rawText,
+                "parsedJson" to parsedJson,
                 "summaryText" to summaryText,
             ),
         )
@@ -169,6 +213,40 @@ class ResumeApiIntegrationTest {
             .andExpect(status().isOk)
             .andReturn()
         return objectMapper.readTree(result.response.contentAsString).get("id").asLong()
+    }
+
+    private fun seedSkillCategory(code: String, name: String, displayOrder: Int) {
+        jdbcTemplate.update(
+            """
+            INSERT INTO skill_categories (code, name, display_order, created_at, updated_at)
+            VALUES (?, ?, ?, now(), now())
+            ON CONFLICT (code) DO UPDATE
+            SET name = EXCLUDED.name,
+                display_order = EXCLUDED.display_order,
+                updated_at = now()
+            """.trimIndent(),
+            code,
+            name,
+            displayOrder,
+        )
+    }
+
+    private fun seedSkill(name: String, categoryCode: String) {
+        jdbcTemplate.update(
+            """
+            INSERT INTO skills (skill_category_id, name, description, created_at, updated_at)
+            SELECT sc.id, ?, ?, now(), now()
+            FROM skill_categories sc
+            WHERE sc.code = ?
+            ON CONFLICT (name) DO UPDATE
+            SET skill_category_id = EXCLUDED.skill_category_id,
+                description = EXCLUDED.description,
+                updated_at = now()
+            """.trimIndent(),
+            name,
+            "$name description",
+            categoryCode,
+        )
     }
 
     private fun activateVersion(versionId: Long) {

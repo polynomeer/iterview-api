@@ -20,12 +20,18 @@ class ResumeVersionEntity(
     val versionNo: Int,
     @Column(name = "file_url")
     val fileUrl: String? = null,
+    @Column(name = "file_name")
+    val fileName: String? = null,
+    @Column(name = "file_type")
+    val fileType: String? = null,
     @Column(name = "raw_text")
     val rawText: String? = null,
     @Column(name = "parsed_json", columnDefinition = "TEXT")
     val parsedJson: String? = null,
     @Column(name = "summary_text")
     val summaryText: String? = null,
+    @Column(name = "parsing_status", nullable = false)
+    val parsingStatus: String,
     @Column(name = "is_active", nullable = false)
     val isActive: Boolean = false,
     @Column(name = "uploaded_at", nullable = false)

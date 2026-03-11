@@ -9,6 +9,8 @@ import java.time.Instant
 interface ResumeRepository : JpaRepository<ResumeEntity, Long> {
     fun findByUserIdOrderByCreatedAtDesc(userId: Long): List<ResumeEntity>
 
+    fun findByUserIdOrderByIsPrimaryDescCreatedAtDesc(userId: Long): List<ResumeEntity>
+
     fun findByIdAndUserId(id: Long, userId: Long): ResumeEntity?
 
     @Modifying

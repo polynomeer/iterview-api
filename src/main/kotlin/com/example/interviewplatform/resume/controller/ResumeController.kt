@@ -29,6 +29,10 @@ class ResumeController(
     @Operation(summary = "List current user resumes")
     fun listResumes(): List<ResumeDto> = resumeService.listUserResumes(currentUserProvider.currentUserId())
 
+    @GetMapping("/latest")
+    @Operation(summary = "Get latest or primary resume")
+    fun getLatestResume(): ResumeDto = resumeService.getLatestResume(currentUserProvider.currentUserId())
+
     @PostMapping
     @Operation(summary = "Create resume container")
     fun createResume(@Valid @RequestBody request: CreateResumeRequest): ResumeDto =
