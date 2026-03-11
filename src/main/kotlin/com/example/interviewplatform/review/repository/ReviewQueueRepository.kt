@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.Query
 import java.time.Instant
 
 interface ReviewQueueRepository : JpaRepository<ReviewQueueEntity, Long> {
+    fun findByUserIdAndStatus(userId: Long, status: String): List<ReviewQueueEntity>
+
     fun findByUserIdAndStatusAndScheduledForLessThanEqualOrderByScheduledForAscPriorityDesc(
         userId: Long,
         status: String,

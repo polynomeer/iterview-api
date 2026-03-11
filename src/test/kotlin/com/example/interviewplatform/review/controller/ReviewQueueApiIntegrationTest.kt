@@ -82,6 +82,64 @@ class ReviewQueueApiIntegrationTest {
     }
 
     @Test
+    fun `review queue recalculates priority from analysis confidence and resume risk`() {
+        seedSkillCategory("BACKEND", "Backend", 1)
+        seedSkill("Redis", "BACKEND")
+
+        val questionId = insertQuestion("Resume risk review question")
+        val answerAttemptId = insertAttempt(questionId)
+        val queueId = insertQueue(questionId, answerAttemptId, 10, "now() - interval '1 hour'")
+        val resumeId = jdbcTemplate.queryForObject(
+            "INSERT INTO resumes (user_id, title, is_primary, created_at, updated_at) VALUES (1, 'Review Resume', true, now(), now()) RETURNING id",
+            Long::class.java,
+        )!!
+        val resumeVersionId = jdbcTemplate.queryForObject(
+            """
+            INSERT INTO resume_versions (
+                resume_id, version_no, file_url, file_name, file_type, raw_text, parsed_json, summary_text, parsing_status, is_active, uploaded_at, created_at
+            ) VALUES (
+                ?, 1, 'https://files.example.com/review.pdf', 'review.pdf', 'pdf', 'raw', '{}', 'summary', 'completed', true, now(), now()
+            ) RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            resumeId,
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO answer_scores (
+                answer_attempt_id, total_score, structure_score, specificity_score, technical_accuracy_score,
+                role_fit_score, company_fit_score, communication_score, evaluation_result, evaluated_at
+            ) VALUES (?, 52, 52, 52, 52, 52, 52, 52, 'FAIL', now())
+            """.trimIndent(),
+            answerAttemptId,
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO answer_analyses (
+                answer_attempt_id, overall_score, depth_score, clarity_score, accuracy_score, example_score,
+                tradeoff_score, confidence_score, strength_summary, weakness_summary, recommended_next_step, created_at
+            ) VALUES (?, 52, 40, 50, 48, 35, 30, 20, 'strength', 'weakness', 'next', now())
+            """.trimIndent(),
+            answerAttemptId,
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO resume_risk_items (
+                resume_version_id, resume_experience_snapshot_id, linked_question_id, risk_type, title, description, severity, created_at, updated_at
+            ) VALUES (?, NULL, ?, 'impact_claim', 'Risk', 'Description', 'HIGH', now(), now())
+            """.trimIndent(),
+            resumeVersionId,
+            questionId,
+        )
+
+        mockMvc.perform(get("/api/review-queue").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].id").value(queueId))
+            .andExpect(jsonPath("$[0].priority").value(org.hamcrest.Matchers.greaterThan(10)))
+            .andExpect(jsonPath("$[0].reasonType").value("resume_risk"))
+    }
+
+    @Test
     fun `review queue returns not found for missing item`() {
         mockMvc.perform(post("/api/review-queue/999999/skip").header("Authorization", authHeader))
             .andExpect(status().isNotFound)
@@ -148,4 +206,38 @@ class ReviewQueueApiIntegrationTest {
         answerAttemptId,
         priority,
     )
+
+    private fun seedSkillCategory(code: String, name: String, displayOrder: Int) {
+        jdbcTemplate.update(
+            """
+            INSERT INTO skill_categories (code, name, display_order, created_at, updated_at)
+            VALUES (?, ?, ?, now(), now())
+            ON CONFLICT (code) DO UPDATE
+            SET name = EXCLUDED.name,
+                display_order = EXCLUDED.display_order,
+                updated_at = now()
+            """.trimIndent(),
+            code,
+            name,
+            displayOrder,
+        )
+    }
+
+    private fun seedSkill(name: String, categoryCode: String) {
+        jdbcTemplate.update(
+            """
+            INSERT INTO skills (skill_category_id, name, description, created_at, updated_at)
+            SELECT sc.id, ?, ?, now(), now()
+            FROM skill_categories sc
+            WHERE sc.code = ?
+            ON CONFLICT (name) DO UPDATE
+            SET skill_category_id = EXCLUDED.skill_category_id,
+                description = EXCLUDED.description,
+                updated_at = now()
+            """.trimIndent(),
+            name,
+            "$name description",
+            categoryCode,
+        )
+    }
 }

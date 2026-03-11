@@ -1,9 +1,15 @@
 package com.example.interviewplatform.review.service
 
+import com.example.interviewplatform.answer.repository.AnswerAnalysisRepository
+import com.example.interviewplatform.answer.repository.AnswerScoreRepository
 import com.example.interviewplatform.common.service.ClockService
 import com.example.interviewplatform.question.repository.QuestionRepository
+import com.example.interviewplatform.resume.repository.ResumeRepository
+import com.example.interviewplatform.resume.repository.ResumeRiskItemRepository
+import com.example.interviewplatform.resume.repository.ResumeVersionRepository
 import com.example.interviewplatform.review.dto.ReviewQueueActionResponseDto
 import com.example.interviewplatform.review.dto.ReviewQueueItemDto
+import com.example.interviewplatform.review.entity.ReviewQueueEntity
 import com.example.interviewplatform.review.repository.ReviewQueueRepository
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -14,15 +20,19 @@ import org.springframework.web.server.ResponseStatusException
 class ReviewQueueService(
     private val reviewQueueRepository: ReviewQueueRepository,
     private val questionRepository: QuestionRepository,
+    private val answerScoreRepository: AnswerScoreRepository,
+    private val answerAnalysisRepository: AnswerAnalysisRepository,
+    private val resumeRepository: ResumeRepository,
+    private val resumeVersionRepository: ResumeVersionRepository,
+    private val resumeRiskItemRepository: ResumeRiskItemRepository,
+    private val reviewPriorityService: ReviewPriorityService,
     private val clockService: ClockService,
 ) {
-    @Transactional(readOnly = true)
+    @Transactional
     fun listPending(userId: Long): List<ReviewQueueItemDto> {
-        val rows = reviewQueueRepository.findByUserIdAndStatusAndScheduledForLessThanEqualOrderByScheduledForAscPriorityDesc(
-            userId,
-            STATUS_PENDING,
-            clockService.now(),
-        )
+        val now = clockService.now()
+        refreshPendingPriorities(userId, now)
+        val rows = reviewQueueRepository.findByUserIdAndStatusAndScheduledForLessThanEqualOrderByScheduledForAscPriorityDesc(userId, STATUS_PENDING, now)
         if (rows.isEmpty()) {
             return emptyList()
         }
@@ -40,6 +50,60 @@ class ReviewQueueService(
                 scheduledFor = row.scheduledFor,
                 status = row.status,
             )
+        }
+    }
+
+    private fun refreshPendingPriorities(userId: Long, now: java.time.Instant) {
+        val pendingRows = reviewQueueRepository.findByUserIdAndStatus(userId, STATUS_PENDING)
+        if (pendingRows.isEmpty()) {
+            return
+        }
+
+        val scoreByAttemptId = answerScoreRepository.findAllById(pendingRows.map { it.triggerAnswerAttemptId }).associateBy { it.answerAttemptId }
+        val analysisByAttemptId = answerAnalysisRepository.findByAnswerAttemptIdIn(pendingRows.map { it.triggerAnswerAttemptId })
+            .associateBy { it.answerAttemptId }
+        val latestResumeVersionId = resumeRepository.findByUserIdOrderByIsPrimaryDescCreatedAtDesc(userId).firstOrNull()?.let { resume ->
+            resumeVersionRepository.findByResumeIdOrderByVersionNoAsc(resume.id).findLast { it.isActive }?.id
+                ?: resumeVersionRepository.findTopByResumeIdOrderByVersionNoDesc(resume.id)?.id
+        }
+        val riskSeverityByQuestionId = latestResumeVersionId?.let { versionId ->
+            resumeRiskItemRepository.findByResumeVersionIdOrderBySeverityDescIdAsc(versionId)
+                .associate { riskItem -> riskItem.linkedQuestionId to riskItem.severity }
+        }.orEmpty().filterKeys { it != null }.mapKeys { it.key!! }
+
+        pendingRows.forEach { row ->
+            val score = scoreByAttemptId[row.triggerAnswerAttemptId]?.totalScore?.toDouble()
+            val confidence = analysisByAttemptId[row.triggerAnswerAttemptId]?.confidenceScore?.toDouble()
+            val riskSeverity = riskSeverityByQuestionId[row.questionId]
+            val priority = reviewPriorityService.calculate(
+                overallScore = score,
+                confidenceScore = confidence,
+                scheduledFor = row.scheduledFor,
+                riskSeverity = riskSeverity,
+                now = now,
+            )
+            val reasonType = when {
+                riskSeverity == "HIGH" -> "resume_risk"
+                (confidence ?: 100.0) < 50.0 -> "low_confidence"
+                row.scheduledFor.isBefore(now) -> row.reasonType
+                else -> row.reasonType
+            }
+            if (priority != row.priority || reasonType != row.reasonType) {
+                reviewQueueRepository.save(
+                    ReviewQueueEntity(
+                        id = row.id,
+                        userId = row.userId,
+                        questionId = row.questionId,
+                        triggerAnswerAttemptId = row.triggerAnswerAttemptId,
+                        reasonType = reasonType,
+                        priority = priority,
+                        scheduledFor = row.scheduledFor,
+                        status = row.status,
+                        createdAt = row.createdAt,
+                        updatedAt = now,
+                    ),
+                )
+            }
         }
     }
 
