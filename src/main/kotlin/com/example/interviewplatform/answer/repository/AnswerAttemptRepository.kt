@@ -4,6 +4,8 @@ import com.example.interviewplatform.answer.entity.AnswerAttemptEntity
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface AnswerAttemptRepository : JpaRepository<AnswerAttemptEntity, Long> {
+    fun findByUserIdOrderBySubmittedAtDesc(userId: Long): List<AnswerAttemptEntity>
+
     fun findByUserIdAndQuestionIdOrderBySubmittedAtDesc(userId: Long, questionId: Long): List<AnswerAttemptEntity>
 
     fun findByUserIdAndQuestionIdOrderByAttemptNoDesc(userId: Long, questionId: Long): List<AnswerAttemptEntity>
