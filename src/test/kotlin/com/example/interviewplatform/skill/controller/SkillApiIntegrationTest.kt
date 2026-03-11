@@ -113,6 +113,12 @@ class SkillApiIntegrationTest {
         val progressByCode = progressJson.associateBy { it.get("categoryCode").asText() }
         assertEquals(1, progressByCode.getValue("BACKEND").get("answeredQuestionCount").asInt())
         assertEquals(1, progressByCode.getValue("DATABASE").get("weakQuestionCount").asInt())
+
+        val persistedRows = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM skill_category_scores WHERE user_id = 1",
+            Int::class.java,
+        )
+        assertEquals(radarJson.get("categories").size(), persistedRows)
     }
 
     private fun insertSkillCategory(code: String, name: String, displayOrder: Int): Long {

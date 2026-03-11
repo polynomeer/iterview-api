@@ -59,6 +59,8 @@ class SkillRadarService(
         if (categories.isEmpty()) {
             return emptyList()
         }
+        val existingByCategoryId = skillCategoryScoreRepository.findByUserIdOrderByScoreDesc(userId)
+            .associateBy { it.skillCategoryId }
 
         val profile = userProfileRepository.findById(userId).orElse(null)
         val benchmarkByCategoryId = profile?.jobRoleId?.let { jobRoleId ->
@@ -84,7 +86,7 @@ class SkillRadarService(
             .associateBy { it.questionId }
         val now = Instant.now()
 
-        return categories.map { category ->
+        categories.forEach { category ->
             val mappings = mappingsByCategoryId[category.id].orEmpty()
             val categoryQuestionIds = mappings.map { it.questionId }.distinct()
             val attempts = categoryQuestionIds.mapNotNull { latestAttemptsByQuestionId[it] }
@@ -106,24 +108,21 @@ class SkillRadarService(
             )
             val benchmark = benchmarkByCategoryId[category.id]?.benchmarkScore
             val gap = skillScoreCalculator.calculateGap(benchmark, finalScore)
-            val existing = skillCategoryScoreRepository.findByUserIdAndSkillCategoryId(userId, category.id)
-
-            skillCategoryScoreRepository.save(
-                SkillCategoryScoreEntity(
-                    id = existing?.id ?: 0,
-                    userId = userId,
-                    skillCategoryId = category.id,
-                    score = finalScore,
-                    answeredQuestionCount = progresses.count { it.totalAttemptCount > 0 },
-                    weakQuestionCount = progresses.count { it.currentStatus == "retry_pending" || (it.latestScore?.toDouble() ?: 0.0) < 60.0 },
-                    benchmarkScore = benchmark,
-                    gapScore = gap,
-                    calculatedAt = now,
-                    createdAt = existing?.createdAt ?: now,
-                    updatedAt = now,
-                ),
+            val existing = existingByCategoryId[category.id]
+            skillCategoryScoreRepository.upsert(
+                userId = userId,
+                skillCategoryId = category.id,
+                score = finalScore,
+                answeredQuestionCount = progresses.count { it.totalAttemptCount > 0 },
+                weakQuestionCount = progresses.count { it.currentStatus == "retry_pending" || (it.latestScore?.toDouble() ?: 0.0) < 60.0 },
+                benchmarkScore = benchmark,
+                gapScore = gap,
+                calculatedAt = now,
+                createdAt = existing?.createdAt ?: now,
+                updatedAt = now,
             )
         }
+        return skillCategoryScoreRepository.findByUserIdOrderByScoreDesc(userId)
     }
 
     private fun toRadarCategoryDto(score: SkillCategoryScoreEntity): SkillRadarCategoryDto {
