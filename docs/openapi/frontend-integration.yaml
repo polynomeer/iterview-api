@@ -1,0 +1,887 @@
+openapi: 3.0.3
+info:
+  title: Iterview Frontend Integration API
+  version: "2026-03-11"
+  description: >
+    Frontend-oriented OpenAPI snapshot for the implemented interview intelligence
+    flows. This file is documentation-only and does not participate in runtime logic.
+servers:
+  - url: http://localhost:8080
+    description: Local development
+security:
+  - bearerAuth: []
+tags:
+  - name: Home
+  - name: Resume
+  - name: Questions
+  - name: Answers
+  - name: Skills
+  - name: Review Queue
+  - name: Interview Sessions
+paths:
+  /api/home:
+    get:
+      tags: [Home]
+      summary: Get home dashboard payload
+      responses:
+        "200":
+          description: Home dashboard payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HomeResponseDto"
+  /api/resumes/latest:
+    get:
+      tags: [Resume]
+      summary: Get latest or primary resume
+      responses:
+        "200":
+          description: Latest resume container
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeDto"
+  /api/resume-versions/{versionId}/skills:
+    get:
+      tags: [Resume]
+      summary: Get extracted resume skills
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Skill snapshot list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeSkillSnapshotResponseDto"
+  /api/resume-versions/{versionId}/experiences:
+    get:
+      tags: [Resume]
+      summary: Get extracted resume experiences
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Experience snapshot list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeExperienceSnapshotResponseDto"
+  /api/resume-versions/{versionId}/risks:
+    get:
+      tags: [Resume]
+      summary: Get extracted resume risk items
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Resume risk list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeRiskItemResponseDto"
+  /api/questions/{questionId}:
+    get:
+      tags: [Questions]
+      security: []
+      summary: Get question detail
+      parameters:
+        - $ref: "#/components/parameters/QuestionId"
+      responses:
+        "200":
+          description: Question detail payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionDetailResponse"
+  /api/questions/{questionId}/tree:
+    get:
+      tags: [Questions]
+      summary: Get question follow-up tree
+      parameters:
+        - $ref: "#/components/parameters/QuestionId"
+      responses:
+        "200":
+          description: Rooted question tree
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionTreeResponseDto"
+  /api/questions/{questionId}/recommended-followups:
+    get:
+      tags: [Questions]
+      summary: Get recommended follow-up questions
+      parameters:
+        - $ref: "#/components/parameters/QuestionId"
+      responses:
+        "200":
+          description: Recommended follow-up questions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RecommendedFollowUpDto"
+  /api/questions/resume-based:
+    get:
+      tags: [Questions]
+      summary: Get resume-based recommended questions
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        "200":
+          description: Resume-derived recommended questions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResumeBasedQuestionDto"
+  /api/questions/{questionId}/answers:
+    get:
+      tags: [Answers]
+      summary: List answer attempts for a question
+      parameters:
+        - $ref: "#/components/parameters/QuestionId"
+      responses:
+        "200":
+          description: Answer history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AnswerAttemptListItemDto"
+    post:
+      tags: [Answers]
+      summary: Submit answer attempt
+      parameters:
+        - $ref: "#/components/parameters/QuestionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitAnswerRequest"
+      responses:
+        "200":
+          description: Submission result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmitAnswerResponseDto"
+  /api/answer-attempts/{answerAttemptId}:
+    get:
+      tags: [Answers]
+      summary: Get answer attempt detail
+      parameters:
+        - $ref: "#/components/parameters/AnswerAttemptId"
+      responses:
+        "200":
+          description: Answer attempt detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnswerAttemptDetailResponseDto"
+  /api/answer-attempts/{answerAttemptId}/analysis:
+    get:
+      tags: [Answers]
+      summary: Get answer analysis
+      parameters:
+        - $ref: "#/components/parameters/AnswerAttemptId"
+      responses:
+        "200":
+          description: Answer analysis payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnswerAnalysisDto"
+  /api/skills/radar:
+    get:
+      tags: [Skills]
+      summary: Get skill radar
+      responses:
+        "200":
+          description: Skill radar payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillRadarResponseDto"
+  /api/skills/gaps:
+    get:
+      tags: [Skills]
+      summary: Get ranked skill gaps
+      responses:
+        "200":
+          description: Ranked gap list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SkillGapItemDto"
+  /api/skills/progress:
+    get:
+      tags: [Skills]
+      summary: Get skill progress snapshot
+      responses:
+        "200":
+          description: Skill progress list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SkillProgressItemDto"
+  /api/review-queue:
+    get:
+      tags: [Review Queue]
+      summary: List pending review queue items
+      responses:
+        "200":
+          description: Pending queue items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReviewQueueItemDto"
+  /api/review-queue/{queueId}/skip:
+    post:
+      tags: [Review Queue]
+      summary: Skip review queue item
+      parameters:
+        - $ref: "#/components/parameters/QueueId"
+      responses:
+        "200":
+          description: Queue state update
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewQueueActionResponseDto"
+  /api/review-queue/{queueId}/done:
+    post:
+      tags: [Review Queue]
+      summary: Complete review queue item
+      parameters:
+        - $ref: "#/components/parameters/QueueId"
+      responses:
+        "200":
+          description: Queue state update
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewQueueActionResponseDto"
+  /api/interview-sessions:
+    post:
+      tags: [Interview Sessions]
+      summary: Create interview session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInterviewSessionRequest"
+      responses:
+        "200":
+          description: Created session detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewSessionDetailResponseDto"
+  /api/interview-sessions/{sessionId}:
+    get:
+      tags: [Interview Sessions]
+      summary: Get interview session detail
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Session detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewSessionDetailResponseDto"
+  /api/interview-sessions/{sessionId}/answers:
+    post:
+      tags: [Interview Sessions]
+      summary: Submit session answer
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitInterviewSessionAnswerRequest"
+      responses:
+        "200":
+          description: Session answer result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewSessionAnswerResponseDto"
+  /api/interview-sessions/{sessionId}/next-question:
+    post:
+      tags: [Interview Sessions]
+      summary: Advance to next interview question
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Advanced session state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewSessionAdvanceResponseDto"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    VersionId:
+      in: path
+      name: versionId
+      required: true
+      schema:
+        type: integer
+        format: int64
+    QuestionId:
+      in: path
+      name: questionId
+      required: true
+      schema:
+        type: integer
+        format: int64
+    AnswerAttemptId:
+      in: path
+      name: answerAttemptId
+      required: true
+      schema:
+        type: integer
+        format: int64
+    QueueId:
+      in: path
+      name: queueId
+      required: true
+      schema:
+        type: integer
+        format: int64
+    SessionId:
+      in: path
+      name: sessionId
+      required: true
+      schema:
+        type: integer
+        format: int64
+  schemas:
+    ResumeDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        title: { type: string }
+        isPrimary: { type: boolean }
+        versions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeVersionDto"
+    ResumeVersionDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        versionNo: { type: integer }
+        fileUrl: { type: string, nullable: true }
+        fileName: { type: string, nullable: true }
+        fileType: { type: string, nullable: true }
+        rawText: { type: string, nullable: true }
+        parsedJson: { type: string, nullable: true }
+        summaryText: { type: string, nullable: true }
+        parsingStatus: { type: string }
+        isActive: { type: boolean }
+        uploadedAt: { type: string, format: date-time }
+    ResumeSkillSnapshotResponseDto:
+      type: object
+      properties:
+        resumeVersionId: { type: integer, format: int64 }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeSkillSnapshotDto"
+        generatedAt: { type: string, format: date-time }
+    ResumeSkillSnapshotDto:
+      type: object
+      properties:
+        skillId: { type: integer, format: int64, nullable: true }
+        skillName: { type: string }
+        skillCategory: { type: string, nullable: true }
+        sourceText: { type: string, nullable: true }
+        confidenceScore: { type: number, format: double, nullable: true }
+        confirmed: { type: boolean }
+    ResumeExperienceSnapshotResponseDto:
+      type: object
+      properties:
+        resumeVersionId: { type: integer, format: int64 }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeExperienceSnapshotDto"
+        generatedAt: { type: string, format: date-time }
+    ResumeExperienceSnapshotDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        projectName: { type: string, nullable: true }
+        summaryText: { type: string }
+        impactText: { type: string, nullable: true }
+        sourceText: { type: string }
+        riskLevel: { type: string }
+        displayOrder: { type: integer }
+        confirmed: { type: boolean }
+    ResumeRiskItemResponseDto:
+      type: object
+      properties:
+        resumeVersionId: { type: integer, format: int64 }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeRiskItemDto"
+        generatedAt: { type: string, format: date-time }
+    ResumeRiskItemDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        resumeExperienceSnapshotId: { type: integer, format: int64, nullable: true }
+        linkedQuestionId: { type: integer, format: int64, nullable: true }
+        riskType: { type: string }
+        title: { type: string }
+        description: { type: string }
+        severity: { type: string }
+    QuestionDetailResponse:
+      type: object
+      properties:
+        question:
+          $ref: "#/components/schemas/QuestionSummaryDetailDto"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestionTagDto"
+        companies:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestionCompanyDto"
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestionRoleDto"
+        learningMaterials:
+          type: array
+          items:
+            $ref: "#/components/schemas/LearningMaterialDto"
+        userProgressSummary:
+          allOf:
+            - $ref: "#/components/schemas/UserProgressSummaryDto"
+          nullable: true
+    QuestionSummaryDetailDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        title: { type: string }
+        body: { type: string }
+        categoryId: { type: integer, format: int64 }
+        categoryName: { type: string }
+        questionType: { type: string }
+        difficultyLevel: { type: string }
+        qualityStatus: { type: string }
+        expectedAnswerSeconds: { type: integer, nullable: true }
+    QuestionTreeResponseDto:
+      type: object
+      properties:
+        root:
+          $ref: "#/components/schemas/QuestionTreeNodeDto"
+    QuestionTreeNodeDto:
+      type: object
+      properties:
+        questionId: { type: integer, format: int64 }
+        title: { type: string }
+        difficulty: { type: string }
+        depth: { type: integer }
+        relationshipType: { type: string, nullable: true }
+        nodeStatus: { type: string }
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestionTreeNodeDto"
+    RecommendedFollowUpDto:
+      type: object
+      properties:
+        questionId: { type: integer, format: int64 }
+        title: { type: string }
+        difficulty: { type: string }
+        relationshipType: { type: string }
+        depth: { type: integer }
+        nodeStatus: { type: string }
+    ResumeBasedQuestionDto:
+      type: object
+      properties:
+        questionId: { type: integer, format: int64 }
+        title: { type: string }
+        difficulty: { type: string }
+        matchScore: { type: number, format: double }
+        matchedSkills:
+          type: array
+          items: { type: string }
+    SubmitAnswerRequest:
+      type: object
+      required: [answerMode, contentText]
+      properties:
+        resumeVersionId: { type: integer, format: int64, nullable: true }
+        answerMode: { type: string, example: text }
+        contentText: { type: string }
+    SubmitAnswerResponseDto:
+      type: object
+      properties:
+        answerAttemptId: { type: integer, format: int64 }
+        scoreSummary:
+          $ref: "#/components/schemas/ScoreSummaryDto"
+        feedback:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnswerFeedbackItemDto"
+        progressStatus: { type: string }
+        nextReviewAt: { type: string, format: date-time, nullable: true }
+        archiveDecision: { type: boolean }
+    AnswerAttemptListItemDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        attemptNo: { type: integer }
+        answerMode: { type: string }
+        submittedAt: { type: string, format: date-time }
+        score:
+          $ref: "#/components/schemas/ScoreSummaryDto"
+    AnswerAttemptDetailResponseDto:
+      type: object
+      properties:
+        answerAttempt:
+          $ref: "#/components/schemas/AnswerAttemptDto"
+        score:
+          $ref: "#/components/schemas/ScoreSummaryDto"
+        feedback:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnswerFeedbackItemDto"
+        progressSummary:
+          allOf:
+            - $ref: "#/components/schemas/UserProgressSummaryDto"
+          nullable: true
+    AnswerAttemptDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        questionId: { type: integer, format: int64 }
+        resumeVersionId: { type: integer, format: int64, nullable: true }
+        attemptNo: { type: integer }
+        answerMode: { type: string }
+        contentText: { type: string }
+        submittedAt: { type: string, format: date-time }
+    AnswerAnalysisDto:
+      type: object
+      properties:
+        answerAttemptId: { type: integer, format: int64 }
+        overallScore: { type: number, format: double }
+        depthScore: { type: number, format: double }
+        clarityScore: { type: number, format: double }
+        accuracyScore: { type: number, format: double }
+        exampleScore: { type: number, format: double }
+        tradeoffScore: { type: number, format: double }
+        confidenceScore: { type: number, format: double, nullable: true }
+        strengthSummary: { type: string }
+        weaknessSummary: { type: string }
+        recommendedNextStep: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    ScoreSummaryDto:
+      type: object
+      properties:
+        totalScore: { type: integer }
+        structureScore: { type: integer }
+        specificityScore: { type: integer }
+        technicalAccuracyScore: { type: integer }
+        roleFitScore: { type: integer }
+        companyFitScore: { type: integer }
+        communicationScore: { type: integer }
+        evaluationResult: { type: string }
+    AnswerFeedbackItemDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        feedbackType: { type: string }
+        severity: { type: string }
+        title: { type: string }
+        body: { type: string }
+        displayOrder: { type: integer }
+    UserProgressSummaryDto:
+      type: object
+      properties:
+        currentStatus: { type: string }
+        latestScore: { type: number, format: double, nullable: true }
+        bestScore: { type: number, format: double, nullable: true }
+        totalAttemptCount: { type: integer }
+        lastAnsweredAt: { type: string, format: date-time, nullable: true }
+        nextReviewAt: { type: string, format: date-time, nullable: true }
+        masteryLevel: { type: string, nullable: true }
+    SkillRadarResponseDto:
+      type: object
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillRadarCategoryDto"
+        updatedAt: { type: string, format: date-time }
+    SkillRadarCategoryDto:
+      type: object
+      properties:
+        categoryCode: { type: string }
+        label: { type: string }
+        score: { type: number, format: double }
+        benchmarkScore: { type: number, format: double, nullable: true }
+        gapScore: { type: number, format: double, nullable: true }
+    SkillGapItemDto:
+      type: object
+      properties:
+        categoryCode: { type: string }
+        label: { type: string }
+        score: { type: number, format: double }
+        benchmarkScore: { type: number, format: double, nullable: true }
+        gapScore: { type: number, format: double, nullable: true }
+    SkillProgressItemDto:
+      type: object
+      properties:
+        categoryCode: { type: string }
+        label: { type: string }
+        score: { type: number, format: double }
+        benchmarkScore: { type: number, format: double, nullable: true }
+        gapScore: { type: number, format: double, nullable: true }
+        answeredQuestionCount: { type: integer }
+        weakQuestionCount: { type: integer }
+        calculatedAt: { type: string, format: date-time }
+    ReviewQueueItemDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        questionId: { type: integer, format: int64 }
+        questionTitle: { type: string }
+        questionDifficulty: { type: string }
+        reasonType: { type: string }
+        priority: { type: integer }
+        scheduledFor: { type: string, format: date-time }
+        status: { type: string }
+    ReviewQueueActionResponseDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        status: { type: string }
+        updatedAt: { type: string, format: date-time }
+    HomeResponseDto:
+      type: object
+      properties:
+        todayQuestion:
+          allOf:
+            - $ref: "#/components/schemas/HomeQuestionDto"
+          nullable: true
+        retryQuestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/HomeRetryQuestionDto"
+        learningMaterials:
+          type: array
+          items:
+            $ref: "#/components/schemas/LearningMaterialDto"
+        summaryStats:
+          $ref: "#/components/schemas/HomeSummaryStatsDto"
+        skillRadarPreview:
+          type: array
+          items:
+            $ref: "#/components/schemas/HomeSkillRadarPreviewDto"
+        weakSkillHighlights:
+          type: array
+          items:
+            $ref: "#/components/schemas/HomeWeakSkillDto"
+        resumeRiskPreview:
+          type: array
+          items:
+            $ref: "#/components/schemas/HomeResumeRiskQuestionDto"
+    HomeQuestionDto:
+      type: object
+      properties:
+        dailyCardId: { type: integer, format: int64 }
+        questionId: { type: integer, format: int64 }
+        title: { type: string }
+        difficulty: { type: string }
+        cardDate: { type: string, format: date }
+        cardType: { type: string }
+        status: { type: string }
+    HomeRetryQuestionDto:
+      type: object
+      properties:
+        reviewQueueId: { type: integer, format: int64 }
+        questionId: { type: integer, format: int64 }
+        title: { type: string }
+        difficulty: { type: string }
+        priority: { type: integer }
+        scheduledFor: { type: string, format: date-time }
+    HomeSummaryStatsDto:
+      type: object
+      properties:
+        dailyQuestionCount: { type: integer }
+        retryQuestionCount: { type: integer }
+        pendingReviewCount: { type: integer }
+        archivedQuestionCount: { type: integer }
+    HomeSkillRadarPreviewDto:
+      type: object
+      properties:
+        categoryCode: { type: string }
+        score: { type: number, format: double }
+        gapScore: { type: number, format: double, nullable: true }
+    HomeWeakSkillDto:
+      type: object
+      properties:
+        categoryCode: { type: string }
+        label: { type: string }
+        gapScore: { type: number, format: double, nullable: true }
+    HomeResumeRiskQuestionDto:
+      type: object
+      properties:
+        questionId: { type: integer, format: int64 }
+        title: { type: string }
+        severity: { type: string }
+    InterviewSessionDetailResponseDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        sessionType: { type: string }
+        status: { type: string }
+        resumeVersionId: { type: integer, format: int64, nullable: true }
+        startedAt: { type: string, format: date-time }
+        endedAt: { type: string, format: date-time, nullable: true }
+        currentQuestion:
+          allOf:
+            - $ref: "#/components/schemas/InterviewSessionQuestionDto"
+          nullable: true
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewSessionQuestionDto"
+        summary:
+          $ref: "#/components/schemas/InterviewSessionSummaryDto"
+    CreateInterviewSessionRequest:
+      type: object
+      required: [sessionType]
+      properties:
+        sessionType:
+          type: string
+          enum: [resume_mock, review_mock, topic_mock]
+        questionCount:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 5
+        resumeVersionId:
+          type: integer
+          format: int64
+          nullable: true
+        seedQuestionIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+    SubmitInterviewSessionAnswerRequest:
+      type: object
+      required: [sessionQuestionId, answerMode, contentText]
+      properties:
+        sessionQuestionId: { type: integer, format: int64 }
+        answerMode: { type: string }
+        contentText: { type: string }
+        resumeVersionId:
+          type: integer
+          format: int64
+          nullable: true
+    InterviewSessionQuestionDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        questionId: { type: integer, format: int64 }
+        title: { type: string }
+        difficulty: { type: string }
+        orderIndex: { type: integer }
+        status: { type: string }
+        answerAttemptId:
+          type: integer
+          format: int64
+          nullable: true
+    InterviewSessionSummaryDto:
+      type: object
+      properties:
+        totalQuestions: { type: integer }
+        answeredQuestions: { type: integer }
+        remainingQuestions: { type: integer }
+        averageScore: { type: number, format: double, nullable: true }
+    InterviewSessionAnswerResponseDto:
+      type: object
+      properties:
+        sessionId: { type: integer, format: int64 }
+        sessionQuestionId: { type: integer, format: int64 }
+        status: { type: string }
+        answer:
+          $ref: "#/components/schemas/SubmitAnswerResponseDto"
+        nextQuestion:
+          allOf:
+            - $ref: "#/components/schemas/InterviewSessionQuestionDto"
+          nullable: true
+        summary:
+          $ref: "#/components/schemas/InterviewSessionSummaryDto"
+    InterviewSessionAdvanceResponseDto:
+      type: object
+      properties:
+        sessionId: { type: integer, format: int64 }
+        status: { type: string }
+        currentQuestion:
+          allOf:
+            - $ref: "#/components/schemas/InterviewSessionQuestionDto"
+          nullable: true
+        summary:
+          $ref: "#/components/schemas/InterviewSessionSummaryDto"
+    QuestionTagDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+    QuestionCompanyDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        relevanceScore: { type: number, format: double }
+        pastFrequent: { type: boolean }
+        trendingRecent: { type: boolean }
+    QuestionRoleDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        relevanceScore: { type: number, format: double }
+    LearningMaterialDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        title: { type: string }
+        materialType: { type: string }
+        contentUrl: { type: string, nullable: true }
+        sourceName: { type: string, nullable: true }
