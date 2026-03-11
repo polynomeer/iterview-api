@@ -194,6 +194,47 @@ class InterviewSessionApiIntegrationTest {
             .andExpect(jsonPath("$.summary.averageScore").isNumber)
     }
 
+    @Test
+    fun `create session rejects unsupported type`() {
+        mockMvc.perform(
+            post("/api/interview-sessions")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "sessionType" to "voice_mock",
+                            "questionCount" to 1,
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `session answer validates required session question id`() {
+        val categoryId = insertCategory("Validation")
+        val questionId = insertQuestion("Explain validation boundaries", categoryId)
+        val sessionResponse = createTopicSession(listOf(questionId))
+        val sessionId = sessionResponse.get("id").asLong()
+
+        mockMvc.perform(
+            post("/api/interview-sessions/$sessionId/answers")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "answerMode" to "text",
+                            "contentText" to "Missing session question id",
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isBadRequest)
+    }
+
     private fun createTopicSession(questionIds: List<Long>): JsonNode {
         val response = mockMvc.perform(
             post("/api/interview-sessions")

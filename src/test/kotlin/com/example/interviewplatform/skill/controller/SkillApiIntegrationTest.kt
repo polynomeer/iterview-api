@@ -2,6 +2,9 @@ package com.example.interviewplatform.skill.controller
 
 import com.example.interviewplatform.auth.service.TokenService
 import com.example.interviewplatform.support.TestDatabaseCleaner
+import com.fasterxml.jackson.databind.ObjectMapper
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -30,6 +33,9 @@ class SkillApiIntegrationTest {
 
     @Autowired
     private lateinit var tokenService: TokenService
+
+    @Autowired
+    private lateinit var objectMapper: ObjectMapper
 
     private lateinit var authHeader: String
 
@@ -79,22 +85,34 @@ class SkillApiIntegrationTest {
         insertAttemptWithAnalysis(backendQuestionId, 1, 88.0, 82.0, "archived", 2)
         insertAttemptWithAnalysis(databaseQuestionId, 2, 52.0, 41.0, "retry_pending", 1)
 
-        mockMvc.perform(get("/api/skills/radar").header("Authorization", authHeader))
+        val radarResponse = mockMvc.perform(get("/api/skills/radar").header("Authorization", authHeader))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.categories.length()").value(6))
-            .andExpect(jsonPath("$.categories[1].categoryCode").value("BACKEND"))
-            .andExpect(jsonPath("$.categories[1].benchmarkScore").value(84.0))
+            .andReturn()
+            .response
+            .contentAsString
+        val radarJson = objectMapper.readTree(radarResponse)
+        val radarByCode = radarJson.get("categories").associateBy { it.get("categoryCode").asText() }
+        assertEquals(84.0, radarByCode.getValue("BACKEND").get("benchmarkScore").asDouble())
+        assertEquals(76.0, radarByCode.getValue("DATABASE").get("benchmarkScore").asDouble())
 
-        mockMvc.perform(get("/api/skills/gaps").header("Authorization", authHeader))
+        val gapResponse = mockMvc.perform(get("/api/skills/gaps").header("Authorization", authHeader))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$[0].categoryCode").isNotEmpty)
-            .andExpect(jsonPath("$[0].gapScore").isNumber)
+            .andReturn()
+            .response
+            .contentAsString
+        val gapsJson = objectMapper.readTree(gapResponse)
+        assertTrue(gapsJson.isArray)
+        assertTrue(gapsJson.first().get("gapScore").isNumber)
 
-        mockMvc.perform(get("/api/skills/progress").header("Authorization", authHeader))
+        val progressResponse = mockMvc.perform(get("/api/skills/progress").header("Authorization", authHeader))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.length()").value(6))
-            .andExpect(jsonPath("$[0].answeredQuestionCount").isNumber)
-            .andExpect(jsonPath("$[1].weakQuestionCount").isNumber)
+            .andReturn()
+            .response
+            .contentAsString
+        val progressJson = objectMapper.readTree(progressResponse)
+        val progressByCode = progressJson.associateBy { it.get("categoryCode").asText() }
+        assertEquals(1, progressByCode.getValue("BACKEND").get("answeredQuestionCount").asInt())
+        assertEquals(1, progressByCode.getValue("DATABASE").get("weakQuestionCount").asInt())
     }
 
     private fun insertSkillCategory(code: String, name: String, displayOrder: Int): Long {

@@ -18,9 +18,6 @@ import com.example.interviewplatform.skill.repository.SkillRepository
 import com.example.interviewplatform.user.repository.UserProfileRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.math.BigDecimal
-import java.math.RoundingMode
-import java.time.Duration
 import java.time.Instant
 
 @Service
@@ -35,6 +32,7 @@ class SkillRadarService(
     private val answerAnalysisRepository: AnswerAnalysisRepository,
     private val userQuestionProgressRepository: UserQuestionProgressRepository,
     private val userProfileRepository: UserProfileRepository,
+    private val skillScoreCalculator: SkillScoreCalculator,
 ) {
     @Transactional
     fun getRadar(userId: Long): SkillRadarResponseDto {
@@ -64,7 +62,7 @@ class SkillRadarService(
 
         val profile = userProfileRepository.findById(userId).orElse(null)
         val benchmarkByCategoryId = profile?.jobRoleId?.let { jobRoleId ->
-            val experienceBand = experienceBandFor(profile.yearsOfExperience)
+            val experienceBand = skillScoreCalculator.experienceBandFor(profile.yearsOfExperience)
             careerBenchmarkRepository.findByJobRoleIdAndExperienceBandCode(jobRoleId, experienceBand)
                 .associateBy { it.skillCategoryId }
         }.orEmpty()
@@ -94,21 +92,20 @@ class SkillRadarService(
             val analyses = attempts.mapNotNull { answerAnalysesByAttemptId[it.id] }
             val progresses = categoryQuestionIds.mapNotNull { progressByQuestionId[it] }
 
-            val answerQualityAvg = average(scores.map { it.totalScore.toDouble() })
+            val answerQualityAvg = skillScoreCalculator.average(scores.map { it.totalScore.toDouble() })
             val reviewCompletionRate = if (progresses.isEmpty()) 0.0 else progresses.count { it.currentStatus != "retry_pending" }.toDouble() / progresses.size
-            val recencyWeight = recencyWeight(attempts.maxOfOrNull { it.submittedAt }, now)
-            val confidenceAvg = average(analyses.mapNotNull { it.confidenceScore?.toDouble() }) / 100.0
-            val depthCoverage = average(analyses.map { it.depthScore.toDouble() }) / 100.0
-            val finalScore = (
-                answerQualityAvg * 0.5 +
-                    reviewCompletionRate * 20.0 +
-                    recencyWeight * 10.0 +
-                    confidenceAvg * 10.0 +
-                    depthCoverage * 10.0
-                ).coerceIn(0.0, 100.0)
-
+            val recencyWeight = skillScoreCalculator.recencyWeight(attempts.maxOfOrNull { it.submittedAt }, now)
+            val confidenceAvg = skillScoreCalculator.average(analyses.mapNotNull { it.confidenceScore?.toDouble() }) / 100.0
+            val depthCoverage = skillScoreCalculator.average(analyses.map { it.depthScore.toDouble() }) / 100.0
+            val finalScore = skillScoreCalculator.calculateScore(
+                answerQualityAverage = answerQualityAvg,
+                reviewCompletionRate = reviewCompletionRate,
+                recencyWeight = recencyWeight,
+                confidenceAverage = confidenceAvg,
+                depthCoverage = depthCoverage,
+            )
             val benchmark = benchmarkByCategoryId[category.id]?.benchmarkScore
-            val gap = benchmark?.subtract(finalScore.toBigDecimal().setScale(2, RoundingMode.HALF_UP))
+            val gap = skillScoreCalculator.calculateGap(benchmark, finalScore)
             val existing = skillCategoryScoreRepository.findByUserIdAndSkillCategoryId(userId, category.id)
 
             skillCategoryScoreRepository.save(
@@ -116,7 +113,7 @@ class SkillRadarService(
                     id = existing?.id ?: 0,
                     userId = userId,
                     skillCategoryId = category.id,
-                    score = finalScore.toBigDecimal().setScale(2, RoundingMode.HALF_UP),
+                    score = finalScore,
                     answeredQuestionCount = progresses.count { it.totalAttemptCount > 0 },
                     weakQuestionCount = progresses.count { it.currentStatus == "retry_pending" || (it.latestScore?.toDouble() ?: 0.0) < 60.0 },
                     benchmarkScore = benchmark,
@@ -165,19 +162,4 @@ class SkillRadarService(
         )
     }
 
-    private fun experienceBandFor(yearsOfExperience: Int?): String = when {
-        yearsOfExperience == null -> "MID"
-        yearsOfExperience >= 6 -> "SENIOR"
-        yearsOfExperience >= 2 -> "MID"
-        else -> "JUNIOR"
-    }
-
-    private fun average(values: List<Double>): Double = if (values.isEmpty()) 0.0 else values.average()
-
-    private fun recencyWeight(lastSubmittedAt: Instant?, now: Instant): Double = when {
-        lastSubmittedAt == null -> 0.0
-        Duration.between(lastSubmittedAt, now).toDays() <= 7 -> 1.0
-        Duration.between(lastSubmittedAt, now).toDays() <= 30 -> 0.5
-        else -> 0.2
-    }
 }
