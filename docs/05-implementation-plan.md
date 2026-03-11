@@ -109,7 +109,7 @@ Acceptance intent:
 
 ## Explicit Deferred Work
 These should not be implemented unless requested:
-1. live mock interview sessions
+1. live or streaming mock interview sessions beyond the current additive session CRUD/progression flow
 2. voice transcription pipeline
 3. streaming AI interactions
 4. public sharing or comparison features

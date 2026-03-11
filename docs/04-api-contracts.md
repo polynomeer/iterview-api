@@ -709,10 +709,14 @@ Response:
 }
 ```
 
-## Planned Additive API
-These contracts align the new product direction with the current system. They are intentionally additive.
+## Implemented Additive API
+These contracts extend the current system without replacing the baseline endpoints above.
 
 ### Resume Intelligence
+#### `GET /api/resumes/latest`
+Purpose:
+- return the user's primary or most recent resume with its versions
+
 #### `GET /api/resume-versions/{versionId}/skills`
 Purpose:
 - return extracted or confirmed skills for one immutable resume version
@@ -792,6 +796,32 @@ Response:
 Purpose:
 - return the next best child or related questions based on progress, resume signals, and weak skill coverage
 
+#### `GET /api/questions/resume-based`
+Purpose:
+- return questions ranked from the user's latest resume-derived skills and linked resume risks
+
+### Answer Analysis
+#### `GET /api/answer-attempts/{answerAttemptId}/analysis`
+Purpose:
+- return the persisted deterministic answer-analysis record associated with an answer attempt
+
+Response:
+```json
+{
+  "answerAttemptId": 501,
+  "overallScore": 72,
+  "depthScore": 68,
+  "clarityScore": 74,
+  "accuracyScore": 70,
+  "exampleScore": 71,
+  "tradeoffScore": 69,
+  "confidenceScore": 63,
+  "strengthSummary": "The answer is coherent and includes a concrete engineering decision.",
+  "weaknessSummary": "Tradeoff discussion and depth are still light.",
+  "recommendedNextStep": "Add a concrete failure mode and explain the tradeoff."
+}
+```
+
 ### Skill Radar and Gap Analysis
 #### `GET /api/skills/radar`
 Purpose:
@@ -851,5 +881,39 @@ These should be optional and backward compatible:
 }
 ```
 
-### Interview Learning Loop
-Mock interview APIs remain out of scope for the current codebase unless explicitly requested. If introduced later, they must live beside the existing question-answer-review model rather than bypass it.
+### Interview Sessions
+#### `POST /api/interview-sessions`
+Purpose:
+- create a minimal mock-interview session that reuses the existing question, answer, and review model
+
+Request:
+```json
+{
+  "sessionType": "resume_mock",
+  "questionCount": 3,
+  "resumeVersionId": 22,
+  "seedQuestionIds": [100, 101]
+}
+```
+
+Notes:
+- supported `sessionType` values are `resume_mock`, `review_mock`, and `topic_mock`
+- `seedQuestionIds` are optional and are used as a starting pool, not a replacement for server-side selection
+
+#### `GET /api/interview-sessions/{sessionId}`
+Purpose:
+- return current session status, ordered questions, current question, and summary counts
+
+#### `POST /api/interview-sessions/{sessionId}/answers`
+Purpose:
+- submit an answer for a specific session question while preserving the standard answer scoring and retry side effects
+
+#### `POST /api/interview-sessions/{sessionId}/next-question`
+Purpose:
+- return the next unanswered question and mark the session complete when no questions remain
+
+### Still Planned
+The following interview features are still intentionally deferred:
+- live or streaming mock interview sessions
+- voice transcription pipeline
+- AI realtime interactions that bypass the standard answer-attempt model

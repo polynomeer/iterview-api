@@ -50,6 +50,13 @@
 - summary stats remain included
 - optional new fields for weak skills, radar preview, or resume risks are backward compatible
 
+## Interview Sessions
+- users can create a session without bypassing the existing question-answer-review flow
+- session questions keep stable ordering and expose current, queued, and answered states
+- session answer submission reuses standard answer scoring, feedback persistence, and retry scheduling
+- a session can complete without mutating historical answer attempts
+- minimal session support remains additive and does not imply live or realtime interview behavior
+
 ## Data and Schema Quality
 - every schema change uses Flyway
 - all table and column names remain snake_case
