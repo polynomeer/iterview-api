@@ -39,11 +39,16 @@ Acceptance intent:
 2. seed follow-up relationships for high-value core questions
 3. implement `GET /api/questions/{questionId}/tree`
 4. derive node status from current user progress and answer history
-5. keep `GET /api/questions/{questionId}` as the stable base detail API
+5. add question reference-content schema for:
+   - `question_reference_answers`
+   - richer learning-material metadata or question-specific ordering
+6. expose read APIs for model answers and curated learning materials
+7. keep `GET /api/questions/{questionId}` as the stable base detail API
 
 Acceptance intent:
 - current question list/detail clients do not break
 - question tree is a separate read model
+- model answers remain separate from user-submitted `answer_attempts`
 
 ## Phase 3 - Richer Answer Analysis and Review Signals
 1. add Flyway migration for `answer_analyses`
@@ -97,6 +102,8 @@ Acceptance intent:
    - skill categories
    - benchmarks
    - follow-up question relationships
+   - model answers
+   - curated learning materials
 2. add unit tests for:
    - skill score calculation
    - gap ranking

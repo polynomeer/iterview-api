@@ -161,11 +161,19 @@ These should be introduced as backward-compatible nullable columns when binary u
 - `created_at`
 - `updated_at`
 
+Current interpretation:
+- this is the shared editorial content table for articles, guides, notes, and references
+- it can hold related study material today, but it is not a question-specific model-answer structure
+
 ### `question_learning_materials`
 - `question_id`
 - `learning_material_id`
 - `relevance_score`
 - `created_at`
+
+Current interpretation:
+- this supports many-to-many question-to-material linkage today
+- it is sufficient for generic related resources, but not for model-answer ordering, visibility, or answer-style metadata
 
 ## Current Answer and Progress Tables
 ### `daily_cards`
@@ -309,6 +317,29 @@ Notes:
 - parse failure for a new version must not delete prior risk items for older versions
 
 ## Question Structure Extensions
+### `question_reference_answers`
+Purpose:
+- store curated model answers or answer outlines for a question without mixing them into user answer attempts
+
+Columns:
+- `id`
+- `question_id`
+- `title`
+- `answer_text`
+- `answer_format`
+- `source_type`
+- `target_role_id`
+- `company_id`
+- `is_official`
+- `display_order`
+- `created_at`
+- `updated_at`
+
+Rules:
+- model answers are global editorial assets shared across users
+- keep them separate from `answer_attempts` so user history remains immutable and user-owned
+- support multiple exemplars per question, such as `concise`, `detailed`, or `tradeoff-focused`
+
 ### `question_relationships`
 Purpose:
 - represent follow-up trees or lightweight graphs while keeping `questions` as the canonical content table
@@ -337,6 +368,33 @@ Columns:
 - `skill_category_code`
 - `weight`
 - `created_at`
+
+### Recommended additive columns for `learning_materials`
+Purpose:
+- improve curation and frontend rendering for related study content
+
+Columns:
+- `description`
+- `difficulty_level`
+- `estimated_minutes`
+- `is_official`
+- `display_order_hint`
+
+Notes:
+- these can be added directly to `learning_materials` if global metadata is enough
+- if per-question ordering or labels diverge by question, prefer additive columns on `question_learning_materials` instead
+
+### Recommended additive columns for `question_learning_materials`
+Purpose:
+- support question-specific presentation of related materials
+
+Columns:
+- `display_order`
+- `relationship_type`
+- `label_override`
+
+Notes:
+- `relationship_type` can distinguish `prerequisite`, `deep_dive`, `example`, or `reference_answer_support`
 
 ## Answer Analysis Extensions
 ### `answer_analyses`

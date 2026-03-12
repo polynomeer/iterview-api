@@ -21,6 +21,7 @@ The checked-in OAS file focuses on the endpoints the current frontend is most li
 - profile and profile image upload
 - resume intelligence
 - question detail, tree, and follow-ups
+- future question reference content such as model answers and curated learning materials
 - answer history and answer analysis
 - skill radar, gap, and progress APIs
 - review queue APIs
@@ -34,6 +35,7 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 - Resume PDF upload is `POST /api/resumes/{resumeId}/versions/upload` with `multipart/form-data`.
 - Resume version polling is `GET /api/resume-versions/{versionId}`.
 - Resume file download is authenticated at `GET /api/resume-versions/{versionId}/file`.
+- Question detail already includes generic `learningMaterials`; planned model-answer endpoints should be treated as additive until implemented.
 - The skill APIs recalculate and persist score snapshots server-side; frontend clients should treat them as read APIs.
 - Interview sessions are minimal turn-based APIs. They do not imply realtime or streaming behavior.
 - The home payload is backward compatible. Newly added fields are optional and can be ignored by older clients.

@@ -34,6 +34,7 @@ The new product direction should fit into this structure instead of introducing 
 ### `question`
 - global question catalog
 - category, tag, company, role, and learning material relationships
+- future model-answer relationships and answer-exemplar metadata
 - future question tree and follow-up relationships
 - future question-to-skill mappings
 
@@ -96,6 +97,7 @@ Do not move product rules into `common`.
 - `resume_versions` is the anchor for resume intelligence
 - `user_question_progress` remains the canonical user-question cache
 - `answer_attempts`, `answer_scores`, and `answer_feedback_items` remain the base evidence for later analysis
+- `learning_materials` remains the shared content library for editorial reference content
 
 ### 2. Add, Don’t Break
 - prefer nullable columns, new tables, or new read models over incompatible schema changes
@@ -106,6 +108,7 @@ Do not move product rules into `common`.
 - command paths stay transactional and domain-owned
 - analytical or dashboard-oriented payloads may assemble from multiple tables in service code
 - denormalized read models are acceptable if introduced later for performance
+- do not overload `answer_attempts` for curated model-answer content
 
 ## Service Boundaries
 ### Profile and Preferences
@@ -125,7 +128,7 @@ Do not move product rules into `common`.
 ### Question Discovery
 - list active questions with filters
 - get question detail with optional user progress
-- future: get question tree, follow-up nodes, and resume-based recommendations
+- future: get question tree, follow-up nodes, resume-based recommendations, model answers, and curated learning materials
 
 ### Answer and Analysis
 - submit answer attempt
@@ -186,6 +189,8 @@ Planned additions:
 - resume extraction not ready
 - resume parsing failed
 - question tree not found
+- model answer not found
+- learning material not found
 - skill benchmark not available
 
 ## Backward Compatibility Rules

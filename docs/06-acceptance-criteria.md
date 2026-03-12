@@ -24,6 +24,9 @@
 - question tree responses show stable ordering for child nodes
 - node state can distinguish unanswered, answered, weak, and strong
 - question tree data does not break existing question detail consumers
+- model answers, when introduced, are retrievable separately from user answer attempts
+- related learning materials can be retrieved in stable display order for a question
+- model answers and learning materials remain global reference content shared across users
 
 ## Answer Submission and Analysis
 - user can submit an answer attempt
@@ -68,6 +71,7 @@
 - answer attempts remain immutable after submission
 - resume versions remain immutable records
 - user-question progress remains the cached aggregate for per-question learning state
+- curated model answers do not reuse `answer_attempts` storage
 
 ## Test Coverage
 Minimum required tests across the evolving product:

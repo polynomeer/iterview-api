@@ -8,6 +8,7 @@ The updated product direction is:
 - answer-driven learning and retry loops
 - skill radar and gap analysis
 - question tree and follow-up visualization
+- curated model answers and related learning materials
 - personalized daily practice grounded in the user's role, target companies, and resume history
 
 The current implementation already provides the learning backbone:
@@ -49,6 +50,8 @@ This is an additive evolution of the current backend, not a new product line.
 ### 2. Structured Question Learning
 - keep the current global question catalog
 - add follow-up relationships so a question can belong to a tree or graph
+- attach curated model answers that show strong answer structure without mixing them into user attempts
+- attach question-linked learning materials that explain concepts, tradeoffs, and background knowledge
 - let users understand both breadth and depth of their preparation
 
 ### 3. Answer Analysis and Review
@@ -76,6 +79,7 @@ This is an additive evolution of the current backend, not a new product line.
 - version processing status and failure visibility for resume parsing
 - resume extraction snapshots for skills, experiences, and resume risks
 - question relationship modeling for follow-up trees
+- question-linked model answers and richer learning material metadata
 - richer answer analysis beyond the current score + feedback rows
 - skill radar, gap analysis, and benchmark APIs
 - stronger home dashboard summaries tied to readiness and risk
@@ -97,6 +101,7 @@ This is an additive evolution of the current backend, not a new product line.
 - retry scheduling is persisted, not recomputed ad hoc on every read
 - archived questions must stay out of the active retry loop unless explicitly reset
 - new intelligence features should reuse current progress, answer, and resume records where possible
+- model answers and learning materials are global reference content, not user-generated answer attempts
 
 ## User Value
 The updated product should help a user answer three questions every time they open the app:

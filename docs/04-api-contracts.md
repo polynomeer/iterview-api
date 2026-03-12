@@ -550,7 +550,8 @@ Response:
 
 Notes:
 - `userProgressSummary` is only included when the request is authenticated
-- future tree or skill metadata should be additive or exposed via dedicated endpoints
+- current `learningMaterials` remains the generic question-linked study resource list
+- future tree, model-answer, or skill metadata should be additive or exposed via dedicated endpoints
 
 ### Home and Daily Cards
 #### `GET /api/home`
@@ -900,6 +901,52 @@ Purpose:
 #### `GET /api/questions/resume-based`
 Purpose:
 - return questions ranked from the user's latest resume-derived skills and linked resume risks
+
+### Question Reference Content
+Current support:
+- `GET /api/questions/{questionId}` already includes `learningMaterials` for generic related content
+
+Planned additive endpoints:
+#### `GET /api/questions/{questionId}/reference-answers`
+Purpose:
+- return curated model answers or answer outlines for a question without mixing them into user answer history
+
+Planned response:
+```json
+[
+  {
+    "id": 3001,
+    "title": "Concise strong answer",
+    "answerText": "I would start by clarifying throughput and durability requirements...",
+    "answerFormat": "full_answer",
+    "sourceType": "editorial",
+    "isOfficial": true,
+    "displayOrder": 1
+  }
+]
+```
+
+#### `GET /api/questions/{questionId}/learning-materials`
+Purpose:
+- return the curated related learning materials for a question in stable display order
+
+Planned response:
+```json
+[
+  {
+    "id": 501,
+    "title": "Isolation Levels Explained",
+    "materialType": "article",
+    "description": "Short refresher on read phenomena and tradeoffs.",
+    "contentUrl": "https://example.com/isolation-levels",
+    "sourceName": "DB Guide",
+    "difficultyLevel": "intermediate",
+    "estimatedMinutes": 12,
+    "isOfficial": true,
+    "displayOrder": 1
+  }
+]
+```
 
 ### Answer Analysis
 #### `GET /api/answer-attempts/{answerAttemptId}/analysis`
