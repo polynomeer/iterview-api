@@ -49,6 +49,19 @@ class CorsIntegrationTest {
     }
 
     @Test
+    fun `preflight request allows auth login route for vite origin`() {
+        mockMvc.perform(
+            options("/api/auth/login")
+                .header(HttpHeaders.ORIGIN, "http://localhost:5173")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "content-type"),
+        )
+            .andExpect(status().isOk)
+            .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173"))
+            .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"))
+    }
+
+    @Test
     fun `preflight request allows arbitrary localhost port on protected api`() {
         mockMvc.perform(
             options("/api/feed")

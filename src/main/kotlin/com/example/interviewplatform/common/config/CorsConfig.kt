@@ -27,8 +27,8 @@ class CorsConfig(
 ) {
     @PostConstruct
     fun validateConfiguration() {
-        val configuredOrigins = splitCsv(allowedOrigins)
-        val configuredOriginPatterns = splitCsv(allowedOriginPatterns)
+        val configuredOrigins = configuredAllowedOrigins()
+        val configuredOriginPatterns = configuredAllowedOriginPatterns()
 
         if (environment.activeProfiles.contains("prod") &&
             configuredOrigins.isEmpty() &&
@@ -43,8 +43,8 @@ class CorsConfig(
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         val config = CorsConfiguration()
-        config.allowedOrigins = splitCsv(allowedOrigins)
-        config.allowedOriginPatterns = splitCsv(allowedOriginPatterns)
+        config.allowedOrigins = configuredAllowedOrigins()
+        config.allowedOriginPatterns = configuredAllowedOriginPatterns()
         config.allowedMethods = splitCsv(allowedMethods)
         config.allowedHeaders = splitCsv(allowedHeaders)
         config.allowCredentials = allowCredentials
@@ -58,5 +58,36 @@ class CorsConfig(
         return source
     }
 
+    private fun configuredAllowedOrigins(): List<String> {
+        val configured = splitCsv(allowedOrigins)
+        if (configured.isNotEmpty() || environment.activeProfiles.contains("prod")) {
+            return configured
+        }
+        return LOCAL_DEFAULT_ORIGINS
+    }
+
+    private fun configuredAllowedOriginPatterns(): List<String> {
+        val configured = splitCsv(allowedOriginPatterns)
+        if (configured.isNotEmpty() || environment.activeProfiles.contains("prod")) {
+            return configured
+        }
+        return LOCAL_DEFAULT_ORIGIN_PATTERNS
+    }
+
     private fun splitCsv(value: String): List<String> = value.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+
+    private companion object {
+        val LOCAL_DEFAULT_ORIGINS = listOf(
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "https://localhost:5173",
+            "https://127.0.0.1:5173",
+        )
+        val LOCAL_DEFAULT_ORIGIN_PATTERNS = listOf(
+            "http://localhost:[*]",
+            "http://127.0.0.1:[*]",
+            "https://localhost:[*]",
+            "https://127.0.0.1:[*]",
+        )
+    }
 }
