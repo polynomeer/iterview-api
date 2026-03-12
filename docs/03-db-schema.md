@@ -102,18 +102,20 @@ Current interpretation:
 - `resume_versions` is the immutable historical anchor
 - uploaded PDF metadata should continue to live on this table rather than introducing a parallel version record
 - `file_name`, `file_type`, and `parsing_status` support a parser-ready lifecycle without breaking existing version reads
-- `parsed_json` is the current bridge field for structured extraction output
+- `raw_text` is the authoritative parser output from the uploaded PDF
+- `parsed_json` is currently a bridge field for structured extraction output and should evolve into a trace or debug artifact rather than the only structured contract
 - future resume intelligence should hang off `resume_version_id`
 
-Recommended additive columns for the PDF-native flow:
-- `storage_key` or equivalent object-store reference
-- `file_size_bytes`
-- `checksum_sha256`
-- `parse_started_at`
-- `parse_completed_at`
-- `parse_error_message`
+Recommended additive columns for LLM-backed structured extraction:
+- `llm_extraction_status`
+- `llm_extraction_started_at`
+- `llm_extraction_completed_at`
+- `llm_extraction_error_message`
+- `llm_model`
+- `llm_prompt_version`
+- `llm_extraction_confidence`
 
-These should be introduced as backward-compatible nullable columns when binary upload and asynchronous parsing are implemented.
+These should be introduced as backward-compatible nullable columns when provider-backed structured extraction is implemented. Raw PDF parsing metadata and structured extraction metadata should remain distinguishable.
 
 ## Current Question Tables
 ### `questions`
@@ -267,6 +269,8 @@ Columns:
 - `skill_category_code`
 - `source_text`
 - `confidence_score`
+- `source_type`
+- `llm_rationale`
 - `is_confirmed`
 - `created_at`
 - `updated_at`
@@ -288,6 +292,9 @@ Columns:
 - `impact_text`
 - `source_text`
 - `risk_level`
+- `source_type`
+- `confidence_score`
+- `llm_rationale`
 - `display_order`
 - `is_confirmed`
 - `created_at`
@@ -309,6 +316,10 @@ Columns:
 - `title`
 - `description`
 - `severity`
+- `source_text`
+- `source_type`
+- `confidence_score`
+- `llm_rationale`
 - `created_at`
 - `updated_at`
 
@@ -463,6 +474,7 @@ Columns:
 
 ### Recommended New Constraints
 - unique(`resume_version_id`, `skill_name`, `source_text`) on `resume_skill_snapshots` when deduplication is needed
+- unique(`resume_version_id`, `risk_type`, `source_text`) on `resume_risk_items` when LLM extraction retries are introduced
 - unique(`parent_question_id`, `child_question_id`, `relationship_type`) on `question_relationships`
 - unique(`question_id`, `skill_name`, `skill_category_code`) on `question_skill_mappings`
 - unique(`user_id`, `skill_category_code`) on the latest logical score row if the design keeps one active score row per category
@@ -481,6 +493,7 @@ Columns:
 - `resume_skill_snapshots(resume_version_id, skill_category_code)`
 - `resume_experience_snapshots(resume_version_id, risk_level)`
 - `resume_risk_items(resume_version_id, severity)`
+- `resume_versions(resume_id, llm_extraction_status)`
 - `question_relationships(parent_question_id, display_order)`
 - `question_relationships(child_question_id)`
 - `question_skill_mappings(question_id)`

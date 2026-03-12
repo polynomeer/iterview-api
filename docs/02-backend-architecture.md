@@ -29,7 +29,7 @@ The new product direction should fit into this structure instead of introducing 
 - resume container lifecycle
 - immutable resume versions
 - resume file intake metadata and processing state
-- future parser integration, resume extraction snapshots, resume risks, and resume-derived question hooks
+- raw PDF parsing, LLM-backed structured extraction, resume extraction snapshots, resume risks, and resume-derived question hooks
 
 ### `question`
 - global question catalog
@@ -123,7 +123,9 @@ Do not move product rules into `common`.
 - activate version
 - list versions
 - expose version processing state for pending, completed, or failed parsing
-- future: persist extraction results for skills, experiences, and risks
+- persist raw parsed text on the version record
+- future: call an LLM extraction boundary to map raw text into normalized skills, experiences, and risks
+- future: persist extraction results and extraction metadata for skills, experiences, and risks
 
 ### Question Discovery
 - list active questions with filters
@@ -162,6 +164,7 @@ These belong behind service interfaces and should not leak into controllers:
 - PDF file storage and retrieval
 - resume parsing
 - resume signal extraction
+- LLM resume field extraction and normalization
 - answer deep analysis
 - skill score recalculation
 - benchmark refresh jobs
@@ -169,11 +172,13 @@ These belong behind service interfaces and should not leak into controllers:
 Recommended resume pipeline:
 1. accept multipart PDF upload and create immutable `resume_versions` row
 2. persist file metadata and set `parsing_status`
-3. hand off to parser and extraction service boundary
-4. persist skills, experiences, and risks against `resume_version_id`
-5. expose status and extracted results through read APIs
+3. parse binary PDF into `raw_text`
+4. hand off `raw_text` to an LLM extraction service boundary
+5. validate and normalize extracted fields against current domain vocabularies
+6. persist skills, experiences, and risks against `resume_version_id`
+7. expose status and extracted results through read APIs
 
-The current implementation can remain synchronous or placeholder-driven until a real parser is introduced, but the controller contract should already distinguish upload from extraction completion.
+The current implementation already supports synchronous PDF parsing into `raw_text`. The next additive step should keep that behavior, then layer LLM-backed structured extraction behind a service boundary so prompt and provider changes do not leak into controllers.
 
 ## Error Handling
 At minimum keep explicit domain errors for:
@@ -188,6 +193,8 @@ At minimum keep explicit domain errors for:
 Planned additions:
 - resume extraction not ready
 - resume parsing failed
+- resume structured extraction failed
+- resume structured extraction returned invalid data
 - question tree not found
 - model answer not found
 - learning material not found

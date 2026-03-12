@@ -28,11 +28,32 @@ This baseline should be preserved.
 6. keep `POST /api/resumes/{resumeId}/versions` backward compatible for import and test flows
 7. use `parsed_json` as an interim import source if needed
 8. add a parser service boundary so real PDF extraction can replace placeholder logic later without controller changes
+9. add an LLM extraction service boundary that accepts `raw_text` and returns normalized resume fields
+10. validate and map LLM output into domain-aligned skill, experience, and risk snapshots
+11. persist prompt and model metadata so extraction quality can be audited without mutating the version record
 
 Acceptance intent:
 - existing resume APIs still work unchanged
 - PDF upload creates a new immutable version even if parsing completes later
 - new resume intelligence APIs are additive
+- LLM-backed structured extraction is layered on top of raw parsing rather than replacing it
+
+## Phase 1A - LLM Resume Structuring
+1. define a provider-agnostic extraction interface in the `resume` domain
+2. pass `raw_text`, role context, and optional target company context to the extraction boundary
+3. require the extraction result to return:
+   - normalized skills
+   - normalized experiences
+   - risk items
+   - confidence metadata
+   - source text references
+4. reject or down-rank malformed extraction output before persistence
+5. keep retry and re-extract behavior idempotent per resume version
+
+Acceptance intent:
+- the system can preserve raw text even when structured extraction fails
+- extraction retries do not create duplicate version rows
+- extraction metadata is traceable for later prompt tuning
 
 ## Phase 2 - Question Tree and Follow-Up Relationships
 1. add Flyway migration for `question_relationships`

@@ -12,12 +12,15 @@
 - resume versions remain immutable after creation
 - user can upload a PDF and receive a new immutable resume version
 - the system exposes whether a resume version is pending, completed, or failed for parsing
+- raw PDF parsing can complete successfully even if structured extraction later fails
 - extracted resume skills can be retrieved for a specific resume version
 - extracted resume experiences can be retrieved for a specific resume version
 - resume risk items can be retrieved for a specific resume version
 - parse failure for a new version does not corrupt or overwrite prior versions
 - extracted resume data for one uploaded PDF does not leak into another version
 - existing answer attempts remain tied to the resume version that was active or selected at submission time
+- when LLM extraction is introduced, the system stores enough metadata to understand which model and prompt version produced the mapped resume fields
+- malformed or low-confidence LLM extraction output does not silently overwrite already persisted snapshots without validation rules
 
 ## Question Tree and Follow-Up
 - a question can expose follow-up nodes without changing the base question record contract
@@ -72,6 +75,7 @@
 - resume versions remain immutable records
 - user-question progress remains the cached aggregate for per-question learning state
 - curated model answers do not reuse `answer_attempts` storage
+- LLM extraction metadata is stored separately from user-authored resume content where possible
 
 ## Test Coverage
 Minimum required tests across the evolving product:

@@ -80,6 +80,7 @@ Common error codes:
 - `FORBIDDEN`
 - `NOT_FOUND`
 - `CONFLICT`
+- `PAYLOAD_TOO_LARGE`
 - `INTERNAL_SERVER_ERROR`
 
 ## Current API
@@ -426,8 +427,11 @@ Response:
 Behavior:
 - uploading a PDF creates a new immutable resume version immediately
 - the backend stores the original file and attempts PDF text extraction
+- current implementation persists `rawText` and deterministic extraction snapshots from that parsed content
+- planned additive behavior will run an LLM-backed structured extraction step after raw PDF parsing
 - extracted skills, experiences, and risks stay tied to the uploaded `resumeVersionId`
 - parse failure marks the new version as failed without mutating older active versions
+- oversized uploads return `413 PAYLOAD_TOO_LARGE`
 
 #### `GET /api/resume-versions/{versionId}`
 Auth:
@@ -439,6 +443,7 @@ Response:
 Notes:
 - use this endpoint to poll upload status after a PDF version is created
 - `parsingStatus` is currently one of `pending`, `completed`, or `failed`
+- future additive fields may distinguish raw parsing from LLM structured extraction if the stages become independently asynchronous
 
 #### `GET /api/resume-versions/{versionId}/file`
 Auth:
@@ -843,6 +848,9 @@ Response:
 }
 ```
 
+Notes:
+- future additive fields may include `sourceType`, `confidenceScore`, and extraction rationale for traceability
+
 #### `GET /api/resume-versions/{versionId}/experiences`
 Purpose:
 - return structured experience claims extracted from the active or selected resume version
@@ -864,6 +872,46 @@ Response:
       "riskType": "impact_claim"
     }
   ]
+}
+```
+
+### Planned Additive API for LLM Extraction Visibility
+These endpoints are not implemented yet.
+
+#### `POST /api/resume-versions/{versionId}/re-extract`
+Auth:
+- required
+
+Purpose:
+- re-run structured extraction for an existing immutable resume version without uploading a new PDF
+
+Response:
+```json
+{
+  "resumeVersionId": 22,
+  "parsingStatus": "completed",
+  "llmExtractionStatus": "pending"
+}
+```
+
+#### `GET /api/resume-versions/{versionId}/extraction`
+Auth:
+- required
+
+Purpose:
+- inspect structured extraction status and metadata separately from raw file parsing
+
+Response:
+```json
+{
+  "resumeVersionId": 22,
+  "rawParsingStatus": "completed",
+  "llmExtractionStatus": "completed",
+  "llmModel": "gpt-5-mini",
+  "llmPromptVersion": "resume-extract-v1",
+  "startedAt": "2026-03-12T03:00:00Z",
+  "completedAt": "2026-03-12T03:00:04Z",
+  "errorMessage": null
 }
 ```
 

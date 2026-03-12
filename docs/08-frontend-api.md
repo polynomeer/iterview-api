@@ -35,6 +35,8 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 - Resume PDF upload is `POST /api/resumes/{resumeId}/versions/upload` with `multipart/form-data`.
 - Resume version polling is `GET /api/resume-versions/{versionId}`.
 - Resume file download is authenticated at `GET /api/resume-versions/{versionId}/file`.
+- The current resume flow guarantees raw PDF parsing and versioned storage. Structured field mapping is currently deterministic and may evolve into an LLM-backed extraction stage.
+- Frontend clients should treat future extraction-stage fields such as `llmExtractionStatus` or `llmModel` as optional additive metadata.
 - Question detail includes generic `learningMaterials` and additive `referenceAnswers`.
 - Dedicated question reference-content reads are:
   - `GET /api/questions/{questionId}/reference-answers`

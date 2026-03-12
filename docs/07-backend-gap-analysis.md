@@ -46,6 +46,7 @@ This is the stable baseline and should remain operational throughout the extensi
 
 ### Missing Calculation and Service Boundaries
 - no resume parsing boundary beyond `parsed_json`
+- no provider-backed structured extraction layer that can map raw resume text into stable experience, skill, and risk fields
 - no answer deep-analysis boundary separate from `ScoringService`
 - no skill score calculation service
 - no benchmark comparison service
@@ -96,6 +97,7 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
   - resume-version experiences
   - resume-version risks
 - add a placeholder parsing/extraction boundary that can read `parsed_json` today
+- add a provider-agnostic LLM extraction boundary after raw PDF parsing so mapping quality can improve without changing controllers
 - keep resume versions immutable
 
 ### Phase 4 - Question Tree and Recommendation
