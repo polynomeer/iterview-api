@@ -11,6 +11,7 @@ servers:
 security:
   - bearerAuth: []
 tags:
+  - name: Profile
   - name: Home
   - name: Resume
   - name: Questions
@@ -19,6 +20,39 @@ tags:
   - name: Review Queue
   - name: Interview Sessions
 paths:
+  /api/me:
+    get:
+      tags: [Profile]
+      summary: Get current user aggregate
+      responses:
+        "200":
+          description: Current user aggregate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
+  /api/me/profile-image:
+    post:
+      tags: [Profile]
+      summary: Upload current user profile image
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Uploaded profile image metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileImageUploadResponseDto"
   /api/home:
     get:
       tags: [Home]
@@ -383,6 +417,59 @@ components:
         type: integer
         format: int64
   schemas:
+    MeResponse:
+      type: object
+      properties:
+        profile:
+          $ref: "#/components/schemas/ProfileDto"
+        settings:
+          $ref: "#/components/schemas/SettingsDto"
+        activeResumeVersionSummary:
+          allOf:
+            - $ref: "#/components/schemas/ActiveResumeVersionSummaryDto"
+          nullable: true
+        targetCompanies:
+          type: array
+          items:
+            $ref: "#/components/schemas/TargetCompanyDto"
+    ProfileDto:
+      type: object
+      properties:
+        nickname: { type: string, nullable: true }
+        jobRoleId: { type: integer, format: int64, nullable: true }
+        yearsOfExperience: { type: integer, nullable: true }
+        profileImageUrl: { type: string, nullable: true }
+        profileImageFileName: { type: string, nullable: true }
+        profileImageContentType: { type: string, nullable: true }
+        profileImageUploadedAt: { type: string, format: date-time, nullable: true }
+    ProfileImageUploadResponseDto:
+      type: object
+      properties:
+        imageUrl: { type: string }
+        fileName: { type: string }
+        contentType: { type: string }
+        uploadedAt: { type: string, format: date-time }
+    SettingsDto:
+      type: object
+      properties:
+        targetScoreThreshold: { type: integer }
+        passScoreThreshold: { type: integer }
+        retryEnabled: { type: boolean }
+        dailyQuestionCount: { type: integer }
+    ActiveResumeVersionSummaryDto:
+      type: object
+      properties:
+        resumeId: { type: integer, format: int64 }
+        resumeTitle: { type: string }
+        versionId: { type: integer, format: int64 }
+        versionNo: { type: integer }
+        uploadedAt: { type: string, format: date-time }
+    TargetCompanyDto:
+      type: object
+      properties:
+        companyId: { type: integer, format: int64 }
+        companyName: { type: string }
+        priorityOrder: { type: integer }
     ResumeDto:
       type: object
       properties:

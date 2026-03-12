@@ -18,6 +18,7 @@ Use these in order:
 The checked-in OAS file focuses on the endpoints the current frontend is most likely to consume for the updated product direction:
 
 - home aggregation
+- profile and profile image upload
 - resume intelligence
 - question detail, tree, and follow-ups
 - answer history and answer analysis

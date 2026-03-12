@@ -7,6 +7,7 @@ import com.example.interviewplatform.resume.repository.ResumeVersionRepository
 import com.example.interviewplatform.user.dto.ActiveResumeVersionSummaryDto
 import com.example.interviewplatform.user.dto.MeResponse
 import com.example.interviewplatform.user.dto.ProfileDto
+import com.example.interviewplatform.user.dto.ProfileImageUploadResponseDto
 import com.example.interviewplatform.user.dto.ReplaceTargetCompaniesRequest
 import com.example.interviewplatform.user.dto.SettingsDto
 import com.example.interviewplatform.user.dto.TargetCompaniesResponse
@@ -40,6 +41,7 @@ class UserProfileService(
     private val resumeRepository: ResumeRepository,
     private val resumeVersionRepository: ResumeVersionRepository,
     private val clockService: ClockService,
+    private val profileImageStorageService: ProfileImageStorageService,
 ) {
     @Transactional(readOnly = true)
     fun getMe(userId: Long): MeResponse {
@@ -69,6 +71,10 @@ class UserProfileService(
             nickname = request.nickname ?: existing.nickname,
             jobRoleId = request.jobRoleId ?: existing.jobRoleId,
             yearsOfExperience = request.yearsOfExperience ?: existing.yearsOfExperience,
+            profileImageUrl = existing.profileImageUrl,
+            profileImageFileName = existing.profileImageFileName,
+            profileImageContentType = existing.profileImageContentType,
+            profileImageUploadedAt = existing.profileImageUploadedAt,
             avgScore = existing.avgScore,
             archivedQuestionCount = existing.archivedQuestionCount,
             answerVisibilityDefault = existing.answerVisibilityDefault,
@@ -76,6 +82,36 @@ class UserProfileService(
             updatedAt = now,
         )
         return UserProfileMapper.toProfileDto(userProfileRepository.save(updated))
+    }
+
+    @Transactional
+    fun uploadProfileImage(userId: Long, file: org.springframework.web.multipart.MultipartFile): ProfileImageUploadResponseDto {
+        requireUser(userId)
+        val existing = userProfileRepository.findById(userId).orElseGet { defaultProfile(userId) }
+        val stored = profileImageStorageService.store(userId, file)
+        val now = clockService.now()
+        val updated = UserProfileEntity(
+            userId = userId,
+            nickname = existing.nickname,
+            jobRoleId = existing.jobRoleId,
+            yearsOfExperience = existing.yearsOfExperience,
+            profileImageUrl = stored.publicUrl,
+            profileImageFileName = stored.fileName,
+            profileImageContentType = stored.contentType,
+            profileImageUploadedAt = now,
+            avgScore = existing.avgScore,
+            archivedQuestionCount = existing.archivedQuestionCount,
+            answerVisibilityDefault = existing.answerVisibilityDefault,
+            createdAt = existing.createdAt,
+            updatedAt = now,
+        )
+        userProfileRepository.save(updated)
+        return ProfileImageUploadResponseDto(
+            imageUrl = stored.publicUrl,
+            fileName = stored.fileName,
+            contentType = stored.contentType,
+            uploadedAt = now,
+        )
     }
 
     @Transactional
@@ -142,6 +178,10 @@ class UserProfileService(
             nickname = null,
             jobRoleId = null,
             yearsOfExperience = null,
+            profileImageUrl = null,
+            profileImageFileName = null,
+            profileImageContentType = null,
+            profileImageUploadedAt = null,
             avgScore = null,
             archivedQuestionCount = 0,
             answerVisibilityDefault = "private",

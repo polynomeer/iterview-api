@@ -40,6 +40,7 @@ class SecurityConfig(
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
                         "/swagger-ui.html",
+                        "/uploads/profile-images/**",
                     ).permitAll()
                     .requestMatchers("/api/me/**").authenticated()
                     .requestMatchers("/api/resumes/**", "/api/resume-versions/**").authenticated()

@@ -154,7 +154,11 @@ Response:
   "profile": {
     "nickname": "hammac",
     "jobRoleId": 1,
-    "yearsOfExperience": 5
+    "yearsOfExperience": 5,
+    "profileImageUrl": "/uploads/profile-images/user-1-abc123.png",
+    "profileImageFileName": "user-1-abc123.png",
+    "profileImageContentType": "image/png",
+    "profileImageUploadedAt": "2026-03-12T01:00:00Z"
   },
   "settings": {
     "targetScoreThreshold": 80,
@@ -192,9 +196,38 @@ Request:
 {
   "nickname": "hammac",
   "jobRoleId": 1,
-  "yearsOfExperience": 5
+  "yearsOfExperience": 5,
+  "profileImageUrl": "/uploads/profile-images/user-1-abc123.png",
+  "profileImageFileName": "user-1-abc123.png",
+  "profileImageContentType": "image/png",
+  "profileImageUploadedAt": "2026-03-12T01:00:00Z"
 }
 ```
+
+#### `POST /api/me/profile-image`
+Auth:
+- required
+
+Content type:
+- `multipart/form-data`
+
+Request:
+- form field `file`
+
+Response:
+```json
+{
+  "imageUrl": "/uploads/profile-images/user-1-abc123.png",
+  "fileName": "user-1-abc123.png",
+  "contentType": "image/png",
+  "uploadedAt": "2026-03-12T01:00:00Z"
+}
+```
+
+Notes:
+- supported file types are PNG, JPEG, WEBP, and GIF
+- max file size is 5 MB
+- uploaded files are exposed under `/uploads/profile-images/**`
 
 Response:
 ```json

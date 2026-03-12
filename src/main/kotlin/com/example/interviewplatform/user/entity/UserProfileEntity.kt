@@ -19,6 +19,14 @@ class UserProfileEntity(
     val jobRoleId: Long? = null,
     @Column(name = "years_of_experience")
     val yearsOfExperience: Int? = null,
+    @Column(name = "profile_image_url")
+    val profileImageUrl: String? = null,
+    @Column(name = "profile_image_file_name")
+    val profileImageFileName: String? = null,
+    @Column(name = "profile_image_content_type")
+    val profileImageContentType: String? = null,
+    @Column(name = "profile_image_uploaded_at")
+    val profileImageUploadedAt: Instant? = null,
     @Column(name = "avg_score")
     val avgScore: BigDecimal? = null,
     @Column(name = "archived_question_count", nullable = false)

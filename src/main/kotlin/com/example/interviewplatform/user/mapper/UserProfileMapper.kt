@@ -10,6 +10,10 @@ object UserProfileMapper {
         nickname = entity.nickname,
         jobRoleId = entity.jobRoleId,
         yearsOfExperience = entity.yearsOfExperience,
+        profileImageUrl = entity.profileImageUrl,
+        profileImageFileName = entity.profileImageFileName,
+        profileImageContentType = entity.profileImageContentType,
+        profileImageUploadedAt = entity.profileImageUploadedAt,
     )
 
     fun toSettingsDto(entity: UserSettingsEntity): SettingsDto = SettingsDto(

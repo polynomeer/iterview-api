@@ -14,11 +14,13 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.testcontainers.junit.jupiter.Testcontainers
+import org.springframework.mock.web.MockMultipartFile
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -108,6 +110,31 @@ class ProfileApiIntegrationTest {
             .andExpect(jsonPath("$.targetScoreThreshold").value(85))
             .andExpect(jsonPath("$.passScoreThreshold").value(65))
             .andExpect(jsonPath("$.dailyQuestionCount").value(2))
+    }
+
+    @Test
+    fun `upload profile image stores metadata on profile`() {
+        val file = MockMultipartFile(
+            "file",
+            "avatar.png",
+            "image/png",
+            "fake-png-content".toByteArray(),
+        )
+
+        mockMvc.perform(
+            multipart("/api/me/profile-image")
+                .file(file)
+                .header("Authorization", authHeader),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.imageUrl").value(org.hamcrest.Matchers.containsString("/uploads/profile-images/")))
+            .andExpect(jsonPath("$.fileName").value(org.hamcrest.Matchers.endsWith(".png")))
+            .andExpect(jsonPath("$.contentType").value("image/png"))
+
+        mockMvc.perform(get("/api/me").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.profile.profileImageUrl").value(org.hamcrest.Matchers.containsString("/uploads/profile-images/")))
+            .andExpect(jsonPath("$.profile.profileImageContentType").value("image/png"))
     }
 
     @Test

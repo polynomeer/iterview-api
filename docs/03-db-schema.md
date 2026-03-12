@@ -21,6 +21,10 @@ The current schema remains the source of truth. New product concepts should be i
 ### `user_profiles`
 - `user_id`
 - `nickname`
+- `profile_image_url`
+- `profile_image_file_name`
+- `profile_image_content_type`
+- `profile_image_uploaded_at`
 - `job_role_id`
 - `years_of_experience`
 - `avg_score`
