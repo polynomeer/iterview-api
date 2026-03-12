@@ -34,6 +34,9 @@ Authenticated endpoints:
 - `GET /api/resumes`
 - `POST /api/resumes`
 - `POST /api/resumes/{resumeId}/versions`
+- `POST /api/resumes/{resumeId}/versions/upload`
+- `GET /api/resume-versions/{versionId}`
+- `GET /api/resume-versions/{versionId}/file`
 - `POST /api/resume-versions/{versionId}/activate`
 - `GET /api/home`
 - `POST /api/daily-cards/{dailyCardId}/open`
@@ -386,7 +389,62 @@ Response:
 Notes:
 - current implementation accepts a JSON body and can persist imported text or pre-parsed metadata
 - this contract remains valid for admin import, tests, and parser-bypass flows
-- product direction is to keep the same version concept while adding multipart PDF upload on top of it
+- product direction is to keep the same version concept while allowing either imported metadata or uploaded PDF files
+
+#### `POST /api/resumes/{resumeId}/versions/upload`
+Auth:
+- required
+
+Content type:
+- `multipart/form-data`
+
+Request:
+- form field `file` containing a PDF resume
+- optional field `summaryText`
+
+Response:
+```json
+{
+  "id": 23,
+  "versionNo": 3,
+  "fileUrl": "/api/resume-versions/23/file",
+  "fileName": "resume-v3.pdf",
+  "fileType": "application/pdf",
+  "fileSizeBytes": 182341,
+  "summaryText": null,
+  "parsingStatus": "pending",
+  "parseStartedAt": "2026-03-12T05:00:00Z",
+  "parseCompletedAt": null,
+  "parseErrorMessage": null,
+  "isActive": false,
+  "uploadedAt": "2026-03-12T05:00:00Z"
+}
+```
+
+Behavior:
+- uploading a PDF creates a new immutable resume version immediately
+- the backend stores the original file and attempts PDF text extraction
+- extracted skills, experiences, and risks stay tied to the uploaded `resumeVersionId`
+- parse failure marks the new version as failed without mutating older active versions
+
+#### `GET /api/resume-versions/{versionId}`
+Auth:
+- required
+
+Response:
+- `ResumeVersionDto`, same shape as the items inside `GET /api/resumes`
+
+Notes:
+- use this endpoint to poll upload status after a PDF version is created
+- `parsingStatus` is currently one of `pending`, `completed`, or `failed`
+
+#### `GET /api/resume-versions/{versionId}/file`
+Auth:
+- required
+
+Response:
+- binary file stream for the stored resume version
+- current implementation returns `Content-Type: application/pdf` for uploaded PDF versions
 
 #### `POST /api/resume-versions/{versionId}/activate`
 Auth:
@@ -401,39 +459,6 @@ Response:
   "activatedAt": "2026-03-11T04:00:00Z"
 }
 ```
-
-Planned additive extension for resume upload, not yet implemented:
-#### `POST /api/resumes/{resumeId}/versions:upload`
-Auth:
-- required
-
-Content type:
-- `multipart/form-data`
-
-Request:
-- form field `file` containing a PDF resume
-- optional field `summaryText`
-
-Planned response:
-```json
-{
-  "id": 23,
-  "versionNo": 3,
-  "fileUrl": "/uploads/resumes/user-1/resume-v3.pdf",
-  "fileName": "resume-v3.pdf",
-  "fileType": "application/pdf",
-  "summaryText": null,
-  "parsingStatus": "pending",
-  "isActive": false,
-  "uploadedAt": "2026-03-12T05:00:00Z"
-}
-```
-
-Planned behavior:
-- uploading a PDF creates a new immutable resume version immediately
-- parsing and extraction may complete asynchronously
-- extracted skills, experiences, and risks stay tied to the uploaded `resumeVersionId`
-- parse failure marks the new version as failed without mutating older active versions
 
 ### Questions
 #### `GET /api/questions`

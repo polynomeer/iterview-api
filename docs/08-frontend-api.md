@@ -31,6 +31,9 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 ## Integration Notes
 - Authenticated endpoints use bearer JWT auth.
 - The backend path names are `/api/skills/radar` and `/api/skills/gaps`.
+- Resume PDF upload is `POST /api/resumes/{resumeId}/versions/upload` with `multipart/form-data`.
+- Resume version polling is `GET /api/resume-versions/{versionId}`.
+- Resume file download is authenticated at `GET /api/resume-versions/{versionId}/file`.
 - The skill APIs recalculate and persist score snapshots server-side; frontend clients should treat them as read APIs.
 - Interview sessions are minimal turn-based APIs. They do not imply realtime or streaming behavior.
 - The home payload is backward compatible. Newly added fields are optional and can be ignored by older clients.

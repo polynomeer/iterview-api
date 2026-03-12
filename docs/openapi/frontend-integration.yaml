@@ -75,6 +75,59 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResumeDto"
+  /api/resumes/{resumeId}/versions/upload:
+    post:
+      tags: [Resume]
+      summary: Upload PDF resume version
+      parameters:
+        - $ref: "#/components/parameters/ResumeId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                summaryText:
+                  type: string
+      responses:
+        "200":
+          description: Uploaded resume version metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeVersionDto"
+  /api/resume-versions/{versionId}:
+    get:
+      tags: [Resume]
+      summary: Get resume version detail
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Resume version detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeVersionDto"
+  /api/resume-versions/{versionId}/file:
+    get:
+      tags: [Resume]
+      summary: Download resume version file
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Resume file stream
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
   /api/resume-versions/{versionId}/skills:
     get:
       tags: [Resume]
@@ -388,6 +441,13 @@ components:
       schema:
         type: integer
         format: int64
+    ResumeId:
+      in: path
+      name: resumeId
+      required: true
+      schema:
+        type: integer
+        format: int64
     QuestionId:
       in: path
       name: questionId
@@ -488,10 +548,12 @@ components:
         fileUrl: { type: string, nullable: true }
         fileName: { type: string, nullable: true }
         fileType: { type: string, nullable: true }
-        rawText: { type: string, nullable: true }
-        parsedJson: { type: string, nullable: true }
+        fileSizeBytes: { type: integer, format: int64, nullable: true }
         summaryText: { type: string, nullable: true }
         parsingStatus: { type: string }
+        parseStartedAt: { type: string, format: date-time, nullable: true }
+        parseCompletedAt: { type: string, format: date-time, nullable: true }
+        parseErrorMessage: { type: string, nullable: true }
         isActive: { type: boolean }
         uploadedAt: { type: string, format: date-time }
     ResumeSkillSnapshotResponseDto:
