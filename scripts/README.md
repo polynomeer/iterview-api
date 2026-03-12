@@ -27,7 +27,16 @@ Import sequential question pages from Maeil Mail into:
 - `learning_materials`
 - `question_learning_materials`
 
-The importer stops at the first fetch or parse error unless `--max-id` is provided.
+The importer:
+- scans from `--start-id` through `--max-id`
+- skips ids that fail to fetch or parse
+- skips questions already imported into `questions` with `source_type = 'external_import'`
+- sleeps between requests to reduce the chance of being rate-limited
+
+Defaults:
+- `--start-id 1`
+- `--max-id 5000`
+- `--sleep-seconds 1.2`
 
 Example:
 
@@ -51,4 +60,10 @@ Dry run:
 
 ```bash
 python3 scripts/import_maeil_questions.py --dry-run --max-id 3
+```
+
+Slower import:
+
+```bash
+python3 scripts/import_maeil_questions.py --sleep-seconds 2.0
 ```

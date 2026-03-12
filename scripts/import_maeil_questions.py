@@ -124,13 +124,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--max-id",
         type=int,
-        default=None,
-        help="Optional inclusive upper bound. Without this, the importer stops at the first fetch or parse error.",
+        default=5000,
+        help="Inclusive upper bound for question ids to fetch. Defaults to 5000.",
     )
     parser.add_argument(
         "--sleep-seconds",
         type=float,
-        default=0.2,
+        default=1.2,
         help="Delay between requests to reduce load on the source site.",
     )
     parser.add_argument("--db-host", default=os.getenv("DB_HOST", "localhost"))
@@ -531,13 +531,58 @@ def resolve_psql_bin(configured_value: str) -> str:
     )
 
 
+def question_already_imported(question: ImportedQuestion, args: argparse.Namespace) -> bool:
+    title_literal = sql_literal(question.title)
+    sql = textwrap.dedent(
+        f"""
+        SELECT EXISTS (
+            SELECT 1
+            FROM questions
+            WHERE title = {title_literal}
+              AND source_type = 'external_import'
+        );
+        """
+    ).strip()
+
+    if args.dry_run:
+        return False
+
+    psql_bin = resolve_psql_bin(args.psql_bin)
+    env = os.environ.copy()
+    env["PGPASSWORD"] = args.db_password
+    result = subprocess.run(
+        [
+            psql_bin,
+            "-t",
+            "-A",
+            "-h",
+            str(args.db_host),
+            "-p",
+            str(args.db_port),
+            "-U",
+            str(args.db_user),
+            "-d",
+            str(args.db_name),
+            "-c",
+            sql,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    return result.stdout.strip().lower() == "t"
+
+
 def main() -> int:
     args = build_parser().parse_args()
 
     imported = 0
+    skipped_existing = 0
+    failed = 0
     current_id = args.start_id
     while True:
-        if args.max_id is not None and current_id > args.max_id:
+        if current_id > args.max_id:
             break
 
         url = BASE_URL.format(question_id=current_id)
@@ -545,15 +590,35 @@ def main() -> int:
             html_text = fetch_question_page(current_id)
             question = parse_question(current_id, html_text)
         except (HTTPError, URLError, TimeoutError, ValueError) as exc:
-            print(f"Stopping at question {current_id}: {exc}", file=sys.stderr)
-            break
+            failed += 1
+            print(f"Skipping question {current_id}: {exc}", file=sys.stderr)
+            current_id += 1
+            if args.sleep_seconds > 0:
+                time.sleep(args.sleep_seconds)
+            continue
         except FileNotFoundError as exc:
             print(str(exc), file=sys.stderr)
             return 1
 
-        sql = build_question_sql(question)
         try:
+            if question_already_imported(question, args):
+                skipped_existing += 1
+                print(f"Skipping question {current_id}: already imported ({question.title})")
+                current_id += 1
+                if args.sleep_seconds > 0:
+                    time.sleep(args.sleep_seconds)
+                continue
+
+            sql = build_question_sql(question)
             execute_sql(sql, args)
+        except subprocess.CalledProcessError as exc:
+            failed += 1
+            stderr = exc.stderr.strip() if exc.stderr else str(exc)
+            print(f"Skipping question {current_id}: database command failed: {stderr}", file=sys.stderr)
+            current_id += 1
+            if args.sleep_seconds > 0:
+                time.sleep(args.sleep_seconds)
+            continue
         except FileNotFoundError as exc:
             print(str(exc), file=sys.stderr)
             return 1
@@ -564,7 +629,10 @@ def main() -> int:
         if args.sleep_seconds > 0:
             time.sleep(args.sleep_seconds)
 
-    print(f"Imported {imported} question(s).")
+    print(
+        f"Completed import scan through question {args.max_id}. "
+        f"imported={imported} skipped_existing={skipped_existing} failed={failed}",
+    )
     return 0
 
 
