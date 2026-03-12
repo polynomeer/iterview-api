@@ -25,6 +25,13 @@ object ResumeMapper {
         parseStartedAt = entity.parseStartedAt,
         parseCompletedAt = entity.parseCompletedAt,
         parseErrorMessage = entity.parseErrorMessage,
+        llmExtractionStatus = entity.llmExtractionStatus,
+        llmExtractionStartedAt = entity.llmExtractionStartedAt,
+        llmExtractionCompletedAt = entity.llmExtractionCompletedAt,
+        llmExtractionErrorMessage = entity.llmExtractionErrorMessage,
+        llmModel = entity.llmModel,
+        llmPromptVersion = entity.llmPromptVersion,
+        llmExtractionConfidence = entity.llmExtractionConfidence?.toDouble(),
         isActive = entity.isActive,
         uploadedAt = entity.uploadedAt,
     )

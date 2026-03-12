@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import java.math.BigDecimal
 import java.time.Instant
 
 @Entity
@@ -44,6 +45,20 @@ class ResumeVersionEntity(
     val parseCompletedAt: Instant? = null,
     @Column(name = "parse_error_message")
     val parseErrorMessage: String? = null,
+    @Column(name = "llm_extraction_status")
+    val llmExtractionStatus: String? = null,
+    @Column(name = "llm_extraction_started_at")
+    val llmExtractionStartedAt: Instant? = null,
+    @Column(name = "llm_extraction_completed_at")
+    val llmExtractionCompletedAt: Instant? = null,
+    @Column(name = "llm_extraction_error_message")
+    val llmExtractionErrorMessage: String? = null,
+    @Column(name = "llm_model")
+    val llmModel: String? = null,
+    @Column(name = "llm_prompt_version")
+    val llmPromptVersion: String? = null,
+    @Column(name = "llm_extraction_confidence", precision = 5, scale = 4)
+    val llmExtractionConfidence: BigDecimal? = null,
     @Column(name = "is_active", nullable = false)
     val isActive: Boolean = false,
     @Column(name = "uploaded_at", nullable = false)
