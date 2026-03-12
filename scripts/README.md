@@ -19,3 +19,29 @@ Seeded data includes:
 - one archived progress item
 - one retry-pending item with review queue data
 - one daily card for today
+
+## Import Maeil Mail Questions
+Import sequential question pages from Maeil Mail into:
+- `questions`
+- `question_reference_answers`
+- `learning_materials`
+- `question_learning_materials`
+
+The importer stops at the first fetch or parse error unless `--max-id` is provided.
+
+Example:
+
+```bash
+python3 scripts/import_maeil_questions.py \
+  --db-host localhost \
+  --db-port 5432 \
+  --db-name iterview \
+  --db-user iterview \
+  --db-password iterview
+```
+
+Dry run:
+
+```bash
+python3 scripts/import_maeil_questions.py --dry-run --max-id 3
+```
