@@ -10,39 +10,33 @@ import java.time.Instant
 import java.time.LocalDate
 
 @Entity
-@Table(name = "resume_experience_snapshots")
-class ResumeExperienceSnapshotEntity(
+@Table(name = "resume_project_snapshots")
+class ResumeProjectSnapshotEntity(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
     @Column(name = "resume_version_id", nullable = false)
     val resumeVersionId: Long,
-    @Column(name = "company_name")
-    val companyName: String? = null,
+    @Column(name = "resume_experience_snapshot_id")
+    val resumeExperienceSnapshotId: Long? = null,
+    @Column(nullable = false)
+    val title: String,
+    @Column(name = "organization_name")
+    val organizationName: String? = null,
     @Column(name = "role_name")
     val roleName: String? = null,
-    @Column(name = "employment_type")
-    val employmentType: String? = null,
+    @Column(name = "summary_text", nullable = false)
+    val summaryText: String,
+    @Column(name = "tech_stack_text")
+    val techStackText: String? = null,
     @Column(name = "started_on")
     val startedOn: LocalDate? = null,
     @Column(name = "ended_on")
     val endedOn: LocalDate? = null,
-    @Column(name = "is_current", nullable = false)
-    val isCurrent: Boolean = false,
-    @Column(name = "project_name")
-    val projectName: String? = null,
-    @Column(name = "summary_text", nullable = false)
-    val summaryText: String,
-    @Column(name = "impact_text")
-    val impactText: String? = null,
-    @Column(name = "source_text", nullable = false)
-    val sourceText: String,
-    @Column(name = "risk_level", nullable = false)
-    val riskLevel: String,
     @Column(name = "display_order", nullable = false)
     val displayOrder: Int,
-    @Column(name = "is_confirmed", nullable = false)
-    val isConfirmed: Boolean = false,
+    @Column(name = "source_text")
+    val sourceText: String? = null,
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant,
     @Column(name = "updated_at", nullable = false)
