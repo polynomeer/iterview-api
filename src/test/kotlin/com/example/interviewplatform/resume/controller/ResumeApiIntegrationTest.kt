@@ -4,8 +4,14 @@ import com.example.interviewplatform.auth.service.TokenService
 import com.example.interviewplatform.support.TestDatabaseCleaner
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.apache.pdfbox.pdmodel.PDDocument
+import org.apache.pdfbox.pdmodel.PDPage
+import org.apache.pdfbox.pdmodel.PDPageContentStream
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts
+import org.apache.pdfbox.pdmodel.font.PDType1Font
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
@@ -13,12 +19,15 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.MediaType
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
+import org.springframework.mock.web.MockMultipartFile
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.testcontainers.junit.jupiter.Testcontainers
+import java.io.ByteArrayOutputStream
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -143,8 +152,8 @@ class ResumeApiIntegrationTest {
         val versionId = createResumeVersion(
             resumeId = resumeId,
             fileUrl = "https://files.example.com/parser-ready-resume.pdf",
-            summaryText = "Built backend APIs with Spring Boot and improved Redis cache latency by 40 percent.",
-            rawText = "Built backend APIs with Spring Boot. Improved Redis cache latency by 40 percent.",
+            summaryText = "Built backend APIs with Spring Boot and improved Redis cache latency by 40%.",
+            rawText = "Built backend APIs with Spring Boot. Improved Redis cache latency by 40%.",
             parsedJson = "{\"skills\":[\"Spring Boot\",\"Redis\"]}",
         )
 
@@ -163,11 +172,65 @@ class ResumeApiIntegrationTest {
         mockMvc.perform(get("/api/resume-versions/$versionId/experiences").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.resumeVersionId").value(versionId))
-            .andExpect(jsonPath("$.items.length()").value(2))
+            .andExpect(jsonPath("$.items.length()").value(3))
 
         mockMvc.perform(get("/api/resume-versions/$versionId/risks").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.resumeVersionId").value(versionId))
+            .andExpect(jsonPath("$.items.length()").value(2))
+    }
+
+    @Test
+    fun `uploading pdf resume creates parsed version with downloadable file`() {
+        seedSkillCategory("BACKEND", "Backend", 1)
+        seedSkill("Spring Boot", "BACKEND")
+        seedSkill("PostgreSQL", "BACKEND")
+
+        val resumeId = createResume("Uploaded Resume")
+        val pdf = MockMultipartFile(
+            "file",
+            "candidate-resume.pdf",
+            "application/pdf",
+            createPdf(
+                listOf(
+                    "Built backend APIs with Spring Boot and PostgreSQL.",
+                    "Improved checkout latency by 35% with query tuning.",
+                ),
+            ),
+        )
+
+        val result = mockMvc.perform(
+            multipart("/api/resumes/$resumeId/versions/upload")
+                .file(pdf)
+                .param("summaryText", "Senior backend resume")
+                .header("Authorization", authHeader),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.versionNo").value(1))
+            .andExpect(jsonPath("$.fileName").value("candidate-resume.pdf"))
+            .andExpect(jsonPath("$.fileType").value("application/pdf"))
+            .andExpect(jsonPath("$.parsingStatus").value("completed"))
+            .andExpect(jsonPath("$.parseCompletedAt").isNotEmpty)
+            .andExpect(jsonPath("$.fileUrl").exists())
+            .andReturn()
+
+        val root = objectMapper.readTree(result.response.contentAsString)
+        val versionId = root.get("id").asLong()
+        assertTrue(root.get("fileSizeBytes").asLong() > 0)
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/file").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect { mvcResult ->
+                assertEquals("application/pdf", mvcResult.response.contentType)
+                assertTrue(mvcResult.response.contentAsByteArray.isNotEmpty())
+            }
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/skills").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items.length()").value(2))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/risks").header("Authorization", authHeader))
+            .andExpect(status().isOk)
             .andExpect(jsonPath("$.items.length()").value(1))
     }
 
@@ -288,5 +351,28 @@ class ResumeApiIntegrationTest {
             categoryId,
             title,
         )
+    }
+
+    private fun createPdf(lines: List<String>): ByteArray {
+        val document = PDDocument()
+        val page = PDPage()
+        document.addPage(page)
+
+        PDPageContentStream(document, page).use { stream ->
+            stream.setFont(PDType1Font(Standard14Fonts.FontName.HELVETICA), 12f)
+            stream.beginText()
+            stream.newLineAtOffset(50f, 700f)
+            lines.forEachIndexed { index, line ->
+                if (index > 0) {
+                    stream.newLineAtOffset(0f, -18f)
+                }
+                stream.showText(line)
+            }
+            stream.endText()
+        }
+
+        val output = ByteArrayOutputStream()
+        document.use { it.save(output) }
+        return output.toByteArray()
     }
 }

@@ -19,8 +19,12 @@ object ResumeMapper {
         fileUrl = entity.fileUrl,
         fileName = entity.fileName,
         fileType = entity.fileType,
+        fileSizeBytes = entity.fileSizeBytes,
         summaryText = entity.summaryText,
         parsingStatus = entity.parsingStatus,
+        parseStartedAt = entity.parseStartedAt,
+        parseCompletedAt = entity.parseCompletedAt,
+        parseErrorMessage = entity.parseErrorMessage,
         isActive = entity.isActive,
         uploadedAt = entity.uploadedAt,
     )

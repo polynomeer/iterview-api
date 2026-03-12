@@ -24,6 +24,12 @@ class ResumeVersionEntity(
     val fileName: String? = null,
     @Column(name = "file_type")
     val fileType: String? = null,
+    @Column(name = "storage_key")
+    val storageKey: String? = null,
+    @Column(name = "file_size_bytes")
+    val fileSizeBytes: Long? = null,
+    @Column(name = "checksum_sha256", length = 64)
+    val checksumSha256: String? = null,
     @Column(name = "raw_text")
     val rawText: String? = null,
     @Column(name = "parsed_json", columnDefinition = "TEXT")
@@ -32,6 +38,12 @@ class ResumeVersionEntity(
     val summaryText: String? = null,
     @Column(name = "parsing_status", nullable = false)
     val parsingStatus: String,
+    @Column(name = "parse_started_at")
+    val parseStartedAt: Instant? = null,
+    @Column(name = "parse_completed_at")
+    val parseCompletedAt: Instant? = null,
+    @Column(name = "parse_error_message")
+    val parseErrorMessage: String? = null,
     @Column(name = "is_active", nullable = false)
     val isActive: Boolean = false,
     @Column(name = "uploaded_at", nullable = false)
