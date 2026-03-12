@@ -239,6 +239,10 @@ class ResumeService(
     }
 
     @Transactional(readOnly = true)
+    fun getResumeVersion(userId: Long, versionId: Long): ResumeVersionDto =
+        ResumeMapper.toVersionDto(requireOwnedVersion(userId, versionId))
+
+    @Transactional(readOnly = true)
     fun listResumeVersionExperiences(userId: Long, versionId: Long): ResumeExperienceSnapshotResponseDto {
         val version = requireOwnedVersion(userId, versionId)
         return ResumeExperienceSnapshotResponseDto(

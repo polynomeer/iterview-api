@@ -28,6 +28,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.io.ByteArrayOutputStream
+import java.nio.charset.StandardCharsets
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -225,6 +226,12 @@ class ResumeApiIntegrationTest {
                 assertTrue(mvcResult.response.contentAsByteArray.isNotEmpty())
             }
 
+        mockMvc.perform(get("/api/resume-versions/$versionId").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.id").value(versionId))
+            .andExpect(jsonPath("$.fileUrl").value("/api/resume-versions/$versionId/file"))
+            .andExpect(jsonPath("$.parsingStatus").value("completed"))
+
         mockMvc.perform(get("/api/resume-versions/$versionId/skills").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.items.length()").value(2))
@@ -232,6 +239,38 @@ class ResumeApiIntegrationTest {
         mockMvc.perform(get("/api/resume-versions/$versionId/risks").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.items.length()").value(1))
+    }
+
+    @Test
+    fun `invalid pdf upload stores failed version status`() {
+        val resumeId = createResume("Broken Resume")
+        val invalidPdf = MockMultipartFile(
+            "file",
+            "broken-resume.pdf",
+            "application/pdf",
+            "not-a-real-pdf".toByteArray(StandardCharsets.UTF_8),
+        )
+
+        val result = mockMvc.perform(
+            multipart("/api/resumes/$resumeId/versions/upload")
+                .file(invalidPdf)
+                .header("Authorization", authHeader),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.parsingStatus").value("failed"))
+            .andExpect(jsonPath("$.parseErrorMessage").isNotEmpty)
+            .andReturn()
+
+        val versionId = objectMapper.readTree(result.response.contentAsString).get("id").asLong()
+
+        mockMvc.perform(get("/api/resume-versions/$versionId").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.parsingStatus").value("failed"))
+            .andExpect(jsonPath("$.parseErrorMessage").isNotEmpty)
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/skills").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items.length()").value(0))
     }
 
     private fun createResume(title: String): Long {

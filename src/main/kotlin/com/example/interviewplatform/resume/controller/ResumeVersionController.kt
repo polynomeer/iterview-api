@@ -5,6 +5,7 @@ import com.example.interviewplatform.resume.dto.ActivateResumeVersionResponse
 import com.example.interviewplatform.resume.dto.ResumeExperienceSnapshotResponseDto
 import com.example.interviewplatform.resume.dto.ResumeRiskItemResponseDto
 import com.example.interviewplatform.resume.dto.ResumeSkillSnapshotResponseDto
+import com.example.interviewplatform.resume.dto.ResumeVersionDto
 import com.example.interviewplatform.resume.service.ResumeService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
@@ -26,6 +27,11 @@ class ResumeVersionController(
     private val resumeService: ResumeService,
     private val currentUserProvider: CurrentUserProvider,
 ) {
+    @GetMapping("/{versionId}")
+    @Operation(summary = "Get resume version detail")
+    fun getResumeVersion(@PathVariable versionId: Long): ResumeVersionDto =
+        resumeService.getResumeVersion(currentUserProvider.currentUserId(), versionId)
+
     @GetMapping("/{versionId}/skills")
     @Operation(summary = "Get extracted skills for resume version")
     fun getResumeVersionSkills(@PathVariable versionId: Long): ResumeSkillSnapshotResponseDto =
