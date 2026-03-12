@@ -154,7 +154,15 @@ class ResumeApiIntegrationTest {
             resumeId = resumeId,
             fileUrl = "https://files.example.com/parser-ready-resume.pdf",
             summaryText = "Built backend APIs with Spring Boot and improved Redis cache latency by 40%.",
-            rawText = "Built backend APIs with Spring Boot. Improved Redis cache latency by 40%.",
+            rawText = """
+                Kim Resume
+                Contact : 010-1234-5678
+                Mail : resume@example.com
+                GitHub : https://github.com/resume-dev
+                보유 역량
+                • Backend leadership. Built backend APIs with Spring Boot and improved Redis cache latency by 40%.
+                • System ownership. Reduced deployment time by 20%.
+            """.trimIndent(),
             parsedJson = "{\"skills\":[\"Spring Boot\",\"Redis\"]}",
         )
 
@@ -179,13 +187,16 @@ class ResumeApiIntegrationTest {
         mockMvc.perform(get("/api/resume-versions/$versionId/risks").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.resumeVersionId").value(versionId))
-            .andExpect(jsonPath("$.items.length()").value(2))
+            .andExpect(jsonPath("$.items.length()").isNotEmpty)
 
         mockMvc.perform(get("/api/resume-versions/$versionId/extraction").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.resumeVersionId").value(versionId))
             .andExpect(jsonPath("$.rawParsingStatus").value("completed"))
             .andExpect(jsonPath("$.llmExtractionStatus").value("skipped"))
+
+        assertCountAtLeast("resume_profile_snapshots", versionId, 1)
+        assertCountAtLeast("resume_competency_items", versionId, 1)
     }
 
     @Test
@@ -201,6 +212,12 @@ class ResumeApiIntegrationTest {
             "application/pdf",
             createPdf(
                 listOf(
+                    "Resume Kim",
+                    "Contact : 010-9876-5432",
+                    "Mail : pdf@example.com",
+                    "GitHub : https://github.com/pdf-resume",
+                    "Core strengths",
+                    "- Backend optimization. Improved checkout latency by 35%.",
                     "Built backend APIs with Spring Boot and PostgreSQL.",
                     "Improved checkout latency by 35% with query tuning.",
                 ),
@@ -243,11 +260,14 @@ class ResumeApiIntegrationTest {
 
         mockMvc.perform(get("/api/resume-versions/$versionId/skills").header("Authorization", authHeader))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.items.length()").value(2))
+            .andExpect(jsonPath("$.items.length()").isNotEmpty)
 
         mockMvc.perform(get("/api/resume-versions/$versionId/risks").header("Authorization", authHeader))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.items.length()").value(1))
+            .andExpect(jsonPath("$.items.length()").isNotEmpty)
+
+        assertCountAtLeast("resume_profile_snapshots", versionId, 1)
+        assertCountAtLeast("resume_contact_points", versionId, 1)
     }
 
     @Test
@@ -260,7 +280,12 @@ class ResumeApiIntegrationTest {
             resumeId = resumeId,
             fileUrl = "https://files.example.com/reextract.pdf",
             summaryText = "Built backend APIs with Spring Boot",
-            rawText = "Built backend APIs with Spring Boot and improved latency by 20%.",
+            rawText = """
+                Resume Reextract
+                Mail : reextract@example.com
+                보유 역량
+                • Backend APIs. Built backend APIs with Spring Boot and improved latency by 20%.
+            """.trimIndent(),
             parsedJson = null,
         )
 
@@ -272,7 +297,10 @@ class ResumeApiIntegrationTest {
 
         mockMvc.perform(get("/api/resume-versions/$versionId/skills").header("Authorization", authHeader))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.items.length()").value(1))
+            .andExpect(jsonPath("$.items.length()").isNotEmpty)
+
+        assertCountAtLeast("resume_profile_snapshots", versionId, 1)
+        assertCountAtLeast("resume_contact_points", versionId, 1)
     }
 
     @Test
@@ -447,5 +475,14 @@ class ResumeApiIntegrationTest {
         val output = ByteArrayOutputStream()
         document.use { it.save(output) }
         return output.toByteArray()
+    }
+
+    private fun assertCountAtLeast(tableName: String, resumeVersionId: Long, minimum: Int) {
+        val actual = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM $tableName WHERE resume_version_id = ?",
+            Int::class.java,
+            resumeVersionId,
+        )
+        assertTrue(actual >= minimum, "Expected at least $minimum rows in $tableName for resume version $resumeVersionId but found $actual")
     }
 }

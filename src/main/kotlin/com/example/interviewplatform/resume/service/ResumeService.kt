@@ -10,14 +10,30 @@ import com.example.interviewplatform.resume.dto.ResumeRiskItemResponseDto
 import com.example.interviewplatform.resume.dto.ResumeSkillSnapshotResponseDto
 import com.example.interviewplatform.resume.dto.ResumeVersionExtractionDto
 import com.example.interviewplatform.resume.dto.ResumeVersionDto
+import com.example.interviewplatform.resume.entity.ResumeAchievementItemEntity
+import com.example.interviewplatform.resume.entity.ResumeAwardItemEntity
+import com.example.interviewplatform.resume.entity.ResumeCertificationItemEntity
+import com.example.interviewplatform.resume.entity.ResumeCompetencyItemEntity
+import com.example.interviewplatform.resume.entity.ResumeContactPointEntity
+import com.example.interviewplatform.resume.entity.ResumeEducationItemEntity
 import com.example.interviewplatform.resume.entity.ResumeExperienceSnapshotEntity
+import com.example.interviewplatform.resume.entity.ResumeEntity
+import com.example.interviewplatform.resume.entity.ResumeProfileSnapshotEntity
+import com.example.interviewplatform.resume.entity.ResumeProjectSnapshotEntity
 import com.example.interviewplatform.resume.entity.ResumeRiskItemEntity
 import com.example.interviewplatform.resume.entity.ResumeSkillSnapshotEntity
-import com.example.interviewplatform.resume.entity.ResumeEntity
 import com.example.interviewplatform.resume.entity.ResumeVersionEntity
 import com.example.interviewplatform.resume.mapper.ResumeIntelligenceMapper
 import com.example.interviewplatform.resume.mapper.ResumeMapper
+import com.example.interviewplatform.resume.repository.ResumeAchievementItemRepository
+import com.example.interviewplatform.resume.repository.ResumeAwardItemRepository
+import com.example.interviewplatform.resume.repository.ResumeCertificationItemRepository
+import com.example.interviewplatform.resume.repository.ResumeCompetencyItemRepository
+import com.example.interviewplatform.resume.repository.ResumeContactPointRepository
+import com.example.interviewplatform.resume.repository.ResumeEducationItemRepository
 import com.example.interviewplatform.resume.repository.ResumeExperienceSnapshotRepository
+import com.example.interviewplatform.resume.repository.ResumeProfileSnapshotRepository
+import com.example.interviewplatform.resume.repository.ResumeProjectSnapshotRepository
 import com.example.interviewplatform.resume.repository.ResumeRepository
 import com.example.interviewplatform.resume.repository.ResumeRiskItemRepository
 import com.example.interviewplatform.resume.repository.ResumeSkillSnapshotRepository
@@ -25,6 +41,7 @@ import com.example.interviewplatform.resume.repository.ResumeVersionRepository
 import com.example.interviewplatform.skill.repository.SkillCategoryRepository
 import com.example.interviewplatform.skill.repository.SkillRepository
 import com.example.interviewplatform.user.repository.UserRepository
+import jakarta.persistence.EntityManager
 import org.springframework.core.io.Resource
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -39,6 +56,14 @@ class ResumeService(
     private val resumeVersionRepository: ResumeVersionRepository,
     private val resumeSkillSnapshotRepository: ResumeSkillSnapshotRepository,
     private val resumeExperienceSnapshotRepository: ResumeExperienceSnapshotRepository,
+    private val resumeProfileSnapshotRepository: ResumeProfileSnapshotRepository,
+    private val resumeContactPointRepository: ResumeContactPointRepository,
+    private val resumeCompetencyItemRepository: ResumeCompetencyItemRepository,
+    private val resumeProjectSnapshotRepository: ResumeProjectSnapshotRepository,
+    private val resumeAchievementItemRepository: ResumeAchievementItemRepository,
+    private val resumeEducationItemRepository: ResumeEducationItemRepository,
+    private val resumeCertificationItemRepository: ResumeCertificationItemRepository,
+    private val resumeAwardItemRepository: ResumeAwardItemRepository,
     private val resumeRiskItemRepository: ResumeRiskItemRepository,
     private val resumeFileStorageService: ResumeFileStorageService,
     private val resumeDocumentParser: ResumeDocumentParser,
@@ -47,6 +72,7 @@ class ResumeService(
     private val skillCategoryRepository: SkillCategoryRepository,
     private val userRepository: UserRepository,
     private val clockService: ClockService,
+    private val entityManager: EntityManager,
 ) {
     @Transactional(readOnly = true)
     fun listUserResumes(userId: Long): List<ResumeDto> {
@@ -335,8 +361,64 @@ class ResumeService(
         }
         val now = clockService.now()
         resumeRiskItemRepository.deleteByResumeVersionId(version.id)
+        resumeAchievementItemRepository.deleteByResumeVersionId(version.id)
+        resumeProjectSnapshotRepository.deleteByResumeVersionId(version.id)
+        resumeAwardItemRepository.deleteByResumeVersionId(version.id)
+        resumeCertificationItemRepository.deleteByResumeVersionId(version.id)
+        resumeEducationItemRepository.deleteByResumeVersionId(version.id)
+        resumeCompetencyItemRepository.deleteByResumeVersionId(version.id)
+        resumeContactPointRepository.deleteByResumeVersionId(version.id)
+        resumeProfileSnapshotRepository.deleteByResumeVersionId(version.id)
         resumeExperienceSnapshotRepository.deleteByResumeVersionId(version.id)
         resumeSkillSnapshotRepository.deleteByResumeVersionId(version.id)
+        entityManager.flush()
+        extracted.profile?.let { profile ->
+            resumeProfileSnapshotRepository.save(
+                ResumeProfileSnapshotEntity(
+                    resumeVersionId = version.id,
+                    fullName = profile.fullName.truncateTo(255),
+                    headline = profile.headline.truncateTo(255),
+                    summaryText = profile.summaryText,
+                    locationText = profile.locationText.truncateTo(255),
+                    yearsOfExperienceText = profile.yearsOfExperienceText.truncateTo(128),
+                    sourceText = profile.sourceText,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+        }
+        if (extracted.contacts.isNotEmpty()) {
+            resumeContactPointRepository.saveAll(
+                extracted.contacts.map { contact ->
+                    ResumeContactPointEntity(
+                        resumeVersionId = version.id,
+                        contactType = contact.contactType.truncateTo(64).orEmpty(),
+                        label = contact.label.truncateTo(255),
+                        valueText = contact.valueText.truncateTo(512),
+                        url = contact.url,
+                        displayOrder = contact.displayOrder,
+                        isPrimary = contact.isPrimary,
+                        createdAt = now,
+                        updatedAt = now,
+                    )
+                },
+            )
+        }
+        if (extracted.competencies.isNotEmpty()) {
+            resumeCompetencyItemRepository.saveAll(
+                extracted.competencies.map { competency ->
+                    ResumeCompetencyItemEntity(
+                        resumeVersionId = version.id,
+                        title = competency.title.truncateTo(255).orEmpty(),
+                        description = competency.description,
+                        sourceText = competency.sourceText,
+                        displayOrder = competency.displayOrder,
+                        createdAt = now,
+                        updatedAt = now,
+                    )
+                },
+            )
+        }
         val skillsByName = skillRepository.findByNameIn(extracted.skills.map { it.skillName }.distinct()).associateBy { it.name }
 
         val skillEntities = extracted.skills.map { skill ->
@@ -358,11 +440,17 @@ class ResumeService(
         val experienceEntities = extracted.experiences.map { experience ->
             ResumeExperienceSnapshotEntity(
                 resumeVersionId = version.id,
-                projectName = experience.projectName,
+                companyName = experience.companyName.truncateTo(255),
+                roleName = experience.roleName.truncateTo(255),
+                employmentType = experience.employmentType.truncateTo(64),
+                startedOn = experience.startedOn,
+                endedOn = experience.endedOn,
+                isCurrent = experience.isCurrent,
+                projectName = experience.projectName.truncateTo(255),
                 summaryText = experience.summaryText,
                 impactText = experience.impactText,
                 sourceText = experience.sourceText,
-                riskLevel = experience.riskLevel,
+                riskLevel = experience.riskLevel.truncateTo(32).orEmpty(),
                 displayOrder = experience.displayOrder,
                 isConfirmed = false,
                 createdAt = now,
@@ -373,6 +461,110 @@ class ResumeService(
             emptyList()
         } else {
             resumeExperienceSnapshotRepository.saveAll(experienceEntities)
+        }
+        val experienceByDisplayOrder = savedExperiences.associateBy { it.displayOrder }
+
+        val savedProjects = if (extracted.projects.isEmpty()) {
+            emptyList()
+        } else {
+            resumeProjectSnapshotRepository.saveAll(
+                extracted.projects.map { project ->
+                    ResumeProjectSnapshotEntity(
+                        resumeVersionId = version.id,
+                        resumeExperienceSnapshotId = project.experienceDisplayOrder?.let(experienceByDisplayOrder::get)?.id,
+                        title = project.title.truncateTo(255).orEmpty(),
+                        organizationName = project.organizationName.truncateTo(255),
+                        roleName = project.roleName.truncateTo(255),
+                        summaryText = project.summaryText,
+                        techStackText = project.techStackText,
+                        startedOn = project.startedOn,
+                        endedOn = project.endedOn,
+                        displayOrder = project.displayOrder,
+                        sourceText = project.sourceText,
+                        createdAt = now,
+                        updatedAt = now,
+                    )
+                },
+            )
+        }
+        val projectByDisplayOrder = savedProjects.associateBy { it.displayOrder }
+
+        if (extracted.achievements.isNotEmpty()) {
+            resumeAchievementItemRepository.saveAll(
+                extracted.achievements.map { achievement ->
+                    ResumeAchievementItemEntity(
+                        resumeVersionId = version.id,
+                        resumeExperienceSnapshotId = achievement.experienceDisplayOrder?.let(experienceByDisplayOrder::get)?.id,
+                        resumeProjectSnapshotId = achievement.projectDisplayOrder?.let(projectByDisplayOrder::get)?.id,
+                        title = achievement.title.truncateTo(255).orEmpty(),
+                        metricText = achievement.metricText.truncateTo(255),
+                        impactSummary = achievement.impactSummary,
+                        sourceText = achievement.sourceText,
+                        severityHint = achievement.severityHint.truncateTo(32),
+                        displayOrder = achievement.displayOrder,
+                        createdAt = now,
+                        updatedAt = now,
+                    )
+                },
+            )
+        }
+
+        if (extracted.educationItems.isNotEmpty()) {
+            resumeEducationItemRepository.saveAll(
+                extracted.educationItems.map { item ->
+                    ResumeEducationItemEntity(
+                        resumeVersionId = version.id,
+                        institutionName = item.institutionName.truncateTo(255).orEmpty(),
+                        degreeName = item.degreeName.truncateTo(255),
+                        fieldOfStudy = item.fieldOfStudy.truncateTo(255),
+                        startedOn = item.startedOn,
+                        endedOn = item.endedOn,
+                        description = item.description,
+                        displayOrder = item.displayOrder,
+                        sourceText = item.sourceText,
+                        createdAt = now,
+                        updatedAt = now,
+                    )
+                },
+            )
+        }
+
+        if (extracted.certificationItems.isNotEmpty()) {
+            resumeCertificationItemRepository.saveAll(
+                extracted.certificationItems.map { item ->
+                    ResumeCertificationItemEntity(
+                        resumeVersionId = version.id,
+                        name = item.name.truncateTo(255).orEmpty(),
+                        issuerName = item.issuerName.truncateTo(255),
+                        credentialCode = item.credentialCode.truncateTo(255),
+                        issuedOn = item.issuedOn,
+                        expiresOn = item.expiresOn,
+                        scoreText = item.scoreText.truncateTo(255),
+                        displayOrder = item.displayOrder,
+                        sourceText = item.sourceText,
+                        createdAt = now,
+                        updatedAt = now,
+                    )
+                },
+            )
+        }
+
+        if (extracted.awardItems.isNotEmpty()) {
+            resumeAwardItemRepository.saveAll(
+                extracted.awardItems.map { item ->
+                    ResumeAwardItemEntity(
+                        resumeVersionId = version.id,
+                        title = item.title.truncateTo(255).orEmpty(),
+                        issuerName = item.issuerName.truncateTo(255),
+                        awardedOn = item.awardedOn,
+                        description = item.description,
+                        displayOrder = item.displayOrder,
+                        sourceText = item.sourceText,
+                        createdAt = now,
+                        updatedAt = now,
+                    )
+                },
+            )
         }
 
         val riskEntities = extracted.risks.mapIndexed { index, risk ->
@@ -510,3 +702,8 @@ data class ResumeVersionFileDownload(
     val fileName: String,
     val contentType: String,
 )
+
+private fun String?.truncateTo(maxLength: Int): String? =
+    this?.trim()?.takeIf { it.isNotEmpty() }?.let { value ->
+        if (value.length <= maxLength) value else value.take(maxLength)
+    }
