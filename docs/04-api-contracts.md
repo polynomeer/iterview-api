@@ -24,6 +24,8 @@ Public endpoints:
 - `POST /api/auth/login`
 - `GET /api/questions`
 - `GET /api/questions/{questionId}`
+- `GET /api/questions/{questionId}/reference-answers`
+- `GET /api/questions/{questionId}/learning-materials`
 
 Authenticated endpoints:
 - `GET /api/auth/me`
@@ -536,6 +538,7 @@ Response:
   "companies": [],
   "roles": [],
   "learningMaterials": [],
+  "referenceAnswers": [],
   "userProgressSummary": {
     "currentStatus": "in_progress",
     "latestScore": 72.5,
@@ -904,14 +907,14 @@ Purpose:
 
 ### Question Reference Content
 Current support:
-- `GET /api/questions/{questionId}` already includes `learningMaterials` for generic related content
+- `GET /api/questions/{questionId}` includes `learningMaterials` and additive `referenceAnswers`
 
-Planned additive endpoints:
+Implemented additive endpoints:
 #### `GET /api/questions/{questionId}/reference-answers`
 Purpose:
-- return curated model answers or answer outlines for a question without mixing them into user answer history
+- return curated model answers or answer outlines for a question in stable display order
 
-Planned response:
+Response:
 ```json
 [
   {
@@ -930,7 +933,7 @@ Planned response:
 Purpose:
 - return the curated related learning materials for a question in stable display order
 
-Planned response:
+Response:
 ```json
 [
   {

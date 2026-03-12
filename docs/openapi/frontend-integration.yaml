@@ -181,6 +181,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/QuestionDetailResponse"
+  /api/questions/{questionId}/reference-answers:
+    get:
+      tags: [Questions]
+      security: []
+      summary: Get curated model answers for a question
+      parameters:
+        - $ref: "#/components/parameters/QuestionId"
+      responses:
+        "200":
+          description: Question reference answers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuestionReferenceAnswerDto"
+  /api/questions/{questionId}/learning-materials:
+    get:
+      tags: [Questions]
+      security: []
+      summary: Get curated learning materials for a question
+      parameters:
+        - $ref: "#/components/parameters/QuestionId"
+      responses:
+        "200":
+          description: Question learning materials
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LearningMaterialDto"
   /api/questions/{questionId}/tree:
     get:
       tags: [Questions]
@@ -634,6 +666,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/LearningMaterialDto"
+        referenceAnswers:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestionReferenceAnswerDto"
         userProgressSummary:
           allOf:
             - $ref: "#/components/schemas/UserProgressSummaryDto"
@@ -687,6 +723,18 @@ components:
         matchedSkills:
           type: array
           items: { type: string }
+    QuestionReferenceAnswerDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        title: { type: string }
+        answerText: { type: string }
+        answerFormat: { type: string }
+        sourceType: { type: string }
+        targetRoleId: { type: integer, format: int64, nullable: true }
+        companyId: { type: integer, format: int64, nullable: true }
+        isOfficial: { type: boolean }
+        displayOrder: { type: integer }
     SubmitAnswerRequest:
       type: object
       required: [answerMode, contentText]
@@ -1032,5 +1080,14 @@ components:
         id: { type: integer, format: int64 }
         title: { type: string }
         materialType: { type: string }
+        description: { type: string, nullable: true }
+        contentText: { type: string, nullable: true }
         contentUrl: { type: string, nullable: true }
         sourceName: { type: string, nullable: true }
+        difficultyLevel: { type: string, nullable: true }
+        estimatedMinutes: { type: integer, nullable: true }
+        isOfficial: { type: boolean }
+        displayOrder: { type: integer, nullable: true }
+        relationshipType: { type: string, nullable: true }
+        labelOverride: { type: string, nullable: true }
+        relevanceScore: { type: number, format: double, nullable: true }
