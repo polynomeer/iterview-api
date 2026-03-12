@@ -5,7 +5,15 @@ import com.example.interviewplatform.resume.dto.ActivateResumeVersionResponse
 import com.example.interviewplatform.resume.dto.CreateResumeRequest
 import com.example.interviewplatform.resume.dto.CreateResumeVersionRequest
 import com.example.interviewplatform.resume.dto.ResumeDto
+import com.example.interviewplatform.resume.dto.ResumeAchievementItemResponseDto
+import com.example.interviewplatform.resume.dto.ResumeAwardItemResponseDto
+import com.example.interviewplatform.resume.dto.ResumeCertificationItemResponseDto
+import com.example.interviewplatform.resume.dto.ResumeCompetencyItemResponseDto
+import com.example.interviewplatform.resume.dto.ResumeContactPointResponseDto
+import com.example.interviewplatform.resume.dto.ResumeEducationItemResponseDto
 import com.example.interviewplatform.resume.dto.ResumeExperienceSnapshotResponseDto
+import com.example.interviewplatform.resume.dto.ResumeProfileSnapshotResponseDto
+import com.example.interviewplatform.resume.dto.ResumeProjectSnapshotResponseDto
 import com.example.interviewplatform.resume.dto.ResumeRiskItemResponseDto
 import com.example.interviewplatform.resume.dto.ResumeSkillSnapshotResponseDto
 import com.example.interviewplatform.resume.dto.ResumeVersionExtractionDto
@@ -275,12 +283,99 @@ class ResumeService(
     }
 
     @Transactional(readOnly = true)
+    fun getResumeVersionProfile(userId: Long, versionId: Long): ResumeProfileSnapshotResponseDto {
+        val version = requireOwnedVersion(userId, versionId)
+        return ResumeProfileSnapshotResponseDto(
+            resumeVersionId = version.id,
+            item = resumeProfileSnapshotRepository.findByResumeVersionId(versionId)?.let(ResumeIntelligenceMapper::toProfileDto),
+            generatedAt = version.uploadedAt,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun listResumeVersionContacts(userId: Long, versionId: Long): ResumeContactPointResponseDto {
+        val version = requireOwnedVersion(userId, versionId)
+        return ResumeContactPointResponseDto(
+            resumeVersionId = version.id,
+            items = resumeContactPointRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(versionId)
+                .map(ResumeIntelligenceMapper::toContactDto),
+            generatedAt = version.uploadedAt,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun listResumeVersionCompetencies(userId: Long, versionId: Long): ResumeCompetencyItemResponseDto {
+        val version = requireOwnedVersion(userId, versionId)
+        return ResumeCompetencyItemResponseDto(
+            resumeVersionId = version.id,
+            items = resumeCompetencyItemRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(versionId)
+                .map(ResumeIntelligenceMapper::toCompetencyDto),
+            generatedAt = version.uploadedAt,
+        )
+    }
+
+    @Transactional(readOnly = true)
     fun listResumeVersionExperiences(userId: Long, versionId: Long): ResumeExperienceSnapshotResponseDto {
         val version = requireOwnedVersion(userId, versionId)
         return ResumeExperienceSnapshotResponseDto(
             resumeVersionId = version.id,
             items = resumeExperienceSnapshotRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(versionId)
                 .map(ResumeIntelligenceMapper::toExperienceDto),
+            generatedAt = version.uploadedAt,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun listResumeVersionProjects(userId: Long, versionId: Long): ResumeProjectSnapshotResponseDto {
+        val version = requireOwnedVersion(userId, versionId)
+        return ResumeProjectSnapshotResponseDto(
+            resumeVersionId = version.id,
+            items = resumeProjectSnapshotRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(versionId)
+                .map(ResumeIntelligenceMapper::toProjectDto),
+            generatedAt = version.uploadedAt,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun listResumeVersionAchievements(userId: Long, versionId: Long): ResumeAchievementItemResponseDto {
+        val version = requireOwnedVersion(userId, versionId)
+        return ResumeAchievementItemResponseDto(
+            resumeVersionId = version.id,
+            items = resumeAchievementItemRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(versionId)
+                .map(ResumeIntelligenceMapper::toAchievementDto),
+            generatedAt = version.uploadedAt,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun listResumeVersionEducation(userId: Long, versionId: Long): ResumeEducationItemResponseDto {
+        val version = requireOwnedVersion(userId, versionId)
+        return ResumeEducationItemResponseDto(
+            resumeVersionId = version.id,
+            items = resumeEducationItemRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(versionId)
+                .map(ResumeIntelligenceMapper::toEducationDto),
+            generatedAt = version.uploadedAt,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun listResumeVersionCertifications(userId: Long, versionId: Long): ResumeCertificationItemResponseDto {
+        val version = requireOwnedVersion(userId, versionId)
+        return ResumeCertificationItemResponseDto(
+            resumeVersionId = version.id,
+            items = resumeCertificationItemRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(versionId)
+                .map(ResumeIntelligenceMapper::toCertificationDto),
+            generatedAt = version.uploadedAt,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun listResumeVersionAwards(userId: Long, versionId: Long): ResumeAwardItemResponseDto {
+        val version = requireOwnedVersion(userId, versionId)
+        return ResumeAwardItemResponseDto(
+            resumeVersionId = version.id,
+            items = resumeAwardItemRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(versionId)
+                .map(ResumeIntelligenceMapper::toAwardDto),
             generatedAt = version.uploadedAt,
         )
     }

@@ -195,6 +195,19 @@ class ResumeApiIntegrationTest {
             .andExpect(jsonPath("$.rawParsingStatus").value("completed"))
             .andExpect(jsonPath("$.llmExtractionStatus").value("skipped"))
 
+        mockMvc.perform(get("/api/resume-versions/$versionId/profile").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.resumeVersionId").value(versionId))
+            .andExpect(jsonPath("$.item.fullName").value("Kim Resume"))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/contacts").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items.length()").value(3))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/competencies").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items.length()").value(2))
+
         assertCountAtLeast("resume_profile_snapshots", versionId, 1)
         assertCountAtLeast("resume_competency_items", versionId, 1)
     }
@@ -262,6 +275,14 @@ class ResumeApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.items.length()").isNotEmpty)
 
+        mockMvc.perform(get("/api/resume-versions/$versionId/profile").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.item.fullName").isNotEmpty)
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/contacts").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items.length()").value(3))
+
         mockMvc.perform(get("/api/resume-versions/$versionId/risks").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.items.length()").isNotEmpty)
@@ -298,6 +319,14 @@ class ResumeApiIntegrationTest {
         mockMvc.perform(get("/api/resume-versions/$versionId/skills").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.items.length()").isNotEmpty)
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/profile").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.item.fullName").value("Resume Reextract"))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/contacts").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items.length()").value(1))
 
         assertCountAtLeast("resume_profile_snapshots", versionId, 1)
         assertCountAtLeast("resume_contact_points", versionId, 1)
