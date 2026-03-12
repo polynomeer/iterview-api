@@ -17,6 +17,7 @@ import argparse
 import html
 from html.parser import HTMLParser
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -137,6 +138,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--db-name", default=os.getenv("DB_NAME", "iterview"))
     parser.add_argument("--db-user", default=os.getenv("DB_USERNAME", os.getenv("DB_USER", "iterview")))
     parser.add_argument("--db-password", default=os.getenv("DB_PASSWORD", "iterview"))
+    parser.add_argument(
+        "--psql-bin",
+        default=os.getenv("PSQL_BIN", "psql"),
+        help="psql executable name or absolute path.",
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -461,6 +467,7 @@ def execute_sql(sql: str, args: argparse.Namespace) -> None:
         print(sql)
         return
 
+    psql_bin = resolve_psql_bin(args.psql_bin)
     env = os.environ.copy()
     env["PGPASSWORD"] = args.db_password
 
@@ -473,7 +480,7 @@ def execute_sql(sql: str, args: argparse.Namespace) -> None:
     try:
         subprocess.run(
             [
-                "psql",
+                psql_bin,
                 "-v",
                 "ON_ERROR_STOP=1",
                 "-h",
@@ -497,6 +504,33 @@ def execute_sql(sql: str, args: argparse.Namespace) -> None:
             pass
 
 
+def resolve_psql_bin(configured_value: str) -> str:
+    if os.path.isabs(configured_value):
+        if os.path.exists(configured_value):
+            return configured_value
+        raise FileNotFoundError(
+            f"Configured psql binary does not exist: {configured_value}",
+        )
+
+    resolved = shutil.which(configured_value)
+    if resolved:
+        return resolved
+
+    common_candidates = [
+        "/opt/homebrew/bin/psql",
+        "/usr/local/bin/psql",
+        "/Applications/Postgres.app/Contents/Versions/latest/bin/psql",
+    ]
+    for candidate in common_candidates:
+        if os.path.exists(candidate):
+            return candidate
+
+    raise FileNotFoundError(
+        "psql executable not found. Install PostgreSQL client tools or rerun with "
+        "--psql-bin /absolute/path/to/psql",
+    )
+
+
 def main() -> int:
     args = build_parser().parse_args()
 
@@ -513,9 +547,16 @@ def main() -> int:
         except (HTTPError, URLError, TimeoutError, ValueError) as exc:
             print(f"Stopping at question {current_id}: {exc}", file=sys.stderr)
             break
+        except FileNotFoundError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
 
         sql = build_question_sql(question)
-        execute_sql(sql, args)
+        try:
+            execute_sql(sql, args)
+        except FileNotFoundError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
         imported += 1
         print(f"Imported question {current_id}: {question.title}")
 

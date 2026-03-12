@@ -40,6 +40,13 @@ python3 scripts/import_maeil_questions.py \
   --db-password iterview
 ```
 
+If `psql` is not on your `PATH`, pass it explicitly:
+
+```bash
+python3 scripts/import_maeil_questions.py \
+  --psql-bin /opt/homebrew/bin/psql
+```
+
 Dry run:
 
 ```bash
