@@ -163,6 +163,7 @@ class ResumeApiIntegrationTest {
             .andExpect(jsonPath("$.id").value(resumeId))
             .andExpect(jsonPath("$.versions[0].id").value(versionId))
             .andExpect(jsonPath("$.versions[0].parsingStatus").value("completed"))
+            .andExpect(jsonPath("$.versions[0].llmExtractionStatus").value("skipped"))
 
         mockMvc.perform(get("/api/resume-versions/$versionId/skills").header("Authorization", authHeader))
             .andExpect(status().isOk)
@@ -179,6 +180,12 @@ class ResumeApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.resumeVersionId").value(versionId))
             .andExpect(jsonPath("$.items.length()").value(2))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/extraction").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.resumeVersionId").value(versionId))
+            .andExpect(jsonPath("$.rawParsingStatus").value("completed"))
+            .andExpect(jsonPath("$.llmExtractionStatus").value("skipped"))
     }
 
     @Test
@@ -211,6 +218,7 @@ class ResumeApiIntegrationTest {
             .andExpect(jsonPath("$.fileName").value("candidate-resume.pdf"))
             .andExpect(jsonPath("$.fileType").value("application/pdf"))
             .andExpect(jsonPath("$.parsingStatus").value("completed"))
+            .andExpect(jsonPath("$.llmExtractionStatus").value("skipped"))
             .andExpect(jsonPath("$.parseCompletedAt").isNotEmpty)
             .andExpect(jsonPath("$.fileUrl").exists())
             .andReturn()
@@ -231,12 +239,38 @@ class ResumeApiIntegrationTest {
             .andExpect(jsonPath("$.id").value(versionId))
             .andExpect(jsonPath("$.fileUrl").value("/api/resume-versions/$versionId/file"))
             .andExpect(jsonPath("$.parsingStatus").value("completed"))
+            .andExpect(jsonPath("$.llmExtractionStatus").value("skipped"))
 
         mockMvc.perform(get("/api/resume-versions/$versionId/skills").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.items.length()").value(2))
 
         mockMvc.perform(get("/api/resume-versions/$versionId/risks").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items.length()").value(1))
+    }
+
+    @Test
+    fun `re extract endpoint refreshes extraction metadata and snapshots`() {
+        seedSkillCategory("BACKEND", "Backend", 1)
+        seedSkill("Spring Boot", "BACKEND")
+
+        val resumeId = createResume("Reextract Resume")
+        val versionId = createResumeVersion(
+            resumeId = resumeId,
+            fileUrl = "https://files.example.com/reextract.pdf",
+            summaryText = "Built backend APIs with Spring Boot",
+            rawText = "Built backend APIs with Spring Boot and improved latency by 20%.",
+            parsedJson = null,
+        )
+
+        mockMvc.perform(post("/api/resume-versions/$versionId/re-extract").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.resumeVersionId").value(versionId))
+            .andExpect(jsonPath("$.rawParsingStatus").value("completed"))
+            .andExpect(jsonPath("$.llmExtractionStatus").value("skipped"))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/skills").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.items.length()").value(1))
     }
@@ -296,7 +330,7 @@ class ResumeApiIntegrationTest {
         fileUrl: String,
         summaryText: String,
         rawText: String = "resume text",
-        parsedJson: String = "{\"skills\":[\"kotlin\"]}",
+        parsedJson: String? = "{\"skills\":[\"kotlin\"]}",
     ): Long {
         val payload = objectMapper.writeValueAsString(
             mapOf(

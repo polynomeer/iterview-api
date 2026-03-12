@@ -11,6 +11,8 @@ data class ExtractedResumeSignals(
     val experiences: List<ExtractedResumeExperience>,
     val risks: List<ExtractedResumeRisk>,
     val sourceType: String,
+    val extractionStatus: String,
+    val extractionErrorMessage: String?,
     val extractionConfidence: Double?,
     val llmModel: String?,
     val llmPromptVersion: String?,

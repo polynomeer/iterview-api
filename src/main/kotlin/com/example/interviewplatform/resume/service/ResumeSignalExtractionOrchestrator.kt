@@ -19,7 +19,11 @@ class ResumeSignalExtractionOrchestrator(
             structuredExtractionClient.extract(version)
         } catch (ex: Exception) {
             log.warn("resume_llm_extraction_failed versionId={} message={}", version.id, ex.message, ex)
-            fallbackExtractor.extract(version)
+            val fallback = fallbackExtractor.extract(version)
+            fallback.copy(
+                extractionStatus = "fallback",
+                extractionErrorMessage = ex.message?.take(1000),
+            )
         }
     }
 

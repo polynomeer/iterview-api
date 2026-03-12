@@ -8,6 +8,7 @@ import com.example.interviewplatform.resume.dto.ResumeDto
 import com.example.interviewplatform.resume.dto.ResumeExperienceSnapshotResponseDto
 import com.example.interviewplatform.resume.dto.ResumeRiskItemResponseDto
 import com.example.interviewplatform.resume.dto.ResumeSkillSnapshotResponseDto
+import com.example.interviewplatform.resume.dto.ResumeVersionExtractionDto
 import com.example.interviewplatform.resume.dto.ResumeVersionDto
 import com.example.interviewplatform.resume.entity.ResumeExperienceSnapshotEntity
 import com.example.interviewplatform.resume.entity.ResumeRiskItemEntity
@@ -126,7 +127,7 @@ class ResumeService(
             ),
         )
         if (parsingStatus == PARSING_STATUS_COMPLETED) {
-            persistExtractedSignals(created, now)
+            return ResumeMapper.toVersionDto(extractAndPersistSignals(created))
         }
         return ResumeMapper.toVersionDto(created)
     }
@@ -183,8 +184,7 @@ class ResumeService(
                     parseErrorMessage = null,
                 ),
             )
-            persistExtractedSignals(completedVersion, completedAt)
-            ResumeMapper.toVersionDto(completedVersion)
+            ResumeMapper.toVersionDto(extractAndPersistSignals(completedVersion))
         } catch (ex: Exception) {
             val failedAt = clockService.now()
             val failedVersion = saveResumeVersion(
@@ -243,6 +243,12 @@ class ResumeService(
         ResumeMapper.toVersionDto(requireOwnedVersion(userId, versionId))
 
     @Transactional(readOnly = true)
+    fun getResumeVersionExtraction(userId: Long, versionId: Long): ResumeVersionExtractionDto {
+        val version = requireOwnedVersion(userId, versionId)
+        return version.toExtractionDto()
+    }
+
+    @Transactional(readOnly = true)
     fun listResumeVersionExperiences(userId: Long, versionId: Long): ResumeExperienceSnapshotResponseDto {
         val version = requireOwnedVersion(userId, versionId)
         return ResumeExperienceSnapshotResponseDto(
@@ -280,6 +286,15 @@ class ResumeService(
         )
     }
 
+    @Transactional
+    fun reExtractResumeVersion(userId: Long, versionId: Long): ResumeVersionExtractionDto {
+        val version = requireOwnedVersion(userId, versionId)
+        if (version.parsingStatus != PARSING_STATUS_COMPLETED || version.rawText.isNullOrBlank()) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Resume raw text is not ready for structured extraction")
+        }
+        return extractAndPersistSignals(version).toExtractionDto()
+    }
+
     private fun requireUser(userId: Long) {
         if (!userRepository.existsById(userId)) {
             throw ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: $userId")
@@ -296,8 +311,32 @@ class ResumeService(
 
     private fun saveResumeVersion(entity: ResumeVersionEntity): ResumeVersionEntity = resumeVersionRepository.save(entity)
 
-    private fun persistExtractedSignals(version: ResumeVersionEntity, now: java.time.Instant) {
-        val extracted = resumeSignalExtractionService.extract(version)
+    private fun extractAndPersistSignals(version: ResumeVersionEntity): ResumeVersionEntity {
+        val startedAt = clockService.now()
+        val extractionPending = saveResumeVersion(
+            version.copyLike(
+                llmExtractionStatus = LLM_EXTRACTION_STATUS_PENDING,
+                llmExtractionStartedAt = startedAt,
+                llmExtractionCompletedAt = null,
+                llmExtractionErrorMessage = null,
+            ),
+        )
+        val extracted = try {
+            resumeSignalExtractionService.extract(extractionPending)
+        } catch (ex: Exception) {
+            val failedAt = clockService.now()
+            return saveResumeVersion(
+                extractionPending.copyLike(
+                    llmExtractionStatus = LLM_EXTRACTION_STATUS_FAILED,
+                    llmExtractionCompletedAt = failedAt,
+                    llmExtractionErrorMessage = ex.message?.take(1000) ?: "Structured extraction failed",
+                ),
+            )
+        }
+        val now = clockService.now()
+        resumeRiskItemRepository.deleteByResumeVersionId(version.id)
+        resumeExperienceSnapshotRepository.deleteByResumeVersionId(version.id)
+        resumeSkillSnapshotRepository.deleteByResumeVersionId(version.id)
         val skillsByName = skillRepository.findByNameIn(extracted.skills.map { it.skillName }.distinct()).associateBy { it.name }
 
         val skillEntities = extracted.skills.map { skill ->
@@ -352,6 +391,17 @@ class ResumeService(
         if (riskEntities.isNotEmpty()) {
             resumeRiskItemRepository.saveAll(riskEntities)
         }
+        return saveResumeVersion(
+            extractionPending.copyLike(
+                parsedJson = extracted.rawExtractionPayload ?: extractionPending.parsedJson,
+                llmExtractionStatus = extracted.extractionStatus,
+                llmExtractionCompletedAt = now,
+                llmExtractionErrorMessage = extracted.extractionErrorMessage,
+                llmModel = extracted.llmModel,
+                llmPromptVersion = extracted.llmPromptVersion,
+                llmExtractionConfidence = extracted.extractionConfidence?.let(BigDecimal::valueOf),
+            ),
+        )
     }
 
     private fun resolveParsingStatus(request: CreateResumeVersionRequest): String = when {
@@ -394,10 +444,18 @@ class ResumeService(
     private fun ResumeVersionEntity.copyLike(
         fileUrl: String? = this.fileUrl,
         rawText: String? = this.rawText,
+        parsedJson: String? = this.parsedJson,
         summaryText: String? = this.summaryText,
         parsingStatus: String = this.parsingStatus,
         parseCompletedAt: java.time.Instant? = this.parseCompletedAt,
         parseErrorMessage: String? = this.parseErrorMessage,
+        llmExtractionStatus: String? = this.llmExtractionStatus,
+        llmExtractionStartedAt: java.time.Instant? = this.llmExtractionStartedAt,
+        llmExtractionCompletedAt: java.time.Instant? = this.llmExtractionCompletedAt,
+        llmExtractionErrorMessage: String? = this.llmExtractionErrorMessage,
+        llmModel: String? = this.llmModel,
+        llmPromptVersion: String? = this.llmPromptVersion,
+        llmExtractionConfidence: BigDecimal? = this.llmExtractionConfidence,
     ): ResumeVersionEntity = ResumeVersionEntity(
         id = id,
         resumeId = resumeId,
@@ -415,15 +473,35 @@ class ResumeService(
         parseStartedAt = parseStartedAt,
         parseCompletedAt = parseCompletedAt,
         parseErrorMessage = parseErrorMessage,
+        llmExtractionStatus = llmExtractionStatus,
+        llmExtractionStartedAt = llmExtractionStartedAt,
+        llmExtractionCompletedAt = llmExtractionCompletedAt,
+        llmExtractionErrorMessage = llmExtractionErrorMessage,
+        llmModel = llmModel,
+        llmPromptVersion = llmPromptVersion,
+        llmExtractionConfidence = llmExtractionConfidence,
         isActive = isActive,
         uploadedAt = uploadedAt,
         createdAt = createdAt,
+    )
+
+    private fun ResumeVersionEntity.toExtractionDto(): ResumeVersionExtractionDto = ResumeVersionExtractionDto(
+        resumeVersionId = id,
+        rawParsingStatus = parsingStatus,
+        llmExtractionStatus = llmExtractionStatus,
+        llmModel = llmModel,
+        llmPromptVersion = llmPromptVersion,
+        startedAt = llmExtractionStartedAt,
+        completedAt = llmExtractionCompletedAt,
+        errorMessage = llmExtractionErrorMessage,
     )
 
     private companion object {
         const val PARSING_STATUS_PENDING = "pending"
         const val PARSING_STATUS_COMPLETED = "completed"
         const val PARSING_STATUS_FAILED = "failed"
+        const val LLM_EXTRACTION_STATUS_PENDING = "pending"
+        const val LLM_EXTRACTION_STATUS_FAILED = "failed"
     }
 }
 

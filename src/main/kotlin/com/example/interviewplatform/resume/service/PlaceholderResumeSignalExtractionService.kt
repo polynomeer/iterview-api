@@ -18,6 +18,8 @@ class PlaceholderResumeSignalExtractionService(
             experiences = experiences,
             risks = risks,
             sourceType = "deterministic",
+            extractionStatus = "skipped",
+            extractionErrorMessage = null,
             extractionConfidence = null,
             llmModel = null,
             llmPromptVersion = null,

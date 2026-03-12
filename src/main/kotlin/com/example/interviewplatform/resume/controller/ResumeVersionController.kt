@@ -5,6 +5,7 @@ import com.example.interviewplatform.resume.dto.ActivateResumeVersionResponse
 import com.example.interviewplatform.resume.dto.ResumeExperienceSnapshotResponseDto
 import com.example.interviewplatform.resume.dto.ResumeRiskItemResponseDto
 import com.example.interviewplatform.resume.dto.ResumeSkillSnapshotResponseDto
+import com.example.interviewplatform.resume.dto.ResumeVersionExtractionDto
 import com.example.interviewplatform.resume.dto.ResumeVersionDto
 import com.example.interviewplatform.resume.service.ResumeService
 import io.swagger.v3.oas.annotations.Operation
@@ -32,6 +33,11 @@ class ResumeVersionController(
     fun getResumeVersion(@PathVariable versionId: Long): ResumeVersionDto =
         resumeService.getResumeVersion(currentUserProvider.currentUserId(), versionId)
 
+    @GetMapping("/{versionId}/extraction")
+    @Operation(summary = "Get resume version extraction status")
+    fun getResumeVersionExtraction(@PathVariable versionId: Long): ResumeVersionExtractionDto =
+        resumeService.getResumeVersionExtraction(currentUserProvider.currentUserId(), versionId)
+
     @GetMapping("/{versionId}/skills")
     @Operation(summary = "Get extracted skills for resume version")
     fun getResumeVersionSkills(@PathVariable versionId: Long): ResumeSkillSnapshotResponseDto =
@@ -56,6 +62,11 @@ class ResumeVersionController(
             .header(HttpHeaders.CONTENT_TYPE, file.contentType)
             .body(file.resource)
     }
+
+    @PostMapping("/{versionId}/re-extract")
+    @Operation(summary = "Re-run structured extraction for a resume version")
+    fun reExtract(@PathVariable versionId: Long): ResumeVersionExtractionDto =
+        resumeService.reExtractResumeVersion(currentUserProvider.currentUserId(), versionId)
 
     @PostMapping("/{versionId}/activate")
     @Operation(summary = "Activate resume version")

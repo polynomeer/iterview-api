@@ -5,4 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface ResumeExperienceSnapshotRepository : JpaRepository<ResumeExperienceSnapshotEntity, Long> {
     fun findByResumeVersionIdOrderByDisplayOrderAscIdAsc(resumeVersionId: Long): List<ResumeExperienceSnapshotEntity>
+    fun deleteByResumeVersionId(resumeVersionId: Long)
 }

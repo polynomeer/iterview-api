@@ -100,6 +100,8 @@ class OpenAiResumeStructuredExtractionClient(
                 )
             },
             sourceType = "openai",
+            extractionStatus = "completed",
+            extractionErrorMessage = null,
             extractionConfidence = extractedRoot.path("overallConfidence").takeIf(JsonNode::isNumber)?.asDouble(),
             llmModel = root.path("model").asText(model),
             llmPromptVersion = promptVersion,
@@ -177,4 +179,3 @@ class OpenAiResumeStructuredExtractionClient(
         "required" to listOf("skills", "experiences", "risks", "overallConfidence"),
     )
 }
-
