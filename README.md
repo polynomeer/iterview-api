@@ -101,6 +101,13 @@ SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun
 - `SERVER_PORT` (default: `8080`)
 - `APP_CORS_ALLOWED_ORIGINS` (default: empty; use for explicit fixed origins)
 - `APP_CORS_ALLOWED_ORIGIN_PATTERNS` (default: `http://localhost:[*],http://127.0.0.1:[*],https://localhost:[*],https://127.0.0.1:[*]`)
+- `APP_MULTIPART_MAX_FILE_SIZE` (default: `10MB`)
+- `APP_MULTIPART_MAX_REQUEST_SIZE` (default: `12MB`)
+- `APP_RESUME_LLM_API_KEY` (default: empty; when set, enables OpenAI-backed resume structured extraction)
+- `APP_RESUME_LLM_BASE_URL` (default: `https://api.openai.com/v1`)
+- `APP_RESUME_LLM_MODEL` (default: `gpt-5-mini`)
+- `APP_RESUME_LLM_PROMPT_VERSION` (default: `resume-extract-v1`)
+- `APP_RESUME_LLM_TIMEOUT_SECONDS` (default: `30`)
 - `SWAGGER_UI_ENABLED` (default: `true` in `local`)
 
 ### Required in `prod` profile

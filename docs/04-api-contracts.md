@@ -38,7 +38,9 @@ Authenticated endpoints:
 - `POST /api/resumes/{resumeId}/versions`
 - `POST /api/resumes/{resumeId}/versions/upload`
 - `GET /api/resume-versions/{versionId}`
+- `GET /api/resume-versions/{versionId}/extraction`
 - `GET /api/resume-versions/{versionId}/file`
+- `POST /api/resume-versions/{versionId}/re-extract`
 - `POST /api/resume-versions/{versionId}/activate`
 - `GET /api/home`
 - `POST /api/daily-cards/{dailyCardId}/open`
@@ -443,7 +445,28 @@ Response:
 Notes:
 - use this endpoint to poll upload status after a PDF version is created
 - `parsingStatus` is currently one of `pending`, `completed`, or `failed`
-- future additive fields may distinguish raw parsing from LLM structured extraction if the stages become independently asynchronous
+- `llmExtractionStatus` is currently one of `pending`, `completed`, `skipped`, `fallback`, or `failed`
+
+#### `GET /api/resume-versions/{versionId}/extraction`
+Auth:
+- required
+
+Purpose:
+- inspect structured extraction status and metadata separately from raw file parsing
+
+Response:
+```json
+{
+  "resumeVersionId": 22,
+  "rawParsingStatus": "completed",
+  "llmExtractionStatus": "skipped",
+  "llmModel": null,
+  "llmPromptVersion": null,
+  "startedAt": "2026-03-12T03:00:00Z",
+  "completedAt": "2026-03-12T03:00:00Z",
+  "errorMessage": null
+}
+```
 
 #### `GET /api/resume-versions/{versionId}/file`
 Auth:
@@ -875,9 +898,6 @@ Response:
 }
 ```
 
-### Planned Additive API for LLM Extraction Visibility
-These endpoints are not implemented yet.
-
 #### `POST /api/resume-versions/{versionId}/re-extract`
 Auth:
 - required
@@ -890,28 +910,7 @@ Response:
 {
   "resumeVersionId": 22,
   "parsingStatus": "completed",
-  "llmExtractionStatus": "pending"
-}
-```
-
-#### `GET /api/resume-versions/{versionId}/extraction`
-Auth:
-- required
-
-Purpose:
-- inspect structured extraction status and metadata separately from raw file parsing
-
-Response:
-```json
-{
-  "resumeVersionId": 22,
-  "rawParsingStatus": "completed",
-  "llmExtractionStatus": "completed",
-  "llmModel": "gpt-5-mini",
-  "llmPromptVersion": "resume-extract-v1",
-  "startedAt": "2026-03-12T03:00:00Z",
-  "completedAt": "2026-03-12T03:00:04Z",
-  "errorMessage": null
+  "llmExtractionStatus": "skipped"
 }
 ```
 

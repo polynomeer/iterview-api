@@ -114,6 +114,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResumeVersionDto"
+  /api/resume-versions/{versionId}/extraction:
+    get:
+      tags: [Resume]
+      summary: Get resume version extraction status
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Resume extraction status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeVersionExtractionDto"
   /api/resume-versions/{versionId}/file:
     get:
       tags: [Resume]
@@ -167,6 +180,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResumeRiskItemResponseDto"
+  /api/resume-versions/{versionId}/re-extract:
+    post:
+      tags: [Resume]
+      summary: Re-run structured extraction for a resume version
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Resume extraction status after re-run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeVersionExtractionDto"
   /api/questions/{questionId}:
     get:
       tags: [Questions]
@@ -586,8 +612,26 @@ components:
         parseStartedAt: { type: string, format: date-time, nullable: true }
         parseCompletedAt: { type: string, format: date-time, nullable: true }
         parseErrorMessage: { type: string, nullable: true }
+        llmExtractionStatus: { type: string, nullable: true }
+        llmExtractionStartedAt: { type: string, format: date-time, nullable: true }
+        llmExtractionCompletedAt: { type: string, format: date-time, nullable: true }
+        llmExtractionErrorMessage: { type: string, nullable: true }
+        llmModel: { type: string, nullable: true }
+        llmPromptVersion: { type: string, nullable: true }
+        llmExtractionConfidence: { type: number, format: double, nullable: true }
         isActive: { type: boolean }
         uploadedAt: { type: string, format: date-time }
+    ResumeVersionExtractionDto:
+      type: object
+      properties:
+        resumeVersionId: { type: integer, format: int64 }
+        rawParsingStatus: { type: string }
+        llmExtractionStatus: { type: string, nullable: true }
+        llmModel: { type: string, nullable: true }
+        llmPromptVersion: { type: string, nullable: true }
+        startedAt: { type: string, format: date-time, nullable: true }
+        completedAt: { type: string, format: date-time, nullable: true }
+        errorMessage: { type: string, nullable: true }
     ResumeSkillSnapshotResponseDto:
       type: object
       properties:
