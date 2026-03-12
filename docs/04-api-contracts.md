@@ -484,8 +484,8 @@ Response:
 - binary file stream for the stored resume version
 - current implementation returns `Content-Type: application/pdf` for uploaded PDF versions
 
-### Planned Additive Resume Structure API
-These endpoints are not implemented yet. They describe the richer resume reads needed for real resumes that contain profile, credential, and project sections.
+### Rich Resume Structure API
+These endpoints are implemented and return version-scoped structured resume snapshots.
 
 #### `GET /api/resume-versions/{versionId}/profile`
 Purpose:

@@ -141,6 +141,45 @@ paths:
               schema:
                 type: string
                 format: binary
+  /api/resume-versions/{versionId}/profile:
+    get:
+      tags: [Resume]
+      summary: Get extracted resume profile
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Resume profile snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeProfileSnapshotResponseDto"
+  /api/resume-versions/{versionId}/contacts:
+    get:
+      tags: [Resume]
+      summary: Get extracted resume contacts
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Resume contacts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeContactPointResponseDto"
+  /api/resume-versions/{versionId}/competencies:
+    get:
+      tags: [Resume]
+      summary: Get extracted resume competencies
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Resume competency statements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeCompetencyItemResponseDto"
   /api/resume-versions/{versionId}/skills:
     get:
       tags: [Resume]
@@ -167,6 +206,71 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResumeExperienceSnapshotResponseDto"
+  /api/resume-versions/{versionId}/projects:
+    get:
+      tags: [Resume]
+      summary: Get extracted resume projects
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Project snapshot list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeProjectSnapshotResponseDto"
+  /api/resume-versions/{versionId}/achievements:
+    get:
+      tags: [Resume]
+      summary: Get extracted resume achievements
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Achievement list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeAchievementItemResponseDto"
+  /api/resume-versions/{versionId}/education:
+    get:
+      tags: [Resume]
+      summary: Get extracted resume education items
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Education list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeEducationItemResponseDto"
+  /api/resume-versions/{versionId}/certifications:
+    get:
+      tags: [Resume]
+      summary: Get extracted resume certifications
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Certification list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeCertificationItemResponseDto"
+  /api/resume-versions/{versionId}/awards:
+    get:
+      tags: [Resume]
+      summary: Get extracted resume awards
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Award list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeAwardItemResponseDto"
   /api/resume-versions/{versionId}/risks:
     get:
       tags: [Resume]
@@ -632,6 +736,60 @@ components:
         startedAt: { type: string, format: date-time, nullable: true }
         completedAt: { type: string, format: date-time, nullable: true }
         errorMessage: { type: string, nullable: true }
+    ResumeProfileSnapshotResponseDto:
+      type: object
+      properties:
+        resumeVersionId: { type: integer, format: int64 }
+        item:
+          allOf:
+            - $ref: "#/components/schemas/ResumeProfileSnapshotDto"
+          nullable: true
+        generatedAt: { type: string, format: date-time }
+    ResumeProfileSnapshotDto:
+      type: object
+      properties:
+        fullName: { type: string, nullable: true }
+        headline: { type: string, nullable: true }
+        summaryText: { type: string, nullable: true }
+        locationText: { type: string, nullable: true }
+        yearsOfExperienceText: { type: string, nullable: true }
+        sourceText: { type: string, nullable: true }
+    ResumeContactPointResponseDto:
+      type: object
+      properties:
+        resumeVersionId: { type: integer, format: int64 }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeContactPointDto"
+        generatedAt: { type: string, format: date-time }
+    ResumeContactPointDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        contactType: { type: string }
+        label: { type: string, nullable: true }
+        valueText: { type: string, nullable: true }
+        url: { type: string, nullable: true }
+        displayOrder: { type: integer }
+        primary: { type: boolean }
+    ResumeCompetencyItemResponseDto:
+      type: object
+      properties:
+        resumeVersionId: { type: integer, format: int64 }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeCompetencyItemDto"
+        generatedAt: { type: string, format: date-time }
+    ResumeCompetencyItemDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        title: { type: string }
+        description: { type: string }
+        sourceText: { type: string, nullable: true }
+        displayOrder: { type: integer }
     ResumeSkillSnapshotResponseDto:
       type: object
       properties:
@@ -663,6 +821,12 @@ components:
       type: object
       properties:
         id: { type: integer, format: int64 }
+        companyName: { type: string, nullable: true }
+        roleName: { type: string, nullable: true }
+        employmentType: { type: string, nullable: true }
+        startedOn: { type: string, format: date, nullable: true }
+        endedOn: { type: string, format: date, nullable: true }
+        current: { type: boolean }
         projectName: { type: string, nullable: true }
         summaryText: { type: string }
         impactText: { type: string, nullable: true }
@@ -670,6 +834,111 @@ components:
         riskLevel: { type: string }
         displayOrder: { type: integer }
         confirmed: { type: boolean }
+    ResumeProjectSnapshotResponseDto:
+      type: object
+      properties:
+        resumeVersionId: { type: integer, format: int64 }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeProjectSnapshotDto"
+        generatedAt: { type: string, format: date-time }
+    ResumeProjectSnapshotDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        resumeExperienceSnapshotId: { type: integer, format: int64, nullable: true }
+        title: { type: string }
+        organizationName: { type: string, nullable: true }
+        roleName: { type: string, nullable: true }
+        summaryText: { type: string }
+        techStackText: { type: string, nullable: true }
+        startedOn: { type: string, format: date, nullable: true }
+        endedOn: { type: string, format: date, nullable: true }
+        displayOrder: { type: integer }
+        sourceText: { type: string, nullable: true }
+    ResumeAchievementItemResponseDto:
+      type: object
+      properties:
+        resumeVersionId: { type: integer, format: int64 }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeAchievementItemDto"
+        generatedAt: { type: string, format: date-time }
+    ResumeAchievementItemDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        resumeExperienceSnapshotId: { type: integer, format: int64, nullable: true }
+        resumeProjectSnapshotId: { type: integer, format: int64, nullable: true }
+        title: { type: string }
+        metricText: { type: string, nullable: true }
+        impactSummary: { type: string }
+        sourceText: { type: string, nullable: true }
+        severityHint: { type: string, nullable: true }
+        displayOrder: { type: integer }
+    ResumeEducationItemResponseDto:
+      type: object
+      properties:
+        resumeVersionId: { type: integer, format: int64 }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeEducationItemDto"
+        generatedAt: { type: string, format: date-time }
+    ResumeEducationItemDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        institutionName: { type: string }
+        degreeName: { type: string, nullable: true }
+        fieldOfStudy: { type: string, nullable: true }
+        startedOn: { type: string, format: date, nullable: true }
+        endedOn: { type: string, format: date, nullable: true }
+        description: { type: string, nullable: true }
+        displayOrder: { type: integer }
+        sourceText: { type: string, nullable: true }
+    ResumeCertificationItemResponseDto:
+      type: object
+      properties:
+        resumeVersionId: { type: integer, format: int64 }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeCertificationItemDto"
+        generatedAt: { type: string, format: date-time }
+    ResumeCertificationItemDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        issuerName: { type: string, nullable: true }
+        credentialCode: { type: string, nullable: true }
+        issuedOn: { type: string, format: date, nullable: true }
+        expiresOn: { type: string, format: date, nullable: true }
+        scoreText: { type: string, nullable: true }
+        displayOrder: { type: integer }
+        sourceText: { type: string, nullable: true }
+    ResumeAwardItemResponseDto:
+      type: object
+      properties:
+        resumeVersionId: { type: integer, format: int64 }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeAwardItemDto"
+        generatedAt: { type: string, format: date-time }
+    ResumeAwardItemDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        title: { type: string }
+        issuerName: { type: string, nullable: true }
+        awardedOn: { type: string, format: date, nullable: true }
+        description: { type: string, nullable: true }
+        displayOrder: { type: integer }
+        sourceText: { type: string, nullable: true }
     ResumeRiskItemResponseDto:
       type: object
       properties:
