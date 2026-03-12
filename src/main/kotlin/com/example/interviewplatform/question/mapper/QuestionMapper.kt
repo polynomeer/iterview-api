@@ -5,12 +5,15 @@ import com.example.interviewplatform.question.dto.QuestionCompanyDto
 import com.example.interviewplatform.question.dto.QuestionDetailResponse
 import com.example.interviewplatform.question.dto.QuestionListItemDto
 import com.example.interviewplatform.question.dto.QuestionMetadataDto
+import com.example.interviewplatform.question.dto.QuestionReferenceAnswerDto
 import com.example.interviewplatform.question.dto.QuestionRoleDto
 import com.example.interviewplatform.question.dto.QuestionTagDto
 import com.example.interviewplatform.question.dto.UserProgressSummaryDto
 import com.example.interviewplatform.question.entity.LearningMaterialEntity
 import com.example.interviewplatform.question.entity.QuestionCompanyEntity
 import com.example.interviewplatform.question.entity.QuestionEntity
+import com.example.interviewplatform.question.entity.QuestionLearningMaterialEntity
+import com.example.interviewplatform.question.entity.QuestionReferenceAnswerEntity
 import com.example.interviewplatform.question.entity.QuestionRoleEntity
 import com.example.interviewplatform.question.entity.TagEntity
 import com.example.interviewplatform.question.entity.UserQuestionProgressEntity
@@ -45,6 +48,7 @@ object QuestionMapper {
         companies: List<QuestionCompanyDto>,
         roles: List<QuestionRoleDto>,
         learningMaterials: List<LearningMaterialDto>,
+        referenceAnswers: List<QuestionReferenceAnswerDto>,
         progress: UserQuestionProgressEntity?,
     ): QuestionDetailResponse = QuestionDetailResponse(
         question = QuestionMetadataDto(
@@ -66,6 +70,7 @@ object QuestionMapper {
         companies = companies,
         roles = roles,
         learningMaterials = learningMaterials,
+        referenceAnswers = referenceAnswers,
         userProgressSummary = progress?.let {
             UserProgressSummaryDto(
                 currentStatus = it.currentStatus,
@@ -99,11 +104,35 @@ object QuestionMapper {
         relevanceScore = edge.relevanceScore,
     )
 
-    fun toLearningMaterialDto(entity: LearningMaterialEntity): LearningMaterialDto = LearningMaterialDto(
+    fun toLearningMaterialDto(
+        entity: LearningMaterialEntity,
+        edge: QuestionLearningMaterialEntity? = null,
+    ): LearningMaterialDto = LearningMaterialDto(
         id = entity.id,
-        title = entity.title,
+        title = edge?.labelOverride ?: entity.title,
         materialType = entity.materialType,
+        description = entity.description,
+        contentText = entity.contentText,
         contentUrl = entity.contentUrl,
         sourceName = entity.sourceName,
+        difficultyLevel = entity.difficultyLevel,
+        estimatedMinutes = entity.estimatedMinutes,
+        isOfficial = entity.isOfficial,
+        displayOrder = edge?.displayOrder ?: entity.displayOrderHint,
+        relationshipType = edge?.relationshipType,
+        labelOverride = edge?.labelOverride,
+        relevanceScore = edge?.relevanceScore?.toDouble(),
+    )
+
+    fun toReferenceAnswerDto(entity: QuestionReferenceAnswerEntity): QuestionReferenceAnswerDto = QuestionReferenceAnswerDto(
+        id = entity.id,
+        title = entity.title,
+        answerText = entity.answerText,
+        answerFormat = entity.answerFormat,
+        sourceType = entity.sourceType,
+        targetRoleId = entity.targetRoleId,
+        companyId = entity.companyId,
+        isOfficial = entity.isOfficial,
+        displayOrder = entity.displayOrder,
     )
 }

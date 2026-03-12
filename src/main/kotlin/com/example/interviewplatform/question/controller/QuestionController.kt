@@ -3,10 +3,12 @@ package com.example.interviewplatform.question.controller
 import com.example.interviewplatform.common.service.CurrentUserProvider
 import com.example.interviewplatform.question.dto.QuestionDetailResponse
 import com.example.interviewplatform.question.dto.QuestionListItemDto
+import com.example.interviewplatform.question.dto.QuestionReferenceAnswerDto
 import com.example.interviewplatform.question.dto.QuestionTreeResponseDto
 import com.example.interviewplatform.question.dto.QuestionSearchFilter
 import com.example.interviewplatform.question.dto.RecommendedFollowUpDto
 import com.example.interviewplatform.question.dto.ResumeBasedQuestionDto
+import com.example.interviewplatform.question.dto.LearningMaterialDto
 import com.example.interviewplatform.question.service.QuestionService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -49,6 +51,16 @@ class QuestionController(
     @Operation(summary = "Get question detail")
     fun getQuestionDetail(@PathVariable questionId: Long): QuestionDetailResponse =
         questionService.getQuestionDetail(questionId, currentUserProvider.currentUserIdOrNull())
+
+    @GetMapping("/{questionId}/reference-answers")
+    @Operation(summary = "Get curated model answers for a question")
+    fun getQuestionReferenceAnswers(@PathVariable questionId: Long): List<QuestionReferenceAnswerDto> =
+        questionService.getQuestionReferenceAnswers(questionId)
+
+    @GetMapping("/{questionId}/learning-materials")
+    @Operation(summary = "Get curated learning materials for a question")
+    fun getQuestionLearningMaterials(@PathVariable questionId: Long): List<LearningMaterialDto> =
+        questionService.getQuestionLearningMaterials(questionId)
 
     @GetMapping("/{questionId}/tree")
     @Operation(summary = "Get question follow-up tree")

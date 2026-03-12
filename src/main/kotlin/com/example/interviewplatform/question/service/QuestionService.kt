@@ -4,6 +4,7 @@ import com.example.interviewplatform.question.dto.LearningMaterialDto
 import com.example.interviewplatform.question.dto.QuestionCompanyDto
 import com.example.interviewplatform.question.dto.QuestionDetailResponse
 import com.example.interviewplatform.question.dto.QuestionListItemDto
+import com.example.interviewplatform.question.dto.QuestionReferenceAnswerDto
 import com.example.interviewplatform.question.dto.QuestionRoleDto
 import com.example.interviewplatform.question.dto.QuestionSearchFilter
 import com.example.interviewplatform.question.dto.QuestionTagDto
@@ -13,6 +14,7 @@ import com.example.interviewplatform.question.dto.RecommendedFollowUpDto
 import com.example.interviewplatform.question.dto.ResumeBasedQuestionDto
 import com.example.interviewplatform.question.mapper.QuestionMapper
 import com.example.interviewplatform.question.repository.QuestionRelationshipRepository
+import com.example.interviewplatform.question.repository.QuestionReferenceAnswerRepository
 import com.example.interviewplatform.question.repository.CategoryRepository
 import com.example.interviewplatform.question.repository.LearningMaterialRepository
 import com.example.interviewplatform.question.repository.QuestionCompanyRepository
@@ -42,6 +44,7 @@ class QuestionService(
     private val questionRepository: QuestionRepository,
     private val questionSearchRepository: QuestionSearchRepository,
     private val questionRelationshipRepository: QuestionRelationshipRepository,
+    private val questionReferenceAnswerRepository: QuestionReferenceAnswerRepository,
     private val questionSkillMappingRepository: QuestionSkillMappingRepository,
     private val questionTagRepository: QuestionTagRepository,
     private val questionCompanyRepository: QuestionCompanyRepository,
@@ -95,8 +98,22 @@ class QuestionService(
             companies = context.companiesByQuestionId[question.id].orEmpty(),
             roles = context.rolesByQuestionId[question.id].orEmpty(),
             learningMaterials = context.learningMaterialsByQuestionId[question.id].orEmpty(),
+            referenceAnswers = context.referenceAnswersByQuestionId[question.id].orEmpty(),
             progress = progress,
         )
+    }
+
+    @Transactional(readOnly = true)
+    fun getQuestionReferenceAnswers(questionId: Long): List<QuestionReferenceAnswerDto> {
+        requireActiveQuestion(questionId)
+        return questionReferenceAnswerRepository.findByQuestionIdOrderByDisplayOrderAscIdAsc(questionId)
+            .map(QuestionMapper::toReferenceAnswerDto)
+    }
+
+    @Transactional(readOnly = true)
+    fun getQuestionLearningMaterials(questionId: Long): List<LearningMaterialDto> {
+        requireActiveQuestion(questionId)
+        return mapLearningMaterials(listOf(questionId))[questionId].orEmpty()
     }
 
     @Transactional(readOnly = true)
@@ -217,6 +234,7 @@ class QuestionService(
             companiesByQuestionId = companiesByQuestionId,
             rolesByQuestionId = rolesByQuestionId,
             learningMaterialsByQuestionId = learningMaterialsByQuestionId,
+            referenceAnswersByQuestionId = mapReferenceAnswers(questionIds),
             categoryNameById = categoryNameById,
         )
     }
@@ -258,10 +276,24 @@ class QuestionService(
             .associateBy { it.id }
 
         return materialEdges.groupBy { it.id.questionId }.mapValues { (_, edges) ->
-            edges.mapNotNull { edge ->
-                materialsById[edge.id.learningMaterialId]?.let(QuestionMapper::toLearningMaterialDto)
+            edges.sortedWith(
+                compareBy<com.example.interviewplatform.question.entity.QuestionLearningMaterialEntity> { it.displayOrder ?: Int.MAX_VALUE }
+                    .thenByDescending { it.relevanceScore }
+                    .thenBy { it.id.learningMaterialId },
+            ).mapNotNull { edge ->
+                materialsById[edge.id.learningMaterialId]?.let { QuestionMapper.toLearningMaterialDto(it, edge) }
             }
         }
+    }
+
+    private fun mapReferenceAnswers(questionIds: List<Long>): Map<Long, List<QuestionReferenceAnswerDto>> =
+        questionReferenceAnswerRepository.findByQuestionIdInOrderByQuestionIdAscDisplayOrderAscIdAsc(questionIds)
+            .groupBy { it.questionId }
+            .mapValues { (_, answers) -> answers.map(QuestionMapper::toReferenceAnswerDto) }
+
+    private fun requireActiveQuestion(questionId: Long) {
+        questionRepository.findByIdAndIsActiveTrue(questionId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found: $questionId")
     }
 
     private data class QuestionQueryContext(
@@ -269,6 +301,7 @@ class QuestionService(
         val companiesByQuestionId: Map<Long, List<QuestionCompanyDto>>,
         val rolesByQuestionId: Map<Long, List<QuestionRoleDto>>,
         val learningMaterialsByQuestionId: Map<Long, List<LearningMaterialDto>>,
+        val referenceAnswersByQuestionId: Map<Long, List<QuestionReferenceAnswerDto>>,
         val categoryNameById: Map<Long, String>,
     )
 

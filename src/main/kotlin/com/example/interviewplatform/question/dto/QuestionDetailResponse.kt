@@ -14,6 +14,8 @@ data class QuestionDetailResponse(
     val roles: List<QuestionRoleDto>,
     @field:Schema(description = "Recommended learning materials")
     val learningMaterials: List<LearningMaterialDto>,
+    @field:Schema(description = "Curated model answers or answer outlines for this question")
+    val referenceAnswers: List<QuestionReferenceAnswerDto> = emptyList(),
     @field:Schema(description = "Current user progress summary when the request is authenticated")
     val userProgressSummary: UserProgressSummaryDto?,
 )

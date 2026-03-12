@@ -162,16 +162,37 @@ class QuestionApiIntegrationTest {
 
         val materialId = jdbcTemplate.queryForObject(
             """
-            INSERT INTO learning_materials (title, material_type, content_text, content_url, source_name, created_at, updated_at)
-            VALUES ('Caching Patterns', 'video', NULL, 'https://example.com/cache-video', 'Tech Channel', now(), now())
+            INSERT INTO learning_materials (
+                title, material_type, content_text, content_url, source_name, description,
+                difficulty_level, estimated_minutes, is_official, created_at, updated_at
+            )
+            VALUES (
+                'Caching Patterns', 'video', 'Cache transcript', 'https://example.com/cache-video', 'Tech Channel',
+                'Video overview of invalidation patterns.', 'intermediate', 18, true, now(), now()
+            )
             RETURNING id
             """.trimIndent(),
             Long::class.java,
         )!!
         jdbcTemplate.update(
-            "INSERT INTO question_learning_materials (question_id, learning_material_id, relevance_score, created_at) VALUES (?, ?, 0.89, now())",
+            """
+            INSERT INTO question_learning_materials (
+                question_id, learning_material_id, relevance_score, display_order, relationship_type, label_override, created_at
+            ) VALUES (?, ?, 0.89, 2, 'deep_dive', 'Caching masterclass', now())
+            """.trimIndent(),
             questionId,
             materialId,
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO question_reference_answers (
+                question_id, title, answer_text, answer_format, source_type, is_official, display_order, created_at, updated_at
+            ) VALUES (
+                ?, 'Structured strong answer', 'Start with consistency goals, then discuss invalidation and write paths.',
+                'full_answer', 'editorial', true, 1, now(), now()
+            )
+            """.trimIndent(),
+            questionId,
         )
 
         jdbcTemplate.update(
@@ -195,9 +216,97 @@ class QuestionApiIntegrationTest {
             .andExpect(jsonPath("$.tags[0].name").value("scalability"))
             .andExpect(jsonPath("$.companies[0].id").value(companyId))
             .andExpect(jsonPath("$.roles[0].id").value(roleId))
-            .andExpect(jsonPath("$.learningMaterials[0].title").value("Caching Patterns"))
+            .andExpect(jsonPath("$.learningMaterials[0].title").value("Caching masterclass"))
+            .andExpect(jsonPath("$.learningMaterials[0].description").value("Video overview of invalidation patterns."))
+            .andExpect(jsonPath("$.learningMaterials[0].relationshipType").value("deep_dive"))
+            .andExpect(jsonPath("$.learningMaterials[0].estimatedMinutes").value(18))
+            .andExpect(jsonPath("$.referenceAnswers[0].title").value("Structured strong answer"))
             .andExpect(jsonPath("$.userProgressSummary.currentStatus").value("in_progress"))
             .andExpect(jsonPath("$.userProgressSummary.totalAttemptCount").value(3))
+    }
+
+    @Test
+    fun `reference answer and learning material endpoints return stable ordered editorial content`() {
+        val categoryId = idByName("categories", "name", "System Design")
+        val questionId = insertQuestion(
+            categoryId = categoryId,
+            title = "Explain transaction isolation",
+            body = "Explain read phenomena and tradeoffs",
+            difficulty = "MEDIUM",
+            qualityStatus = "approved",
+            isActive = true,
+        )
+
+        val material1Id = jdbcTemplate.queryForObject(
+            """
+            INSERT INTO learning_materials (
+                title, material_type, content_text, content_url, source_name, description,
+                difficulty_level, estimated_minutes, is_official, created_at, updated_at
+            ) VALUES (
+                'Isolation Levels Explained', 'article', 'Explain read committed', 'https://example.com/isolation',
+                'DB Guide', 'Refresher on read phenomena.', 'intermediate', 12, true, now(), now()
+            )
+            RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+        )!!
+        val material2Id = jdbcTemplate.queryForObject(
+            """
+            INSERT INTO learning_materials (
+                title, material_type, content_text, content_url, source_name, description,
+                difficulty_level, estimated_minutes, is_official, created_at, updated_at
+            ) VALUES (
+                'MVCC Deep Dive', 'article', 'Explain snapshots', 'https://example.com/mvcc',
+                'Storage Blog', 'MVCC internals.', 'advanced', 20, false, now(), now()
+            )
+            RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+        )!!
+
+        jdbcTemplate.update(
+            """
+            INSERT INTO question_learning_materials (
+                question_id, learning_material_id, relevance_score, display_order, relationship_type, label_override, created_at
+            ) VALUES (?, ?, 0.70, 2, 'deep_dive', NULL, now())
+            """.trimIndent(),
+            questionId,
+            material2Id,
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO question_learning_materials (
+                question_id, learning_material_id, relevance_score, display_order, relationship_type, label_override, created_at
+            ) VALUES (?, ?, 0.95, 1, 'prerequisite', 'Start here', now())
+            """.trimIndent(),
+            questionId,
+            material1Id,
+        )
+
+        jdbcTemplate.update(
+            """
+            INSERT INTO question_reference_answers (
+                question_id, title, answer_text, answer_format, source_type, is_official, display_order, created_at, updated_at
+            ) VALUES
+                (?, 'Concise answer', 'Define isolation, then compare common levels.', 'outline', 'editorial', true, 1, now(), now()),
+                (?, 'Detailed answer', 'Start with anomalies, then explain MVCC and tradeoffs.', 'full_answer', 'editorial', true, 2, now(), now())
+            """.trimIndent(),
+            questionId,
+            questionId,
+        )
+
+        mockMvc.perform(get("/api/questions/$questionId/reference-answers"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].title").value("Concise answer"))
+            .andExpect(jsonPath("$[1].title").value("Detailed answer"))
+            .andExpect(jsonPath("$[1].answerFormat").value("full_answer"))
+
+        mockMvc.perform(get("/api/questions/$questionId/learning-materials"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].title").value("Start here"))
+            .andExpect(jsonPath("$[0].relationshipType").value("prerequisite"))
+            .andExpect(jsonPath("$[1].title").value("MVCC Deep Dive"))
+            .andExpect(jsonPath("$[1].relationshipType").value("deep_dive"))
     }
 
     @Test

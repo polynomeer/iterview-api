@@ -14,6 +14,12 @@ class QuestionLearningMaterialEntity(
     val id: QuestionLearningMaterialId,
     @Column(name = "relevance_score", nullable = false)
     val relevanceScore: BigDecimal,
+    @Column(name = "display_order")
+    val displayOrder: Int? = null,
+    @Column(name = "relationship_type")
+    val relationshipType: String? = null,
+    @Column(name = "label_override")
+    val labelOverride: String? = null,
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant,
 )

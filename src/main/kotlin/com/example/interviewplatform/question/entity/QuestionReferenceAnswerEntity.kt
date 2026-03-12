@@ -9,31 +9,29 @@ import jakarta.persistence.Table
 import java.time.Instant
 
 @Entity
-@Table(name = "learning_materials")
-class LearningMaterialEntity(
+@Table(name = "question_reference_answers")
+class QuestionReferenceAnswerEntity(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
+    @Column(name = "question_id", nullable = false)
+    val questionId: Long,
     @Column(nullable = false)
     val title: String,
-    @Column(name = "material_type", nullable = false)
-    val materialType: String,
-    @Column(name = "content_text")
-    val contentText: String? = null,
-    @Column(name = "content_url")
-    val contentUrl: String? = null,
-    @Column(name = "source_name")
-    val sourceName: String? = null,
-    @Column(name = "description")
-    val description: String? = null,
-    @Column(name = "difficulty_level")
-    val difficultyLevel: String? = null,
-    @Column(name = "estimated_minutes")
-    val estimatedMinutes: Int? = null,
+    @Column(name = "answer_text", nullable = false)
+    val answerText: String,
+    @Column(name = "answer_format", nullable = false)
+    val answerFormat: String,
+    @Column(name = "source_type", nullable = false)
+    val sourceType: String,
+    @Column(name = "target_role_id")
+    val targetRoleId: Long? = null,
+    @Column(name = "company_id")
+    val companyId: Long? = null,
     @Column(name = "is_official", nullable = false)
     val isOfficial: Boolean = false,
-    @Column(name = "display_order_hint")
-    val displayOrderHint: Int? = null,
+    @Column(name = "display_order", nullable = false)
+    val displayOrder: Int = 0,
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant,
     @Column(name = "updated_at", nullable = false)
