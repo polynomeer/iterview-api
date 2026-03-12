@@ -13,7 +13,16 @@ class PlaceholderResumeSignalExtractionService(
         val skills = extractSkills(version)
         val experiences = extractExperiences(version)
         val risks = extractRisks(version, experiences)
-        return ExtractedResumeSignals(skills = skills, experiences = experiences, risks = risks)
+        return ExtractedResumeSignals(
+            skills = skills,
+            experiences = experiences,
+            risks = risks,
+            sourceType = "deterministic",
+            extractionConfidence = null,
+            llmModel = null,
+            llmPromptVersion = null,
+            rawExtractionPayload = version.parsedJson,
+        )
     }
 
     private fun extractSkills(version: ResumeVersionEntity): List<ExtractedResumeSkill> {

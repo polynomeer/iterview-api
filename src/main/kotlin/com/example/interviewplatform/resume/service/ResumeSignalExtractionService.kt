@@ -10,6 +10,11 @@ data class ExtractedResumeSignals(
     val skills: List<ExtractedResumeSkill>,
     val experiences: List<ExtractedResumeExperience>,
     val risks: List<ExtractedResumeRisk>,
+    val sourceType: String,
+    val extractionConfidence: Double?,
+    val llmModel: String?,
+    val llmPromptVersion: String?,
+    val rawExtractionPayload: String?,
 )
 
 data class ExtractedResumeSkill(
