@@ -88,17 +88,32 @@ The current schema remains the source of truth. New product concepts should be i
 - `resume_id`
 - `version_no`
 - `file_url`
+- `file_name`
+- `file_type`
 - `raw_text`
 - `parsed_json`
 - `summary_text`
+- `parsing_status`
 - `is_active`
 - `uploaded_at`
 - `created_at`
 
 Current interpretation:
 - `resume_versions` is the immutable historical anchor
+- uploaded PDF metadata should continue to live on this table rather than introducing a parallel version record
+- `file_name`, `file_type`, and `parsing_status` support a parser-ready lifecycle without breaking existing version reads
 - `parsed_json` is the current bridge field for structured extraction output
 - future resume intelligence should hang off `resume_version_id`
+
+Recommended additive columns for the PDF-native flow:
+- `storage_key` or equivalent object-store reference
+- `file_size_bytes`
+- `checksum_sha256`
+- `parse_started_at`
+- `parse_completed_at`
+- `parse_error_message`
+
+These should be introduced as backward-compatible nullable columns when binary upload and asynchronous parsing are implemented.
 
 ## Current Question Tables
 ### `questions`
@@ -251,6 +266,7 @@ Columns:
 Notes:
 - one resume version can produce many skill rows
 - this is better than overloading `parsed_json` once the feature becomes queryable
+- rows are regenerated per version so older PDFs keep their own extracted skill history
 
 ### `resume_experience_snapshots`
 Purpose:
@@ -269,6 +285,10 @@ Columns:
 - `created_at`
 - `updated_at`
 
+Notes:
+- keep `display_order` stable for frontend timeline rendering
+- every experience claim remains attributable to one immutable uploaded version
+
 ### `resume_risk_items`
 Purpose:
 - track resume statements that likely need follow-up defense
@@ -283,6 +303,10 @@ Columns:
 - `severity`
 - `created_at`
 - `updated_at`
+
+Notes:
+- optionally map risks back to a specific question later
+- parse failure for a new version must not delete prior risk items for older versions
 
 ## Question Structure Extensions
 ### `question_relationships`

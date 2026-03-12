@@ -25,8 +25,9 @@ The next product evolution should extend those capabilities rather than replace 
 The intended learning loop for this system is:
 
 ```text
-Resume Version
--> Resume Signals
+Resume PDF Upload
+-> Resume Version
+-> Parse + Extract Signals
 -> Question Selection
 -> Answer Submission
 -> Score + Feedback
@@ -39,9 +40,10 @@ This is an additive evolution of the current backend, not a new product line.
 
 ## Product Pillars
 ### 1. Resume Intelligence
-- store resume versions as immutable records
-- derive structured resume signals from a selected resume version
+- accept resume PDF uploads and persist them as immutable resume versions
+- derive structured resume signals from a selected resume version after parsing completes
 - surface high-risk resume claims that likely trigger follow-up questions
+- keep version-specific extraction results so older resume snapshots remain queryable
 - support resume-based question recommendation without breaking the existing catalog flow
 
 ### 2. Structured Question Learning
@@ -70,6 +72,8 @@ This is an additive evolution of the current backend, not a new product line.
 - scoring, retry scheduling, and archive decisions
 
 ### Planned Additive Extensions
+- PDF-native resume upload and parser integration for version creation
+- version processing status and failure visibility for resume parsing
 - resume extraction snapshots for skills, experiences, and resume risks
 - question relationship modeling for follow-up trees
 - richer answer analysis beyond the current score + feedback rows
@@ -88,6 +92,7 @@ This is an additive evolution of the current backend, not a new product line.
 - questions are global shared assets
 - answer attempts remain immutable after submission
 - resume versions remain immutable historical records
+- extracted resume skills, experiences, and risks are always scoped to one resume version
 - user progress is cached aggregate state per user-question pair
 - retry scheduling is persisted, not recomputed ad hoc on every read
 - archived questions must stay out of the active retry loop unless explicitly reset

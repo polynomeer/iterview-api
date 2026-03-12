@@ -10,9 +10,13 @@
 
 ## Resume Intelligence
 - resume versions remain immutable after creation
+- user can upload a PDF and receive a new immutable resume version
+- the system exposes whether a resume version is pending, completed, or failed for parsing
 - extracted resume skills can be retrieved for a specific resume version
 - extracted resume experiences can be retrieved for a specific resume version
 - resume risk items can be retrieved for a specific resume version
+- parse failure for a new version does not corrupt or overwrite prior versions
+- extracted resume data for one uploaded PDF does not leak into another version
 - existing answer attempts remain tied to the resume version that was active or selected at submission time
 
 ## Question Tree and Follow-Up

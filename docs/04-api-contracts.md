@@ -320,9 +320,10 @@ Response:
         "id": 21,
         "versionNo": 1,
         "fileUrl": "https://files.example.com/resume-v1.pdf",
-        "rawText": "Resume text",
-        "parsedJson": "{\"skills\":[\"kotlin\"]}",
+        "fileName": "resume-v1.pdf",
+        "fileType": "application/pdf",
         "summaryText": "First version",
+        "parsingStatus": "completed",
         "isActive": false,
         "uploadedAt": "2026-03-11T04:00:00Z"
       }
@@ -332,7 +333,8 @@ Response:
 ```
 
 Notes:
-- `parsedJson` is the current extension point for resume-derived signals
+- each version is immutable and remains the anchor for downstream extracted skills, experiences, and risks
+- `parsingStatus` is currently `pending` or `completed` and is the forward-compatible hook for PDF parsing lifecycle
 - future resume intelligence APIs should reference `resumeVersionId`
 
 #### `POST /api/resumes`
@@ -358,6 +360,8 @@ Request:
 ```json
 {
   "fileUrl": "https://files.example.com/resume-v2.pdf",
+  "fileName": "resume-v2.pdf",
+  "fileType": "application/pdf",
   "rawText": "Version two text",
   "parsedJson": "{\"skills\":[\"kotlin\",\"spring\"]}",
   "summaryText": "Second version"
@@ -370,13 +374,19 @@ Response:
   "id": 22,
   "versionNo": 2,
   "fileUrl": "https://files.example.com/resume-v2.pdf",
-  "rawText": "Version two text",
-  "parsedJson": "{\"skills\":[\"kotlin\",\"spring\"]}",
+  "fileName": "resume-v2.pdf",
+  "fileType": "application/pdf",
   "summaryText": "Second version",
+  "parsingStatus": "completed",
   "isActive": false,
   "uploadedAt": "2026-03-11T04:00:00Z"
 }
 ```
+
+Notes:
+- current implementation accepts a JSON body and can persist imported text or pre-parsed metadata
+- this contract remains valid for admin import, tests, and parser-bypass flows
+- product direction is to keep the same version concept while adding multipart PDF upload on top of it
 
 #### `POST /api/resume-versions/{versionId}/activate`
 Auth:
@@ -391,6 +401,39 @@ Response:
   "activatedAt": "2026-03-11T04:00:00Z"
 }
 ```
+
+Planned additive extension for resume upload, not yet implemented:
+#### `POST /api/resumes/{resumeId}/versions:upload`
+Auth:
+- required
+
+Content type:
+- `multipart/form-data`
+
+Request:
+- form field `file` containing a PDF resume
+- optional field `summaryText`
+
+Planned response:
+```json
+{
+  "id": 23,
+  "versionNo": 3,
+  "fileUrl": "/uploads/resumes/user-1/resume-v3.pdf",
+  "fileName": "resume-v3.pdf",
+  "fileType": "application/pdf",
+  "summaryText": null,
+  "parsingStatus": "pending",
+  "isActive": false,
+  "uploadedAt": "2026-03-12T05:00:00Z"
+}
+```
+
+Planned behavior:
+- uploading a PDF creates a new immutable resume version immediately
+- parsing and extraction may complete asynchronously
+- extracted skills, experiences, and risks stay tied to the uploaded `resumeVersionId`
+- parse failure marks the new version as failed without mutating older active versions
 
 ### Questions
 #### `GET /api/questions`

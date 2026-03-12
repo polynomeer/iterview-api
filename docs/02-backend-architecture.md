@@ -28,7 +28,8 @@ The new product direction should fit into this structure instead of introducing 
 ### `resume`
 - resume container lifecycle
 - immutable resume versions
-- future resume extraction snapshots, resume risks, and resume-derived question hooks
+- resume file intake metadata and processing state
+- future parser integration, resume extraction snapshots, resume risks, and resume-derived question hooks
 
 ### `question`
 - global question catalog
@@ -115,9 +116,10 @@ Do not move product rules into `common`.
 
 ### Resume Intelligence
 - create resume container
-- create resume version
+- create resume version from uploaded PDF metadata or backward-compatible imported text payload
 - activate version
 - list versions
+- expose version processing state for pending, completed, or failed parsing
 - future: persist extraction results for skills, experiences, and risks
 
 ### Question Discovery
@@ -154,13 +156,21 @@ Do not move product rules into `common`.
 
 ## Future Async Boundaries
 These belong behind service interfaces and should not leak into controllers:
+- PDF file storage and retrieval
 - resume parsing
 - resume signal extraction
 - answer deep analysis
 - skill score recalculation
 - benchmark refresh jobs
 
-The current implementation can remain synchronous until those workflows are explicitly introduced.
+Recommended resume pipeline:
+1. accept multipart PDF upload and create immutable `resume_versions` row
+2. persist file metadata and set `parsing_status`
+3. hand off to parser and extraction service boundary
+4. persist skills, experiences, and risks against `resume_version_id`
+5. expose status and extracted results through read APIs
+
+The current implementation can remain synchronous or placeholder-driven until a real parser is introduced, but the controller contract should already distinguish upload from extraction completion.
 
 ## Error Handling
 At minimum keep explicit domain errors for:
@@ -174,6 +184,7 @@ At minimum keep explicit domain errors for:
 
 Planned additions:
 - resume extraction not ready
+- resume parsing failed
 - question tree not found
 - skill benchmark not available
 

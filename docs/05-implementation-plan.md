@@ -17,17 +17,21 @@ Already implemented:
 This baseline should be preserved.
 
 ## Phase 1 - Resume Intelligence on Top of Resume Versions
-1. formalize `resume_version_id` as the anchor for derived resume signals
+1. formalize `resume_version_id` as the anchor for uploaded PDF files and derived resume signals
 2. add Flyway migrations for:
    - `resume_skill_snapshots`
    - `resume_experience_snapshots`
    - `resume_risk_items`
-3. expose read APIs for skills, experiences, and risks by resume version
-4. keep `POST /api/resumes/{resumeId}/versions` backward compatible
-5. use `parsed_json` as an interim import source if needed
+3. add backward-compatible metadata columns needed for parser lifecycle, such as file metadata and parse status
+4. implement multipart PDF upload support for creating a new immutable version
+5. expose read APIs for skills, experiences, and risks by resume version
+6. keep `POST /api/resumes/{resumeId}/versions` backward compatible for import and test flows
+7. use `parsed_json` as an interim import source if needed
+8. add a parser service boundary so real PDF extraction can replace placeholder logic later without controller changes
 
 Acceptance intent:
 - existing resume APIs still work unchanged
+- PDF upload creates a new immutable version even if parsing completes later
 - new resume intelligence APIs are additive
 
 ## Phase 2 - Question Tree and Follow-Up Relationships
