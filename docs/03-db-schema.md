@@ -258,6 +258,63 @@ Current interpretation:
 These are recommended next-step tables. They extend the current model without replacing existing data.
 
 ## Resume Intelligence Extensions
+### `resume_profile_snapshots`
+Purpose:
+- store the top-level identity and positioning information extracted from one resume version
+
+Columns:
+- `id`
+- `resume_version_id`
+- `full_name`
+- `headline`
+- `summary_text`
+- `location_text`
+- `years_of_experience_text`
+- `source_text`
+- `created_at`
+- `updated_at`
+
+Notes:
+- one resume version usually maps to one profile snapshot row
+- this should store what the document actually says, not inferred user-profile overrides
+
+### `resume_contact_points`
+Purpose:
+- store typed contact methods and external portfolio links extracted from one resume version
+
+Columns:
+- `id`
+- `resume_version_id`
+- `contact_type`
+- `label`
+- `value_text`
+- `url`
+- `display_order`
+- `is_primary`
+- `created_at`
+- `updated_at`
+
+Notes:
+- `contact_type` can cover `phone`, `email`, `blog`, `github`, `linkedin`, `portfolio`, or future variants
+- ordered display matters because resumes often present preferred contact channels first
+
+### `resume_competency_items`
+Purpose:
+- store core strength or competency statements that are broader than a single skill keyword
+
+Columns:
+- `id`
+- `resume_version_id`
+- `title`
+- `description`
+- `source_text`
+- `display_order`
+- `created_at`
+- `updated_at`
+
+Notes:
+- these rows help preserve “보유 역량” or “core strengths” sections from the original document
+
 ### `resume_skill_snapshots`
 Purpose:
 - store extracted or user-confirmed skills for a specific resume version
@@ -282,11 +339,17 @@ Notes:
 
 ### `resume_experience_snapshots`
 Purpose:
-- store structured project and impact claims extracted from a resume version
+- store structured employment or major experience entries extracted from a resume version
 
 Columns:
 - `id`
 - `resume_version_id`
+- `company_name`
+- `role_name`
+- `employment_type`
+- `started_on`
+- `ended_on`
+- `is_current`
 - `project_name`
 - `summary_text`
 - `impact_text`
@@ -303,6 +366,104 @@ Columns:
 Notes:
 - keep `display_order` stable for frontend timeline rendering
 - every experience claim remains attributable to one immutable uploaded version
+
+### `resume_project_snapshots`
+Purpose:
+- store project- or initiative-level records nested under a resume experience when a company section contains multiple projects
+
+Columns:
+- `id`
+- `resume_version_id`
+- `resume_experience_snapshot_id`
+- `title`
+- `organization_name`
+- `role_name`
+- `summary_text`
+- `tech_stack_text`
+- `started_on`
+- `ended_on`
+- `display_order`
+- `source_text`
+- `created_at`
+- `updated_at`
+
+Notes:
+- this table captures long-form project sections separately from the higher-level employment timeline
+- one employment experience may own multiple project rows
+
+### `resume_achievement_items`
+Purpose:
+- store measurable outcomes, improvements, and operational results extracted from experiences or projects
+
+Columns:
+- `id`
+- `resume_version_id`
+- `resume_experience_snapshot_id`
+- `resume_project_snapshot_id`
+- `title`
+- `metric_text`
+- `impact_summary`
+- `source_text`
+- `severity_hint`
+- `display_order`
+- `created_at`
+- `updated_at`
+
+Notes:
+- these rows are the best anchor for later follow-up defense questions
+- high-confidence metric claims can feed `resume_risk_items`
+
+### `resume_education_items`
+Purpose:
+- store academic history and formal training extracted from a resume version
+
+Columns:
+- `id`
+- `resume_version_id`
+- `institution_name`
+- `degree_name`
+- `field_of_study`
+- `started_on`
+- `ended_on`
+- `description`
+- `display_order`
+- `source_text`
+- `created_at`
+- `updated_at`
+
+### `resume_certification_items`
+Purpose:
+- store certifications, test scores, and other formal credentials extracted from a resume version
+
+Columns:
+- `id`
+- `resume_version_id`
+- `name`
+- `issuer_name`
+- `credential_code`
+- `issued_on`
+- `expires_on`
+- `score_text`
+- `display_order`
+- `source_text`
+- `created_at`
+- `updated_at`
+
+### `resume_award_items`
+Purpose:
+- store awards, contest results, and honors extracted from a resume version
+
+Columns:
+- `id`
+- `resume_version_id`
+- `title`
+- `issuer_name`
+- `awarded_on`
+- `description`
+- `display_order`
+- `source_text`
+- `created_at`
+- `updated_at`
 
 ### `resume_risk_items`
 Purpose:
@@ -473,6 +634,7 @@ Columns:
 - primary key(`question_id`, `learning_material_id`) on `question_learning_materials`
 
 ### Recommended New Constraints
+- unique(`resume_version_id`) on `resume_profile_snapshots` if one top-level profile row is enforced
 - unique(`resume_version_id`, `skill_name`, `source_text`) on `resume_skill_snapshots` when deduplication is needed
 - unique(`resume_version_id`, `risk_type`, `source_text`) on `resume_risk_items` when LLM extraction retries are introduced
 - unique(`parent_question_id`, `child_question_id`, `relationship_type`) on `question_relationships`
@@ -490,8 +652,15 @@ Columns:
 - `daily_cards(user_id, card_date)`
 
 ### Recommended New Read Paths
+- `resume_contact_points(resume_version_id, display_order)`
+- `resume_competency_items(resume_version_id, display_order)`
 - `resume_skill_snapshots(resume_version_id, skill_category_code)`
 - `resume_experience_snapshots(resume_version_id, risk_level)`
+- `resume_project_snapshots(resume_version_id, resume_experience_snapshot_id, display_order)`
+- `resume_achievement_items(resume_version_id, resume_project_snapshot_id, display_order)`
+- `resume_education_items(resume_version_id, display_order)`
+- `resume_certification_items(resume_version_id, display_order)`
+- `resume_award_items(resume_version_id, display_order)`
 - `resume_risk_items(resume_version_id, severity)`
 - `resume_versions(resume_id, llm_extraction_status)`
 - `question_relationships(parent_question_id, display_order)`

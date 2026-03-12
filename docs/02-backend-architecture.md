@@ -30,6 +30,7 @@ The new product direction should fit into this structure instead of introducing 
 - immutable resume versions
 - resume file intake metadata and processing state
 - raw PDF parsing, LLM-backed structured extraction, resume extraction snapshots, resume risks, and resume-derived question hooks
+- normalized resume profile, contact, credential, education, employment, and project records
 
 ### `question`
 - global question catalog
@@ -98,6 +99,7 @@ Do not move product rules into `common`.
 - `user_question_progress` remains the canonical user-question cache
 - `answer_attempts`, `answer_scores`, and `answer_feedback_items` remain the base evidence for later analysis
 - `learning_materials` remains the shared content library for editorial reference content
+- richer resume subsections should still hang off `resume_version_id`, not create a second resume aggregate
 
 ### 2. Add, Don’t Break
 - prefer nullable columns, new tables, or new read models over incompatible schema changes
@@ -125,7 +127,13 @@ Do not move product rules into `common`.
 - expose version processing state for pending, completed, or failed parsing
 - persist raw parsed text on the version record
 - future: call an LLM extraction boundary to map raw text into normalized skills, experiences, and risks
-- future: persist extraction results and extraction metadata for skills, experiences, and risks
+- future: persist extraction results and extraction metadata for:
+  - profile headline and summary
+  - contact points and external links
+  - core competency statements
+  - work experiences and project initiatives
+  - education, awards, and certifications
+  - skill, risk, and achievement signals
 
 ### Question Discovery
 - list active questions with filters
@@ -175,8 +183,20 @@ Recommended resume pipeline:
 3. parse binary PDF into `raw_text`
 4. hand off `raw_text` to an LLM extraction service boundary
 5. validate and normalize extracted fields against current domain vocabularies
-6. persist skills, experiences, and risks against `resume_version_id`
+6. persist structured resume sections against `resume_version_id`
+7. derive skills, experiences, quantified achievements, and risks from the structured output
 7. expose status and extracted results through read APIs
+
+Recommended validation layers for rich resume extraction:
+- document-level checks:
+  - headline or summary is not fabricated when absent
+  - contact points are typed consistently as email, phone, blog, github, linkedin, etc.
+- timeline checks:
+  - employment periods and education periods preserve source ordering
+  - company, role, and project groupings remain attributable to the same version
+- achievement checks:
+  - quantified metrics stay linked to the source claim text
+  - high-impact claims can later feed interview-defense risk generation
 
 The current implementation already supports synchronous PDF parsing into `raw_text`. The next additive step should keep that behavior, then layer LLM-backed structured extraction behind a service boundary so prompt and provider changes do not leak into controllers.
 

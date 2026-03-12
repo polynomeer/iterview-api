@@ -18,8 +18,16 @@ This is the stable baseline and should remain operational throughout the extensi
 
 ## Gap Summary
 ### Missing Domain Structures
+- no persisted resume profile snapshot
+- no persisted resume contact points
+- no persisted resume competency section
 - no persisted resume skill snapshots
 - no persisted resume experience snapshots
+- no persisted resume project snapshots
+- no persisted resume achievement items
+- no persisted resume education items
+- no persisted resume certification items
+- no persisted resume award items
 - no persisted resume risk items
 - no question relationship table for follow-up trees
 - no question-to-skill mapping table
@@ -93,8 +101,16 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
 ### Phase 3 - Resume Intelligence
 - add DTOs and endpoints for:
   - latest resume lookup
+  - resume-version profile
+  - resume-version contacts
+  - resume-version competencies
   - resume-version skills
   - resume-version experiences
+  - resume-version projects
+  - resume-version achievements
+  - resume-version education
+  - resume-version certifications
+  - resume-version awards
   - resume-version risks
 - add a placeholder parsing/extraction boundary that can read `parsed_json` today
 - add a provider-agnostic LLM extraction boundary after raw PDF parsing so mapping quality can improve without changing controllers

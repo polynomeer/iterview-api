@@ -19,8 +19,16 @@ This baseline should be preserved.
 ## Phase 1 - Resume Intelligence on Top of Resume Versions
 1. formalize `resume_version_id` as the anchor for uploaded PDF files and derived resume signals
 2. add Flyway migrations for:
+   - `resume_profile_snapshots`
+   - `resume_contact_points`
+   - `resume_competency_items`
    - `resume_skill_snapshots`
    - `resume_experience_snapshots`
+   - `resume_project_snapshots`
+   - `resume_achievement_items`
+   - `resume_education_items`
+   - `resume_certification_items`
+   - `resume_award_items`
    - `resume_risk_items`
 3. add backward-compatible metadata columns needed for parser lifecycle, such as file metadata and parse status
 4. implement multipart PDF upload support for creating a new immutable version
@@ -31,6 +39,7 @@ This baseline should be preserved.
 9. add an LLM extraction service boundary that accepts `raw_text` and returns normalized resume fields
 10. validate and map LLM output into domain-aligned skill, experience, and risk snapshots
 11. persist prompt and model metadata so extraction quality can be audited without mutating the version record
+12. preserve the original resume section grouping so profile, credentials, and timeline data remain explainable to the frontend
 
 Acceptance intent:
 - existing resume APIs still work unchanged
@@ -42,8 +51,13 @@ Acceptance intent:
 1. define a provider-agnostic extraction interface in the `resume` domain
 2. pass `raw_text`, role context, and optional target company context to the extraction boundary
 3. require the extraction result to return:
+   - profile headline and summary
+   - typed contact points and external links
+   - competency statements
    - normalized skills
    - normalized experiences
+   - projects and quantified achievements
+   - education, awards, and certifications
    - risk items
    - confidence metadata
    - source text references

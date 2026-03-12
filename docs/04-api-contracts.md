@@ -40,7 +40,15 @@ Authenticated endpoints:
 - `GET /api/resume-versions/{versionId}`
 - `GET /api/resume-versions/{versionId}/extraction`
 - `GET /api/resume-versions/{versionId}/file`
+- `GET /api/resume-versions/{versionId}/profile`
+- `GET /api/resume-versions/{versionId}/contacts`
+- `GET /api/resume-versions/{versionId}/competencies`
 - `POST /api/resume-versions/{versionId}/re-extract`
+- `GET /api/resume-versions/{versionId}/projects`
+- `GET /api/resume-versions/{versionId}/achievements`
+- `GET /api/resume-versions/{versionId}/education`
+- `GET /api/resume-versions/{versionId}/certifications`
+- `GET /api/resume-versions/{versionId}/awards`
 - `POST /api/resume-versions/{versionId}/activate`
 - `GET /api/home`
 - `POST /api/daily-cards/{dailyCardId}/open`
@@ -476,6 +484,41 @@ Response:
 - binary file stream for the stored resume version
 - current implementation returns `Content-Type: application/pdf` for uploaded PDF versions
 
+### Planned Additive Resume Structure API
+These endpoints are not implemented yet. They describe the richer resume reads needed for real resumes that contain profile, credential, and project sections.
+
+#### `GET /api/resume-versions/{versionId}/profile`
+Purpose:
+- return top-level resume identity and summary information
+
+#### `GET /api/resume-versions/{versionId}/contacts`
+Purpose:
+- return typed contact channels and external links in stable display order
+
+#### `GET /api/resume-versions/{versionId}/competencies`
+Purpose:
+- return long-form competency statements that should not be flattened into simple skills
+
+#### `GET /api/resume-versions/{versionId}/projects`
+Purpose:
+- return project or initiative records nested under work experience when available
+
+#### `GET /api/resume-versions/{versionId}/achievements`
+Purpose:
+- return measurable outcome claims and interview-defense-worthy metrics
+
+#### `GET /api/resume-versions/{versionId}/education`
+Purpose:
+- return education history for one immutable resume version
+
+#### `GET /api/resume-versions/{versionId}/certifications`
+Purpose:
+- return certifications, licenses, or score-style credentials
+
+#### `GET /api/resume-versions/{versionId}/awards`
+Purpose:
+- return awards, honors, and competition results
+
 #### `POST /api/resume-versions/{versionId}/activate`
 Auth:
 - required
@@ -849,6 +892,15 @@ These contracts extend the current system without replacing the baseline endpoin
 #### `GET /api/resumes/latest`
 Purpose:
 - return the user's primary or most recent resume with its versions
+
+Planned richer extraction coverage for real resumes:
+- top-level headline and summary
+- contact channels and external profile links
+- competency/strength statements
+- employment timeline with company and role
+- project timeline under each employment section
+- quantified achievements and outcome claims
+- education, awards, and certifications
 
 #### `GET /api/resume-versions/{versionId}/skills`
 Purpose:

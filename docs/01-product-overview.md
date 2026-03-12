@@ -47,6 +47,15 @@ This is an additive evolution of the current backend, not a new product line.
 - derive raw text from the uploaded PDF and preserve that extraction on the immutable version
 - use an LLM-backed extraction step to map raw resume text into normalized skills, experiences, and risk signals
 - validate and persist structured resume signals after the LLM extraction step completes
+- persist richer resume structure beyond skills and risks, including:
+  - profile headline and summary
+  - contact channels and public links
+  - core competency statements
+  - work experience timeline
+  - project and initiative records
+  - education history
+  - awards and certifications
+  - quantified achievement claims
 - surface high-risk resume claims that likely trigger follow-up questions
 - keep version-specific extraction results so older resume snapshots remain queryable
 - support resume-based question recommendation without breaking the existing catalog flow
@@ -82,6 +91,7 @@ This is an additive evolution of the current backend, not a new product line.
 - LLM-backed structured extraction from parsed resume raw text
 - extraction confidence, traceability, and failure visibility for resume signal mapping
 - richer resume extraction snapshots for skills, experiences, and resume risks
+- richer structured resume sections for profile, contacts, education, awards, certifications, and project-level achievements
 - question relationship modeling for follow-up trees
 - question-linked model answers and richer learning material metadata
 - richer answer analysis beyond the current score + feedback rows
@@ -102,6 +112,7 @@ This is an additive evolution of the current backend, not a new product line.
 - resume versions remain immutable historical records
 - extracted resume skills, experiences, and risks are always scoped to one resume version
 - raw text parsing and structured field extraction are separate pipeline stages and may complete independently
+- structured resume sections should preserve the user document’s original grouping so career timeline and supporting credentials stay explainable
 - user progress is cached aggregate state per user-question pair
 - retry scheduling is persisted, not recomputed ad hoc on every read
 - archived questions must stay out of the active retry loop unless explicitly reset

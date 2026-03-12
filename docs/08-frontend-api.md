@@ -39,6 +39,12 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 - Resume re-extraction is `POST /api/resume-versions/{versionId}/re-extract`.
 - The current resume flow guarantees raw PDF parsing and versioned storage. Structured field mapping now returns explicit extraction metadata, and OpenAI-backed extraction is used when configured.
 - `llmExtractionStatus` is additive metadata. Clients should handle at least `pending`, `completed`, `skipped`, `fallback`, and `failed`.
+- The current implemented reads are still centered on skills, experiences, and risks. Planned additive resume reads should expose:
+  - profile summary and headline
+  - contacts and external links
+  - competency statements
+  - projects and achievements
+  - education, awards, and certifications
 - Question detail includes generic `learningMaterials` and additive `referenceAnswers`.
 - Dedicated question reference-content reads are:
   - `GET /api/questions/{questionId}/reference-answers`
