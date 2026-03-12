@@ -3,6 +3,10 @@ spring:
     default: local
   application:
     name: iterview-api
+  servlet:
+    multipart:
+      max-file-size: ${APP_MULTIPART_MAX_FILE_SIZE:10MB}
+      max-request-size: ${APP_MULTIPART_MAX_REQUEST_SIZE:12MB}
   jpa:
     hibernate:
       ddl-auto: validate

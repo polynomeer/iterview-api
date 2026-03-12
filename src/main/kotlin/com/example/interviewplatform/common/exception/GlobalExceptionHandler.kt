@@ -13,6 +13,7 @@ import org.springframework.validation.FieldError
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.multipart.MaxUploadSizeExceededException
 import org.springframework.web.server.ResponseStatusException
 import org.slf4j.LoggerFactory
 
@@ -117,6 +118,20 @@ class GlobalExceptionHandler(
             status = status,
             code = status.name,
             message = ex.reason ?: defaultMessage(status),
+            path = request.requestURI,
+        )
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException::class)
+    fun handleMaxUploadSizeExceeded(
+        ex: MaxUploadSizeExceededException,
+        request: HttpServletRequest,
+    ): ResponseEntity<ApiErrorResponse> {
+        log.warn("payload_too_large path={} message={}", request.requestURI, ex.message, ex)
+        return respond(
+            status = HttpStatus.PAYLOAD_TOO_LARGE,
+            code = "PAYLOAD_TOO_LARGE",
+            message = "Uploaded file is too large",
             path = request.requestURI,
         )
     }
