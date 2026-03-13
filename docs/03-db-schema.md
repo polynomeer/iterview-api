@@ -370,6 +370,7 @@ Notes:
 ### `resume_project_snapshots`
 Purpose:
 - store project- or initiative-level records nested under a resume experience when a company section contains multiple projects
+- support resume-derived project cards that the frontend can browse independently from the employment timeline
 
 Columns:
 - `id`
@@ -379,6 +380,9 @@ Columns:
 - `organization_name`
 - `role_name`
 - `summary_text`
+- `content_text`
+- `project_category_code`
+- `project_category_name`
 - `tech_stack_text`
 - `started_on`
 - `ended_on`
@@ -390,6 +394,26 @@ Columns:
 Notes:
 - this table captures long-form project sections separately from the higher-level employment timeline
 - one employment experience may own multiple project rows
+- `summary_text` should remain short-display friendly, while `content_text` can preserve fuller extracted project narrative
+- category fields should remain nullable additive extensions so current rows stay compatible
+
+### `resume_project_tags`
+Recommended additive table:
+- `id`
+- `resume_project_snapshot_id`
+- `tag_name`
+- `tag_type`
+- `display_order`
+- `source_text`
+- `created_at`
+- `updated_at`
+
+Purpose:
+- store version-scoped tags extracted for a project, such as backend, payments, search, performance, infra, or AI
+
+Notes:
+- tags should remain scoped through `resume_project_snapshot_id`
+- do not force reuse of the global question/catalog tag taxonomy unless cross-domain taxonomy coupling is explicitly desired
 
 ### `resume_achievement_items`
 Purpose:
@@ -657,6 +681,8 @@ Columns:
 - `resume_skill_snapshots(resume_version_id, skill_category_code)`
 - `resume_experience_snapshots(resume_version_id, risk_level)`
 - `resume_project_snapshots(resume_version_id, resume_experience_snapshot_id, display_order)`
+- `resume_project_snapshots(resume_version_id, project_category_code, display_order)`
+- `resume_project_tags(resume_project_snapshot_id, display_order)`
 - `resume_achievement_items(resume_version_id, resume_project_snapshot_id, display_order)`
 - `resume_education_items(resume_version_id, display_order)`
 - `resume_certification_items(resume_version_id, display_order)`

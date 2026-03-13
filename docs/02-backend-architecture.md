@@ -31,6 +31,7 @@ The new product direction should fit into this structure instead of introducing 
 - resume file intake metadata and processing state
 - raw PDF parsing, LLM-backed structured extraction, resume extraction snapshots, resume risks, and resume-derived question hooks
 - normalized resume profile, contact, credential, education, employment, and project records
+- resume project records should be extensible enough to preserve title, long-form content, tags, and category classification from one PDF version
 
 ### `question`
 - global question catalog
@@ -132,6 +133,7 @@ Do not move product rules into `common`.
   - contact points and external links
   - core competency statements
   - work experiences and project initiatives
+  - project content blocks, project tags, and project categories
   - education, awards, and certifications
   - skill, risk, and achievement signals
 
@@ -184,7 +186,7 @@ Recommended resume pipeline:
 4. hand off `raw_text` to an LLM extraction service boundary
 5. validate and normalize extracted fields against current domain vocabularies
 6. persist structured resume sections against `resume_version_id`
-7. derive skills, experiences, quantified achievements, and risks from the structured output
+7. derive skills, experiences, projects, quantified achievements, and risks from the structured output
 7. expose status and extracted results through read APIs
 
 Recommended validation layers for rich resume extraction:
@@ -197,6 +199,9 @@ Recommended validation layers for rich resume extraction:
 - achievement checks:
   - quantified metrics stay linked to the source claim text
   - high-impact claims can later feed interview-defense risk generation
+- project checks:
+  - project title, content, tags, and category remain attributable to one immutable resume version
+  - project tags can be normalized without discarding the source excerpt that produced them
 
 The current implementation already supports synchronous PDF parsing into `raw_text`. The next additive step should keep that behavior, then layer LLM-backed structured extraction behind a service boundary so prompt and provider changes do not leak into controllers.
 

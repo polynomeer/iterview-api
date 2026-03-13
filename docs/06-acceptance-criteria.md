@@ -15,6 +15,7 @@
 - raw PDF parsing can complete successfully even if structured extraction later fails
 - the system can persist top-level resume summary and contact/link information for a specific resume version
 - the system can persist work timeline, project, education, award, and certification data for a specific resume version
+- the system can persist project title, detailed content, tags, and category metadata for a specific resume version
 - quantified achievement claims remain attributable to the source text of one resume version
 - extracted resume skills can be retrieved for a specific resume version
 - extracted resume experiences can be retrieved for a specific resume version
@@ -25,6 +26,7 @@
 - when LLM extraction is introduced, the system stores enough metadata to understand which model and prompt version produced the mapped resume fields
 - malformed or low-confidence LLM extraction output does not silently overwrite already persisted snapshots without validation rules
 - resumes that contain sectioned content such as competencies, awards, certifications, and projects do not lose those sections by being flattened into only skills and risks
+- project tags and project categories can be added without breaking existing project reads
 
 ## Question Tree and Follow-Up
 - a question can expose follow-up nodes without changing the base question record contract

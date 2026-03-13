@@ -25,6 +25,7 @@ This baseline should be preserved.
    - `resume_skill_snapshots`
    - `resume_experience_snapshots`
    - `resume_project_snapshots`
+   - `resume_project_tags`
    - `resume_achievement_items`
    - `resume_education_items`
    - `resume_certification_items`
@@ -37,7 +38,7 @@ This baseline should be preserved.
 7. use `parsed_json` as an interim import source if needed
 8. add a parser service boundary so real PDF extraction can replace placeholder logic later without controller changes
 9. add an LLM extraction service boundary that accepts `raw_text` and returns normalized resume fields
-10. validate and map LLM output into domain-aligned skill, experience, and risk snapshots
+10. validate and map LLM output into domain-aligned skill, experience, project, and risk snapshots
 11. persist prompt and model metadata so extraction quality can be audited without mutating the version record
 12. preserve the original resume section grouping so profile, credentials, and timeline data remain explainable to the frontend
 
@@ -57,6 +58,7 @@ Acceptance intent:
    - normalized skills
    - normalized experiences
    - projects and quantified achievements
+   - project-level content, tags, and category classification
    - education, awards, and certifications
    - risk items
    - confidence metadata
@@ -68,6 +70,7 @@ Acceptance intent:
 - the system can preserve raw text even when structured extraction fails
 - extraction retries do not create duplicate version rows
 - extraction metadata is traceable for later prompt tuning
+- project lists extracted from one version remain queryable with their own content, tags, and category metadata
 
 ## Phase 2 - Question Tree and Follow-Up Relationships
 1. add Flyway migration for `question_relationships`

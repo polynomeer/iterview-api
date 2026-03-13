@@ -53,6 +53,7 @@ This is an additive evolution of the current backend, not a new product line.
   - core competency statements
   - work experience timeline
   - project and initiative records
+  - project-specific detailed content, tags, and category metadata
   - education history
   - awards and certifications
   - quantified achievement claims
@@ -92,6 +93,7 @@ This is an additive evolution of the current backend, not a new product line.
 - extraction confidence, traceability, and failure visibility for resume signal mapping
 - richer resume extraction snapshots for skills, experiences, and resume risks
 - richer structured resume sections for profile, contacts, education, awards, certifications, and project-level achievements
+- richer project records extracted from resume PDFs, including title, content, tags, and category classification
 - question relationship modeling for follow-up trees
 - question-linked model answers and richer learning material metadata
 - richer answer analysis beyond the current score + feedback rows

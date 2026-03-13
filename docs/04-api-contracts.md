@@ -503,6 +503,33 @@ Purpose:
 Purpose:
 - return project or initiative records nested under work experience when available
 
+Current implementation:
+- returns project summary records scoped to one resume version
+
+Planned additive response fields:
+- `contentText`
+- `projectCategoryCode`
+- `projectCategoryName`
+- `tags`
+
+Planned tag shape:
+```json
+[
+  {
+    "tagName": "backend",
+    "tagType": "domain"
+  },
+  {
+    "tagName": "payments",
+    "tagType": "business"
+  }
+]
+```
+
+Intent:
+- frontend should eventually be able to render a project list with title, content, tag chips, and category labels
+- these fields should remain additive to the existing project snapshot contract
+
 #### `GET /api/resume-versions/{versionId}/achievements`
 Purpose:
 - return measurable outcome claims and interview-defense-worthy metrics

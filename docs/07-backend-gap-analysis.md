@@ -24,6 +24,7 @@ This is the stable baseline and should remain operational throughout the extensi
 - no persisted resume skill snapshots
 - no persisted resume experience snapshots
 - no persisted resume project snapshots
+- no persisted project tag rows or project category metadata for resume-derived projects
 - no persisted resume achievement items
 - no persisted resume education items
 - no persisted resume certification items
@@ -54,7 +55,7 @@ This is the stable baseline and should remain operational throughout the extensi
 
 ### Missing Calculation and Service Boundaries
 - no resume parsing boundary beyond `parsed_json`
-- no provider-backed structured extraction layer that can map raw resume text into stable experience, skill, and risk fields
+- no provider-backed structured extraction layer that can map raw resume text into stable experience, project, skill, and risk fields
 - no answer deep-analysis boundary separate from `ScoringService`
 - no skill score calculation service
 - no benchmark comparison service
@@ -107,6 +108,7 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
   - resume-version skills
   - resume-version experiences
   - resume-version projects
+  - resume-project tags and category metadata
   - resume-version achievements
   - resume-version education
   - resume-version certifications
