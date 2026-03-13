@@ -1220,7 +1220,7 @@ Notes:
 - `seedQuestionIds` are optional and are used as a starting pool or fallback hint, not a replacement for server-side selection
 - for `resume_mock`, the backend now tries to generate the opening question from the selected resume version
 - if opener generation is unavailable or fails validation, the backend falls back to deterministic server-side question selection
-- planned additive behavior: opener generation should also persist one or more `resumeEvidence` snippets that explain which resume sentence, project, achievement, certification, or education record triggered the question
+- opener generation now persists one or more `resumeEvidence` snippets that explain which resume sentence, project, achievement, certification, or education record triggered the question
 
 #### `GET /api/interview-sessions/{sessionId}`
 Purpose:
@@ -1242,7 +1242,7 @@ Implemented additive fields on session questions:
 - `llmModel`
 - `llmPromptVersion`
 
-Planned additive fields for resume-grounded question evidence:
+Implemented additive fields for resume-grounded question evidence:
 - `resumeEvidence`
 
 Recommended `resumeEvidence` item shape:
@@ -1275,7 +1275,7 @@ Behavior:
 - `resume_mock` sessions should try to generate the next follow-up through the interview LLM client when configured
 - if LLM generation is unavailable or fails validation, the backend may fall back to catalog follow-ups or the remaining queued questions
 - the inserted follow-up must still be persisted as an immutable session question snapshot
-- planned additive behavior: follow-up generation should persist fresh `resumeEvidence` snippets when the next question is anchored to a new sentence, project, or achievement from the resume
+- follow-up generation now persists fresh `resumeEvidence` snippets when the next question is anchored to a new sentence, project, or achievement from the resume
 
 #### `POST /api/interview-sessions/{sessionId}/next-question`
 Purpose:

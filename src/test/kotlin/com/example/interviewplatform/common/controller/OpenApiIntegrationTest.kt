@@ -50,6 +50,7 @@ class OpenApiIntegrationTest {
             .andExpect(jsonPath("$.paths['/api/home']").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewSessionQuestionDto.properties.bodyText").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewSessionQuestionDto.properties.focusSkillNames").exists())
+            .andExpect(jsonPath("$.components.schemas.InterviewSessionQuestionDto.properties.resumeEvidence").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewSessionQuestionDto.properties.generationStatus").exists())
             .andExpect(jsonPath("$.paths['/api/auth/me'].get.security[0].bearerAuth").exists())
             .andExpect(jsonPath("$.components.securitySchemes.bearerAuth").exists())

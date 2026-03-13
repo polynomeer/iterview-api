@@ -82,7 +82,7 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `generationStatus`
   - `llmModel`
   - `llmPromptVersion`
-- Planned additive session-question metadata for resume-grounded evidence:
+- Implemented additive session-question metadata for resume-grounded evidence:
   - `resumeEvidence`
   - each item may include:
     - `type`

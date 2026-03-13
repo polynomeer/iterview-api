@@ -1400,6 +1400,10 @@ components:
           type: array
           items: { type: string }
         resumeContextSummary: { type: string, nullable: true }
+        resumeEvidence:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewResumeEvidenceDto"
         generationRationale: { type: string, nullable: true }
         generationStatus: { type: string }
         llmModel: { type: string, nullable: true }
@@ -1408,6 +1412,18 @@ components:
           type: integer
           format: int64
           nullable: true
+    InterviewResumeEvidenceDto:
+      type: object
+      properties:
+        type: { type: string }
+        section: { type: string, nullable: true }
+        label: { type: string, nullable: true }
+        snippet: { type: string }
+        sourceRecordType: { type: string, nullable: true }
+        sourceRecordId: { type: integer, format: int64, nullable: true }
+        confidence: { type: number, format: double, nullable: true }
+        startOffset: { type: integer, nullable: true }
+        endOffset: { type: integer, nullable: true }
     ArchivedQuestionDto:
       type: object
       properties:
