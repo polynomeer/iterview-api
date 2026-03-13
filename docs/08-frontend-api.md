@@ -82,6 +82,19 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `llmModel`
   - `llmPromptVersion`
 - Frontend should not assume every follow-up maps to a global `questionId`; AI-generated follow-ups may rely on snapshot fields only.
+- Recommended rendering fallback for session questions:
+  - use `title` as the primary visible prompt
+  - use `bodyText` as supporting interviewer framing when present
+  - use `questionId` only for deep-linking or fetching catalog question detail when non-null
+  - use `sourceType` and `generationStatus` together to distinguish seeded, catalog follow-up, and AI-generated turns
+- Recommended archive badge mapping:
+  - `sourceType = practice` -> `Practice`
+  - `sourceType = interview` -> `Interview`
+  - `isFollowUp = true` may be rendered as a secondary follow-up badge, not a replacement for source type
+- Recommended interview timeline rendering:
+  - order by `orderIndex`
+  - use `parentSessionQuestionId` and `depth` for indentation or connector lines
+  - show `focusSkillNames` and `resumeContextSummary` as secondary evidence, not as the main prompt content
 - The home payload is backward compatible. Newly added fields are optional and can be ignored by older clients.
 
 ## Recommended Frontend Usage
