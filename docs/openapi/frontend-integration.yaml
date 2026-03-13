@@ -1382,6 +1382,7 @@ components:
         questionId: { type: integer, format: int64, nullable: true }
         title: { type: string }
         promptText: { type: string, nullable: true }
+        bodyText: { type: string, nullable: true }
         difficulty: { type: string }
         orderIndex: { type: integer }
         status: { type: string }
@@ -1390,6 +1391,17 @@ components:
         isFollowUp: { type: boolean }
         depth: { type: integer }
         categoryName: { type: string, nullable: true }
+        tags:
+          type: array
+          items: { type: string }
+        focusSkillNames:
+          type: array
+          items: { type: string }
+        resumeContextSummary: { type: string, nullable: true }
+        generationRationale: { type: string, nullable: true }
+        generationStatus: { type: string }
+        llmModel: { type: string, nullable: true }
+        llmPromptVersion: { type: string, nullable: true }
         answerAttemptId:
           type: integer
           format: int64

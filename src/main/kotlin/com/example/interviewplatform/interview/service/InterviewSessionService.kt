@@ -32,6 +32,7 @@ import com.example.interviewplatform.review.repository.ReviewQueueRepository
 import com.example.interviewplatform.skill.repository.SkillRepository
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -55,8 +56,11 @@ class InterviewSessionService(
     private val resumeRiskItemRepository: ResumeRiskItemRepository,
     private val resumeVersionRepository: ResumeVersionRepository,
     private val skillRepository: SkillRepository,
+    private val interviewFollowUpGenerationService: InterviewFollowUpGenerationService,
     private val clockService: ClockService,
     private val objectMapper: ObjectMapper,
+    @Value("\${app.interview.follow-up.max-depth:2}")
+    private val maxFollowUpDepth: Int,
 ) {
     @Transactional(readOnly = true)
     fun listSessions(userId: Long): List<InterviewSessionListItemDto> {
@@ -188,8 +192,11 @@ class InterviewSessionService(
         )
 
         maybeInsertFollowUp(
+            userId = userId,
+            session = session,
             sessionId = session.id,
             answeredRow = row,
+            answerText = request.contentText,
             resumeVersionId = session.resumeVersionId,
             now = now,
         )
@@ -358,15 +365,42 @@ class InterviewSessionService(
     }
 
     private fun maybeInsertFollowUp(
+        userId: Long,
+        session: InterviewSessionEntity,
         sessionId: Long,
         answeredRow: InterviewSessionQuestionEntity,
+        answerText: String,
         resumeVersionId: Long?,
         now: java.time.Instant,
     ) {
+        if (answeredRow.depth >= maxFollowUpDepth) {
+            return
+        }
         val parentQuestionId = answeredRow.questionId ?: return
         val existingRows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(sessionId)
         if (existingRows.any { it.parentSessionQuestionId == answeredRow.id }) {
             return
+        }
+
+        if (session.sessionType == SESSION_TYPE_RESUME_MOCK) {
+            val generated = interviewFollowUpGenerationService.generateResumeFollowUp(
+                session = session,
+                answeredRow = answeredRow,
+                answerText = answerText,
+                parentTags = decodeJsonArray(answeredRow.tagsJson),
+                parentFocusSkillNames = decodeJsonArray(answeredRow.focusSkillNamesJson),
+            )
+            if (generated != null) {
+                insertGeneratedFollowUp(
+                    userId = userId,
+                    parentQuestionId = parentQuestionId,
+                    generated = generated,
+                    answeredRow = answeredRow,
+                    existingRows = existingRows,
+                    now = now,
+                )
+                return
+            }
         }
 
         val edge = questionRelationshipRepository.findByParentQuestionIdOrderByDisplayOrderAscIdAsc(parentQuestionId)
@@ -427,6 +461,88 @@ class InterviewSessionService(
                 resumeContextSummary = resumeContextSummary,
                 generationRationale = "Follow-up selected from the catalog relationship graph.",
                 generationStatus = GENERATION_STATUS_CATALOG_FOLLOW_UP,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+    }
+
+    private fun insertGeneratedFollowUp(
+        userId: Long,
+        parentQuestionId: Long,
+        generated: GeneratedInterviewFollowUp,
+        answeredRow: InterviewSessionQuestionEntity,
+        existingRows: List<InterviewSessionQuestionEntity>,
+        now: java.time.Instant,
+    ) {
+        val parentQuestion = questionRepository.findByIdAndIsActiveTrue(parentQuestionId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Parent interview question not found: $parentQuestionId")
+
+        val shiftedRows = existingRows.filter { it.orderIndex > answeredRow.orderIndex }.map { row ->
+            InterviewSessionQuestionEntity(
+                id = row.id,
+                interviewSessionId = row.interviewSessionId,
+                questionId = row.questionId,
+                parentSessionQuestionId = row.parentSessionQuestionId,
+                promptText = row.promptText,
+                bodyText = row.bodyText,
+                questionSourceType = row.questionSourceType,
+                orderIndex = row.orderIndex + 1,
+                isFollowUp = row.isFollowUp,
+                depth = row.depth,
+                categoryName = row.categoryName,
+                tagsJson = row.tagsJson,
+                focusSkillNamesJson = row.focusSkillNamesJson,
+                resumeContextSummary = row.resumeContextSummary,
+                generationRationale = row.generationRationale,
+                generationStatus = row.generationStatus,
+                llmModel = row.llmModel,
+                llmPromptVersion = row.llmPromptVersion,
+                answerAttemptId = row.answerAttemptId,
+                createdAt = row.createdAt,
+                updatedAt = now,
+            )
+        }
+        if (shiftedRows.isNotEmpty()) {
+            interviewSessionQuestionRepository.saveAll(shiftedRows)
+        }
+
+        val generatedQuestion = questionRepository.save(
+            QuestionEntity(
+                authorUserId = userId,
+                categoryId = parentQuestion.categoryId,
+                title = generated.promptText,
+                body = generated.bodyText ?: generated.promptText,
+                questionType = parentQuestion.questionType,
+                difficultyLevel = parentQuestion.difficultyLevel,
+                sourceType = QUESTION_SOURCE_TYPE_INTERVIEW_AI,
+                qualityStatus = QUESTION_QUALITY_STATUS_GENERATED,
+                visibility = QUESTION_VISIBILITY_PRIVATE,
+                expectedAnswerSeconds = parentQuestion.expectedAnswerSeconds,
+                isActive = true,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+        interviewSessionQuestionRepository.save(
+            InterviewSessionQuestionEntity(
+                interviewSessionId = answeredRow.interviewSessionId,
+                questionId = generatedQuestion.id,
+                parentSessionQuestionId = answeredRow.id,
+                promptText = generated.promptText,
+                bodyText = generated.bodyText,
+                questionSourceType = SOURCE_TYPE_AI_FOLLOW_UP,
+                orderIndex = answeredRow.orderIndex + 1,
+                isFollowUp = true,
+                depth = answeredRow.depth + 1,
+                categoryName = answeredRow.categoryName,
+                tagsJson = objectMapper.writeValueAsString(generated.tags),
+                focusSkillNamesJson = objectMapper.writeValueAsString(generated.focusSkillNames),
+                resumeContextSummary = generated.resumeContextSummary,
+                generationRationale = generated.generationRationale,
+                generationStatus = GENERATION_STATUS_AI_GENERATED,
+                llmModel = generated.llmModel,
+                llmPromptVersion = generated.llmPromptVersion,
                 createdAt = now,
                 updatedAt = now,
             ),
@@ -578,13 +694,18 @@ class InterviewSessionService(
         const val SOURCE_LABEL_INTERVIEW = "Interview"
         const val SOURCE_TYPE_CATALOG_SEED = "catalog_seed"
         const val SOURCE_TYPE_CATALOG_FOLLOW_UP = "catalog_follow_up"
+        const val SOURCE_TYPE_AI_FOLLOW_UP = "ai_follow_up"
         const val GENERATION_STATUS_SEEDED = "seeded"
         const val GENERATION_STATUS_CATALOG_FOLLOW_UP = "catalog_follow_up"
+        const val GENERATION_STATUS_AI_GENERATED = "ai_generated"
         const val SESSION_TYPE_RESUME_MOCK = "resume_mock"
         const val SESSION_TYPE_REVIEW_MOCK = "review_mock"
         const val SESSION_TYPE_TOPIC_MOCK = "topic_mock"
         const val RELATIONSHIP_TYPE_FOLLOW_UP = "follow_up"
         const val REVIEW_STATUS_PENDING = "pending"
+        const val QUESTION_SOURCE_TYPE_INTERVIEW_AI = "interview_ai"
+        const val QUESTION_QUALITY_STATUS_GENERATED = "generated"
+        const val QUESTION_VISIBILITY_PRIVATE = "private"
         val SUPPORTED_SESSION_TYPES = setOf(SESSION_TYPE_RESUME_MOCK, SESSION_TYPE_REVIEW_MOCK, SESSION_TYPE_TOPIC_MOCK)
     }
 }

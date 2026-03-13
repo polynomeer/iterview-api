@@ -108,6 +108,12 @@ SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun
 - `APP_RESUME_LLM_MODEL` (default: `gpt-5-mini`)
 - `APP_RESUME_LLM_PROMPT_VERSION` (default: `resume-extract-v1`)
 - `APP_RESUME_LLM_TIMEOUT_SECONDS` (default: `30`)
+- `APP_INTERVIEW_LLM_API_KEY` (default: empty; when set, enables OpenAI-backed interview follow-up generation for `resume_mock`)
+- `APP_INTERVIEW_LLM_BASE_URL` (default: `https://api.openai.com/v1`)
+- `APP_INTERVIEW_LLM_MODEL` (default: `gpt-5-mini`)
+- `APP_INTERVIEW_LLM_PROMPT_VERSION` (default: `interview-follow-up-v1`)
+- `APP_INTERVIEW_LLM_TIMEOUT_SECONDS` (default: `30`)
+- `APP_INTERVIEW_FOLLOW_UP_MAX_DEPTH` (default: `2`)
 - `SWAGGER_UI_ENABLED` (default: `true` in `local`)
 
 ### Required in `prod` profile
