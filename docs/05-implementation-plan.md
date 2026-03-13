@@ -180,6 +180,25 @@ Acceptance intent:
 4. add API integration tests for new endpoints
 5. add contract coverage for interview snapshot evidence serialization and empty-evidence fallback behavior
 
+## Phase 7 - Localization and Bilingual Delivery
+1. add `preferred_language` support to user settings and current-user reads
+2. add locale resolution that prefers explicit request locale over stored user preference and falls back to `ko`
+3. introduce translation storage for static/reference data such as:
+   - categories
+   - skills
+   - tags
+   - question catalog text
+   - learning material titles and descriptions
+4. keep user-authored and uploaded source content stored only in the original language
+5. add `content_locale` metadata to AI-generated text such as interview openers, follow-ups, and analysis summaries
+6. localize error messages and human-readable labels without changing machine-readable codes or enums
+7. keep mixed-language rendering safe so original resume evidence and answer content can remain in the source language while surrounding UI and generated text use the selected locale
+
+Acceptance intent:
+- user original content is never replaced by translated persistence
+- UI-facing labels and system-generated text can switch between Korean and English
+- static/reference data can be served in the selected locale with deterministic fallback
+
 ## Sequencing Rules
 - do not bundle schema, API, and UI assumptions into one oversized change
 - commit after each completed vertical slice

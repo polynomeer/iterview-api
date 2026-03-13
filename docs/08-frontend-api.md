@@ -31,6 +31,11 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 
 ## Integration Notes
 - Authenticated endpoints use bearer JWT auth.
+- Product locale initially supports `ko` and `en`.
+- Clients should send `Accept-Language` when they need an explicit localized response.
+- Stored user preference may also affect localized fields returned by the backend.
+- Original user-authored source content such as resume excerpts and answer text remains in the original language even when surrounding UI-facing fields are localized.
+- Machine-readable fields such as `status`, `sourceType`, and error `code` remain locale-neutral.
 - The backend path names are `/api/skills/radar` and `/api/skills/gaps`.
 - Resume PDF upload is `POST /api/resumes/{resumeId}/versions/upload` with `multipart/form-data`.
 - Resume version polling is `GET /api/resume-versions/{versionId}`.
@@ -135,6 +140,10 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - in the result view, hovering a resume snippet should show related questions
   - clicking a related question should navigate or scroll back to the relevant question card
 - The home payload is backward compatible. Newly added fields are optional and can be ignored by older clients.
+- Mixed-language rendering is expected and should be handled gracefully:
+  - UI chrome and localized labels may be English
+  - AI-generated question text may be English
+  - resume evidence snippets may still be Korean original text
 
 ## Recommended Frontend Usage
 - During local integration, point Swagger or codegen tooling at `/v3/api-docs`.

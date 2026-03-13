@@ -27,6 +27,7 @@
 - malformed or low-confidence LLM extraction output does not silently overwrite already persisted snapshots without validation rules
 - resumes that contain sectioned content such as competencies, awards, certifications, and projects do not lose those sections by being flattened into only skills and risks
 - project tags and project categories can be added without breaking existing project reads
+- uploaded resume source text remains stored and retrievable in the original language
 
 ## Question Tree and Follow-Up
 - a question can expose follow-up nodes without changing the base question record contract
@@ -91,6 +92,7 @@
 - additive interview modes can coexist on the same session domain without breaking current `resume_mock`, `review_mock`, or `topic_mock` behavior
 - `full_coverage` can report coverage against session-scoped resume evidence items
 - a full-coverage result can map resume evidence items back to related asked questions for hover and click interactions on the result screen
+- AI-generated interview and analysis text can be produced in the selected system language while original resume evidence remains in the source language
 
 ## Data and Schema Quality
 - every schema change uses Flyway
@@ -101,6 +103,16 @@
 - user-question progress remains the cached aggregate for per-question learning state
 - curated model answers do not reuse `answer_attempts` storage
 - LLM extraction metadata is stored separately from user-authored resume content where possible
+- localization metadata is stored separately from original user-authored content
+
+## Localization
+- the product supports at least Korean and English modes
+- user-authored or uploaded source content remains persisted in the original language
+- UI language can switch independently of the original language of resume or answer content
+- system-generated text can be generated and stored in the selected locale
+- static and reference data can be served in the selected locale with fallback
+- machine-readable fields remain stable across locales
+- localized error messages do not change stable error codes
 
 ## Test Coverage
 Minimum required tests across the evolving product:

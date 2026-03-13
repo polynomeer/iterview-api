@@ -10,6 +10,7 @@ The updated product direction is:
 - question tree and follow-up visualization
 - AI-driven mock interview sessions with resume-based follow-up questions
 - multiple interview modes including planner-driven full resume coverage
+- bilingual product delivery with Korean and English modes
 - curated model answers and related learning materials
 - personalized daily practice grounded in the user's role, target companies, and resume history
 
@@ -95,6 +96,13 @@ This is an additive evolution of the current backend, not a new product line.
 - compare user progress against role and career-stage benchmarks
 - feed those insights back into home recommendations, review queue prioritization, and resume defense preparation
 
+### 6. Bilingual Product Experience
+- support `ko` and `en` as the initial product languages
+- preserve all user-authored and user-uploaded source data in its original form without translated persistence
+- localize UI labels, system messages, and static/reference data by the selected language
+- generate AI-created interview questions, follow-ups, and analysis text in the selected system language
+- allow mixed-language screens where original resume or answer text remains in the source language while the product UI is rendered in another language
+
 ## Current Scope vs Extension Scope
 ### Implemented Today
 - authentication and current-user profile APIs
@@ -140,6 +148,9 @@ This is an additive evolution of the current backend, not a new product line.
 - interview history remains session-level and must not replace archive
 - a resume-based interview session must remain attributable to the chosen `resumeVersionId` for its full lifetime
 - full resume coverage should be measured against structured resume evidence units, not raw character-by-character text
+- user-authored or uploaded original data must remain stored and retrievable in the original language
+- UI language, system-generated text language, and static/reference-data language should follow the effective locale for the request or user setting
+- generated interview questions, follow-ups, and analysis text should persist the locale they were generated in
 - new intelligence features should reuse current progress, answer, and resume records where possible
 - model answers and learning materials are global reference content, not user-generated answer attempts
 

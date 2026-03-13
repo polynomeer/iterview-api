@@ -8,15 +8,25 @@ Formats:
 - REST JSON
 - timestamps use ISO-8601 strings
 - numeric score fields are in the `0-100` range
+- localized display text initially supports `ko` and `en`
 
 Contract policy:
 - endpoints listed under "Current API" match the existing backend implementation
 - endpoints listed under "Planned Additive API" describe the next product slices and must not be treated as already implemented
 - existing field names must remain backward compatible
+- machine-readable fields remain locale-neutral even when human-readable display text is localized
 
 ## Authentication
 Bearer token:
 - `Authorization: Bearer <token>`
+
+Locale negotiation:
+- supported locales are `ko` and `en`
+- clients may send `Accept-Language`
+- authenticated requests may also rely on the stored user preference
+- when both are present, explicit request locale wins over stored preference
+- unsupported locales fall back to `ko`
+- user-authored source content is still returned in its original language
 
 Public endpoints:
 - `GET /api/health`
@@ -186,7 +196,8 @@ Response:
     "targetScoreThreshold": 80,
     "passScoreThreshold": 60,
     "retryEnabled": true,
-    "dailyQuestionCount": 1
+    "dailyQuestionCount": 1,
+    "preferredLanguage": "ko"
   },
   "activeResumeVersionSummary": {
     "resumeId": 10,
@@ -270,7 +281,8 @@ Request:
   "targetScoreThreshold": 85,
   "passScoreThreshold": 65,
   "retryEnabled": true,
-  "dailyQuestionCount": 2
+  "dailyQuestionCount": 2,
+  "preferredLanguage": "en"
 }
 ```
 
@@ -280,12 +292,14 @@ Response:
   "targetScoreThreshold": 85,
   "passScoreThreshold": 65,
   "retryEnabled": true,
-  "dailyQuestionCount": 2
+  "dailyQuestionCount": 2,
+  "preferredLanguage": "en"
 }
 ```
 
 Notes:
 - `passScoreThreshold` must not exceed `targetScoreThreshold`
+- `preferredLanguage` should use one of the supported locale codes, initially `ko` or `en`
 
 #### `PUT /api/me/target-companies`
 Auth:

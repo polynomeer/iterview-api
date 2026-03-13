@@ -66,6 +66,9 @@ This is the stable baseline and should remain operational throughout the extensi
 - no benchmark comparison service
 - no tree status derivation service
 - no review priority service using confidence, resume risk, or age
+- no locale resolution policy tied to user preference and request headers
+- no translation storage for static/reference data
+- no persisted locale metadata for AI-generated interview or analysis text
 
 ## Integration Choices
 ### Least-Disruptive Path
@@ -189,8 +192,16 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
   - skill radar endpoints
   - interview session endpoints
 
+### Phase 10 - Localization
+- add `preferred_language` to settings and current-user payloads
+- introduce locale negotiation and fallback rules
+- localize static/reference data through translation-aware storage
+- keep user-authored content in the original language only
+- add locale metadata for AI-generated text and localized error responses
+
 ## Risks to Manage
 - avoid duplicating current scoring logic in new analysis code
 - avoid breaking `GET /api/home` and current question/answer endpoints
 - keep seed data realistic enough to support manual UI integration
 - keep new APIs clearly additive instead of mutating existing response contracts
+- avoid translating user source content in a way that would overwrite or obscure the original document or answer text

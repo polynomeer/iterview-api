@@ -25,6 +25,7 @@ The new product direction should fit into this structure instead of introducing 
 - current user profile and settings
 - target company priorities
 - role and experience context used by question relevance and benchmark comparisons
+- preferred language selection used for localized responses and system-generated text
 
 ### `resume`
 - resume container lifecycle
@@ -95,6 +96,7 @@ If a new feature cannot fit one of those folders cleanly, the feature design sho
 - security
 - OpenAPI
 - CORS
+- locale resolution and message source configuration
 
 ### `common.exception`
 - global exception translation
@@ -102,6 +104,7 @@ If a new feature cannot fit one of those folders cleanly, the feature design sho
 
 ### `common.service`
 - cross-domain infrastructure services such as clock and current-user access
+- locale resolution helpers and translation fallback helpers
 
 Do not move product rules into `common`.
 
@@ -130,6 +133,12 @@ Do not move product rules into `common`.
 - update profile
 - update settings
 - replace target companies
+- store `preferred_language` for authenticated users
+- resolve the effective locale in this order:
+  1. explicit request locale
+  2. stored user preference
+  3. `Accept-Language`
+  4. default `ko`
 
 ### Resume Intelligence
 - create resume container
@@ -147,6 +156,8 @@ Do not move product rules into `common`.
   - project content blocks, project tags, and project categories
   - education, awards, and certifications
   - skill, risk, and achievement signals
+- preserve uploaded or user-authored resume source content in the original language
+- do not replace original user text with translated text in persistent storage
 
 ### Question Discovery
 - list active questions with filters
@@ -176,6 +187,7 @@ Do not move product rules into `common`.
 - use the selected resume version plus the immediately preceding answer as the primary grounding input for follow-up generation
 - persist generation metadata on session question snapshots so seeded questions, catalog follow-ups, fallback follow-ups, and AI-generated follow-ups remain distinguishable
 - persist compact `resumeEvidence` snippets on session-question snapshots so question cards can explain which resume sentence, project, or credential triggered the prompt
+- persist the locale used to generate AI opener, follow-up, and analysis text so mixed-language history stays traceable
 - for `full_coverage`, create a session-scoped inventory of resume evidence units before asking questions
 - use a coverage planner to choose the next evidence unit first, then let the LLM phrase the actual question against that evidence
 - persist question-to-evidence links so the result screen can map resume evidence items back to asked questions
@@ -211,6 +223,47 @@ These belong behind service interfaces and should not leak into controllers:
 - answer deep analysis
 - skill score recalculation
 - benchmark refresh jobs
+- static/reference-data translation backfill or refresh jobs
+
+## Localization Architecture
+### Supported Locales
+- initial supported locales are `ko` and `en`
+- unsupported locales fall back deterministically to `ko`
+
+### Data Classification Rules
+- user-originated source data:
+  - uploaded resumes
+  - answer content
+  - file names
+  - manually entered original text
+  must remain stored and returned in the original language
+- system-generated text:
+  - AI interview questions
+  - AI follow-ups
+  - AI answer analysis
+  - system feedback summaries
+  should be generated and stored with an explicit `content_locale`
+- static/reference data:
+  - categories
+  - skills
+  - tags
+  - question catalog text
+  - learning material display text
+  should be served through locale-aware translation storage with fallback
+
+### Storage Direction
+- prefer translation tables or translation subrecords for static/reference entities rather than overwriting canonical rows
+- keep machine identifiers stable across locales:
+  - codes
+  - enums
+  - status values
+  - source types
+- expose localized human-readable labels separately from machine-readable fields when needed
+
+### API Semantics
+- API responses should keep machine fields locale-neutral and localize only display text
+- error payloads should keep stable `code` values while localizing `message`
+- original user text returned by resume, answer, or archive APIs should remain in the original language
 
 Recommended resume pipeline:
 1. accept multipart PDF upload and create immutable `resume_versions` row
