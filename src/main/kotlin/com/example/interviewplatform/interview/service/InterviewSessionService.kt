@@ -94,7 +94,7 @@ class InterviewSessionService(
     fun createSession(userId: Long, request: CreateInterviewSessionRequest): InterviewSessionDetailResponseDto {
         val now = clockService.now()
         val sessionType = normalizeSessionType(request.sessionType)
-        val resumeVersionId = resolveResumeVersionId(userId, request.resumeVersionId)
+        val resumeVersionId = resolveResumeVersionId(userId, request.resumeVersionId, sessionType)
         val questionIds = resolveQuestionIds(
             userId = userId,
             sessionType = sessionType,
@@ -630,18 +630,28 @@ class InterviewSessionService(
     }
 
     private fun resolveResumeVersionId(userId: Long, requestedResumeVersionId: Long?): Long? {
-        if (requestedResumeVersionId != null) {
-            val version = resumeVersionRepository.findById(requestedResumeVersionId)
-                .orElseThrow { ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid resumeVersionId: $requestedResumeVersionId") }
-            resumeRepository.findByIdAndUserId(version.resumeId, userId)
-                ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid resumeVersionId: $requestedResumeVersionId")
-            return version.id
+        if (requestedResumeVersionId == null) {
+            return null
         }
-
-        val resume = resumeRepository.findByUserIdOrderByIsPrimaryDescCreatedAtDesc(userId).firstOrNull() ?: return null
-        val versions = resumeVersionRepository.findByResumeIdOrderByVersionNoAsc(resume.id)
-        return versions.findLast { it.isActive }?.id ?: versions.lastOrNull()?.id
+        val version = resumeVersionRepository.findById(requestedResumeVersionId)
+            .orElseThrow { ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid resumeVersionId: $requestedResumeVersionId") }
+        resumeRepository.findByIdAndUserId(version.resumeId, userId)
+            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid resumeVersionId: $requestedResumeVersionId")
+        return version.id
     }
+
+    private fun resolveRequiredResumeVersionId(userId: Long, sessionType: String, requestedResumeVersionId: Long?): Long? {
+        if (sessionType == SESSION_TYPE_RESUME_MOCK && requestedResumeVersionId == null) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "resumeVersionId is required for resume_mock")
+        }
+        return resolveResumeVersionId(userId, requestedResumeVersionId)
+    }
+
+    private fun resolveResumeVersionId(
+        userId: Long,
+        requestedResumeVersionId: Long?,
+        sessionType: String,
+    ): Long? = resolveRequiredResumeVersionId(userId, sessionType, requestedResumeVersionId)
 
     private fun resolveQuestionIds(
         userId: Long,

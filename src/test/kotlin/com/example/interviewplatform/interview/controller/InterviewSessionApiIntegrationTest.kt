@@ -97,6 +97,7 @@ class InterviewSessionApiIntegrationTest {
                         mapOf(
                             "sessionType" to "resume_mock",
                             "questionCount" to 1,
+                            "resumeVersionId" to resumeVersionId,
                         ),
                     ),
                 ),
@@ -110,6 +111,24 @@ class InterviewSessionApiIntegrationTest {
             .andExpect(jsonPath("$.currentQuestion.focusSkillNames[0]").value(startsWith("Spring Boot")))
             .andExpect(jsonPath("$.currentQuestion.generationStatus").value("seeded"))
             .andExpect(jsonPath("$.questions[0].status").value("current"))
+    }
+
+    @Test
+    fun `resume mock session requires explicit resume version`() {
+        mockMvc.perform(
+            post("/api/interview-sessions")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "sessionType" to "resume_mock",
+                            "questionCount" to 1,
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isBadRequest)
     }
 
     @Test
