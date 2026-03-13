@@ -1216,7 +1216,10 @@ Request:
 
 Notes:
 - supported `sessionType` values are `resume_mock`, `review_mock`, and `topic_mock`
-- `seedQuestionIds` are optional and are used as a starting pool, not a replacement for server-side selection
+- `resume_mock` now requires an explicit `resumeVersionId`
+- `seedQuestionIds` are optional and are used as a starting pool or fallback hint, not a replacement for server-side selection
+- for `resume_mock`, the backend now tries to generate the opening question from the selected resume version
+- if opener generation is unavailable or fails validation, the backend falls back to deterministic server-side question selection
 
 #### `GET /api/interview-sessions/{sessionId}`
 Purpose:
@@ -1238,6 +1241,10 @@ Implemented additive fields on session questions:
 - `llmModel`
 - `llmPromptVersion`
 
+Current semantics:
+- the opening session question may be AI-generated from the selected resume version
+- session questions should be rendered from snapshot fields first and should not depend on catalog `questionId`
+
 #### `POST /api/interview-sessions/{sessionId}/answers`
 Purpose:
 - submit an answer for a specific session question while preserving the standard answer scoring and retry side effects
@@ -1251,43 +1258,20 @@ Behavior:
 Purpose:
 - return the next unanswered question and mark the session complete when no questions remain
 
+#### `GET /api/archive`
+Current additive behavior for interview-originated records:
+- archive remains question-level
+- asked interview turns now also appear in archive even when they were not archived through the classic mastery flow
+- interview-originated archive rows carry:
+  - `sourceType = interview`
+  - `sourceLabel = Interview`
+  - `sourceSessionId`
+  - `sourceSessionQuestionId`
+  - `isFollowUp`
+- queued future interview questions that were not yet shown to the user should not appear in archive
+
 ### Still Planned
 The following interview features are still intentionally deferred:
 - live or streaming mock interview sessions
 - voice transcription pipeline
 - AI realtime interactions that bypass the standard answer-attempt model
-### Interview Session
-Current implementation already exposes session list/detail/progression APIs. The updated product direction extends them in a backward-compatible way for resume-selected AI interview flow.
-
-Planned additive behavior:
-- Interview start from the Interview tab should let the user select a specific `resumeVersionId`.
-- `POST /api/interview-sessions` should accept `sessionType = resume_mock` plus the selected `resumeVersionId` and optional interview-start metadata such as question count or goal.
-- The first session question may be AI-generated from the selected resume version and therefore may not have a global `questionId`.
-- `POST /api/interview-sessions/{sessionId}/answers` and `POST /api/interview-sessions/{sessionId}/next-question` should allow answer-driven follow-up question generation without changing the existing response shape contract.
-- Every session question asked during the interview should later be visible as a question-level archive item through additive source metadata.
-
-Planned additive request shape for `POST /api/interview-sessions`:
-```json
-{
-  "sessionType": "resume_mock",
-  "resumeVersionId": 22,
-  "questionCount": 5,
-  "interviewGoal": "backend_general",
-  "targetRoleId": 1
-}
-```
-
-Planned additive session-question semantics:
-- `questionSourceType = ai_opening` when the opener was generated from resume context
-- `questionSourceType = ai_follow_up` when the question was generated from the user's answer
-- `parentSessionQuestionId` links follow-ups to the immediately prior relevant turn
-- `resumeContextSummary`, `focusSkillNames`, and `generationRationale` explain why the AI asked the question
-
-Planned additive archive semantics:
-- archive stays question-level
-- every interview turn can appear in archive
-- archive items from interview sessions should carry:
-  - `sourceType = interview`
-  - `sourceSessionId`
-  - `sourceSessionQuestionId`
-  - `isFollowUp`

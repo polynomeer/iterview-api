@@ -530,7 +530,7 @@ paths:
   /api/archive:
     get:
       tags: [Archive]
-      summary: List archived questions
+      summary: List archived questions and asked interview turns
       responses:
         "200":
           description: Archived question list
@@ -556,6 +556,7 @@ paths:
     post:
       tags: [Interview Sessions]
       summary: Create interview session
+      description: For `resume_mock`, send an explicit `resumeVersionId`. The opening question may be AI-generated from the selected resume.
       requestBody:
         required: true
         content:
@@ -1359,6 +1360,7 @@ components:
           type: integer
           format: int64
           nullable: true
+          description: Required when `sessionType` is `resume_mock`.
         seedQuestionIds:
           type: array
           items:

@@ -66,6 +66,7 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 - Interview sessions are minimal turn-based APIs. They do not imply realtime or streaming behavior.
 - Interview history is now available from `GET /api/interview-sessions` as session-level summaries.
 - Archive payloads now include additive source fields so the frontend can render `Practice` and `Interview` badges without changing archive list semantics.
+- Asked interview turns are now mirrored into archive as question-level records, while interview history remains session-level.
 - Session question payloads now include follow-up metadata:
   - `sourceType`
   - `parentSessionQuestionId`
@@ -98,6 +99,7 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `sourceType = practice` -> `Practice`
   - `sourceType = interview` -> `Interview`
   - `isFollowUp = true` may be rendered as a secondary follow-up badge, not a replacement for source type
+- For interview-originated archive rows, use `sourceSessionId` as the backlink anchor and `sourceSessionQuestionId` as the stable turn identifier.
 - Recommended interview timeline rendering:
   - order by `orderIndex`
   - use `parentSessionQuestionId` and `depth` for indentation or connector lines
