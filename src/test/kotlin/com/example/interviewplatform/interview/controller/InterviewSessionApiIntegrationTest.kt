@@ -206,6 +206,70 @@ class InterviewSessionApiIntegrationTest {
     }
 
     @Test
+    fun `full coverage next question generates uncovered resume question when none is queued`() {
+        val resumeVersionId = insertResumeVersion()
+        insertResumeProject(resumeVersionId)
+        insertResumeExperience(resumeVersionId)
+
+        val sessionResponse = mockMvc.perform(
+            post("/api/interview-sessions")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "sessionType" to "resume_mock",
+                            "interviewMode" to "full_coverage",
+                            "questionCount" to 1,
+                            "resumeVersionId" to resumeVersionId,
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val sessionId = sessionResponse.get("id").asLong()
+        val firstSessionQuestionId = sessionResponse.get("currentQuestion").get("id").asLong()
+        val firstQuestionId = sessionResponse.get("currentQuestion").get("questionId").asLong()
+        val answerAttemptId = insertAnswerAttempt(firstQuestionId)
+
+        jdbcTemplate.update(
+            """
+            UPDATE interview_session_questions
+            SET answer_attempt_id = ?, updated_at = now()
+            WHERE id = ?
+            """.trimIndent(),
+            answerAttemptId,
+            firstSessionQuestionId,
+        )
+        jdbcTemplate.update(
+            """
+            UPDATE interview_session_evidence_items
+            SET coverage_status = CASE WHEN display_order = 1 THEN 'defended' ELSE 'unasked' END,
+                updated_at = now()
+            WHERE interview_session_id = ?
+            """.trimIndent(),
+            sessionId,
+        )
+
+        mockMvc.perform(post("/api/interview-sessions/$sessionId/next-question").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.status").value("in_progress"))
+            .andExpect(jsonPath("$.currentQuestion.id").isNumber)
+            .andExpect(jsonPath("$.currentQuestion.id").value(org.hamcrest.Matchers.not(firstSessionQuestionId.toInt())))
+            .andExpect(jsonPath("$.currentQuestion.sourceType").value("coverage_planner"))
+            .andExpect(jsonPath("$.summary.totalQuestions").value(2))
+
+        mockMvc.perform(get("/api/interview-sessions/$sessionId/coverage").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.overallCoveragePercent").value(100))
+    }
+
+    @Test
     fun `review mock session prioritizes pending review questions`() {
         val categoryId = insertCategory("Distributed Systems")
         val questionId = insertQuestion("Explain retry backoff", categoryId)

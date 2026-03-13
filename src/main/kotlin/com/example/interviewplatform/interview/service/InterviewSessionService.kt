@@ -339,8 +339,13 @@ class InterviewSessionService(
     @Transactional
     fun nextQuestion(userId: Long, sessionId: Long): InterviewSessionAdvanceResponseDto {
         val session = requireSession(userId, sessionId)
-        val rows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(session.id)
-        val nextRow = rows.firstOrNull { it.answerAttemptId == null }
+        var rows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(session.id)
+        var nextRow = rows.firstOrNull { it.answerAttemptId == null }
+        if (nextRow == null && session.status == STATUS_IN_PROGRESS && session.interviewMode == INTERVIEW_MODE_FULL_COVERAGE) {
+            maybeInsertNextCoverageQuestion(userId = userId, session = session, now = clockService.now())
+            rows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(session.id)
+            nextRow = rows.firstOrNull { it.answerAttemptId == null }
+        }
         val effectiveSession = if (nextRow == null && session.status != STATUS_COMPLETED) {
             val now = clockService.now()
             interviewSessionRepository.save(
