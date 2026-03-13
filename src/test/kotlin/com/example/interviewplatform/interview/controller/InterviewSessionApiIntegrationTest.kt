@@ -135,6 +135,7 @@ class InterviewSessionApiIntegrationTest {
     fun `full coverage resume session creates evidence inventory and resume map`() {
         val resumeVersionId = insertResumeVersion()
         insertResumeProject(resumeVersionId)
+        insertResumeExperience(resumeVersionId)
         insertResumeAward(resumeVersionId)
         insertResumeCertification(resumeVersionId)
         insertResumeEducation(resumeVersionId)
@@ -168,8 +169,8 @@ class InterviewSessionApiIntegrationTest {
 
         mockMvc.perform(get("/api/interview-sessions/$sessionId/coverage").header("Authorization", authHeader))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.overallCoveragePercent").value(25))
-            .andExpect(jsonPath("$.evidenceItems.length()").value(4))
+            .andExpect(jsonPath("$.overallCoveragePercent").value(50))
+            .andExpect(jsonPath("$.evidenceItems.length()").value(2))
             .andExpect(jsonPath("$.evidenceItems[0].coverageStatus").value("asked"))
             .andExpect(jsonPath("$.evidenceItems[0].linkedQuestionIds[0]").value(sessionQuestionId))
 
@@ -191,8 +192,8 @@ class InterviewSessionApiIntegrationTest {
 
         mockMvc.perform(get("/api/interview-sessions/$sessionId/coverage").header("Authorization", authHeader))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.overallCoveragePercent").value(50))
-            .andExpect(jsonPath("$.defendedCoveragePercent").value(25))
+            .andExpect(jsonPath("$.overallCoveragePercent").value(100))
+            .andExpect(jsonPath("$.defendedCoveragePercent").value(50))
 
         mockMvc.perform(get("/api/interview-sessions/$sessionId/resume-map").header("Authorization", authHeader))
             .andExpect(status().isOk)
@@ -623,6 +624,24 @@ class InterviewSessionApiIntegrationTest {
                 'Recognized for leading a high-impact platform migration', 2,
                 'Recognized for leading a high-impact platform migration',
                 now(), now()
+            ) RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            resumeVersionId,
+        )
+
+    private fun insertResumeExperience(resumeVersionId: Long): Long =
+        jdbcTemplate.queryForObject(
+            """
+            INSERT INTO resume_experience_snapshots (
+                resume_version_id, company_name, role_name, employment_type, is_current, project_name,
+                summary_text, impact_text, source_text, risk_level, display_order, is_confirmed, created_at, updated_at
+            ) VALUES (
+                ?, 'Example Corp', 'Backend Engineer', 'full_time', true, 'Payments Platform',
+                'Owned the payments platform migration and release strategy',
+                'Reduced rollback risk and improved conversion through staged rollout',
+                'Owned the payments platform migration and release strategy',
+                'MEDIUM', 2, true, now(), now()
             ) RETURNING id
             """.trimIndent(),
             Long::class.java,

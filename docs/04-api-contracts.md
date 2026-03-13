@@ -1230,7 +1230,8 @@ Notes:
   - `free_interview`
   - `full_coverage`
 - `full_coverage` creates a planner-driven interview session that tries to cover all interviewable resume evidence units, not just a random subset of resume-linked questions
-- opener generation now persists one or more `resumeEvidence` snippets that explain which resume sentence, project, achievement, certification, or education record triggered the question
+- opener generation now persists one or more `resumeEvidence` snippets that explain which project or experience record triggered the question
+- current resume-grounded interview generation is intentionally scoped to project and experience evidence only
 
 #### `GET /api/interview-sessions/{sessionId}`
 Purpose:
@@ -1285,7 +1286,7 @@ Behavior:
 - `resume_mock` sessions should try to generate the next follow-up through the interview LLM client when configured
 - if LLM generation is unavailable or fails validation, the backend may fall back to catalog follow-ups or the remaining queued questions
 - the inserted follow-up must still be persisted as an immutable session question snapshot
-- follow-up generation now persists fresh `resumeEvidence` snippets when the next question is anchored to a new sentence, project, or achievement from the resume
+- follow-up generation now persists fresh `resumeEvidence` snippets when the next question is anchored to a project or experience record from the resume
 
 #### `POST /api/interview-sessions/{sessionId}/next-question`
 Purpose:

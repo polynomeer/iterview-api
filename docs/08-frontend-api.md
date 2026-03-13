@@ -92,6 +92,9 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
     - `sourceRecordType`
     - `sourceRecordId`
     - `confidence`
+- Current interview generation scope is narrower than the full resume model:
+  - opener and follow-up generation currently use `project` and `experience` evidence only
+  - profile summary, contacts, competencies, awards, certifications, and education are not currently used as interview question sources
 - Resume interview creation should expose one explicit `resumeVersionId` selector in the frontend start flow rather than silently relying on whichever version happens to be active.
 - implemented interview-start configuration now accepts `interviewMode` values such as `quick_screen`, `mock_30`, `mock_60`, `free_interview`, and `full_coverage`
 - The opening question for a resume-based interview may also be AI-generated from the selected resume version and should be rendered from session snapshot fields the same way as AI follow-ups.
