@@ -66,7 +66,7 @@ class AiInterviewFollowUpApiIntegrationTest {
     }
 
     @Test
-    fun `resume mock answer inserts ai generated follow up snapshot`() {
+    fun `resume mock session creates ai opening and ai follow up snapshots`() {
         val categoryId = insertCategory("AI Follow Up")
         val questionId = insertQuestion("Tell me about a payments migration", categoryId)
         val resumeVersionId = insertResumeVersion(questionId)
@@ -81,11 +81,17 @@ class AiInterviewFollowUpApiIntegrationTest {
                             "sessionType" to "resume_mock",
                             "questionCount" to 1,
                             "resumeVersionId" to resumeVersionId,
-                            "seedQuestionIds" to listOf(questionId),
                         ),
                     ),
                 ),
-        ).andExpect(status().isOk).andReturn().response.contentAsString.let(objectMapper::readTree)
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.currentQuestion.sourceType").value("ai_opening"))
+            .andExpect(jsonPath("$.currentQuestion.questionId").isNumber)
+            .andExpect(jsonPath("$.currentQuestion.bodyText").value("Focus on the migration scope, trade-offs, and how you measured success."))
+            .andExpect(jsonPath("$.currentQuestion.generationStatus").value("ai_generated"))
+            .andReturn()
+            .response.contentAsString.let(objectMapper::readTree)
         val sessionId = sessionResponse.get("id").asLong()
         val sessionQuestionId = sessionResponse.get("questions")[0].get("id").asLong()
 
@@ -207,12 +213,19 @@ class AiInterviewFollowUpApiIntegrationTest {
         @Bean
         @Primary
         fun interviewLlmApiTransport(): InterviewLlmApiTransport = object : InterviewLlmApiTransport {
-            override fun postJson(url: String, apiKey: String, body: String, timeout: Duration): String = """
-                {
-                  "model": "gpt-5-mini",
-                  "output_text": "{\"promptText\":\"How did you de-risk the cutover window?\",\"bodyText\":\"Describe rollback criteria, monitoring signals, and communication flow.\",\"tags\":[\"payments\",\"migration\"],\"focusSkillNames\":[\"Risk Management\",\"Observability\"],\"resumeContextSummary\":\"Resume mentions a payments platform migration with latency targets.\",\"generationRationale\":\"The answer mentioned the migration outcome but did not defend cutover risk controls.\"}"
+            override fun postJson(url: String, apiKey: String, body: String, timeout: Duration): String {
+                val outputText = if (body.contains("\"name\":\"interview_opening\"")) {
+                    "{\"promptText\":\"Tell me about the payments migration you led and the trade-offs you had to manage.\",\"bodyText\":\"Focus on the migration scope, trade-offs, and how you measured success.\",\"tags\":[\"payments\",\"migration\"],\"focusSkillNames\":[\"System Design\",\"Ownership\"],\"resumeContextSummary\":\"Resume highlights ownership of a payments platform migration.\",\"generationRationale\":\"The resume shows a high-impact migration, so the opener should start from the strongest concrete project.\"}"
+                } else {
+                    "{\"promptText\":\"How did you de-risk the cutover window?\",\"bodyText\":\"Describe rollback criteria, monitoring signals, and communication flow.\",\"tags\":[\"payments\",\"migration\"],\"focusSkillNames\":[\"Risk Management\",\"Observability\"],\"resumeContextSummary\":\"Resume mentions a payments platform migration with latency targets.\",\"generationRationale\":\"The answer mentioned the migration outcome but did not defend cutover risk controls.\"}"
                 }
-            """.trimIndent()
+                return """
+                    {
+                      "model": "gpt-5-mini",
+                      "output_text": "${outputText.replace("\"", "\\\"")}"
+                    }
+                """.trimIndent()
+            }
         }
     }
 }

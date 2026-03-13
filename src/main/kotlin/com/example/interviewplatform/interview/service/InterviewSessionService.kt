@@ -56,6 +56,7 @@ class InterviewSessionService(
     private val resumeRiskItemRepository: ResumeRiskItemRepository,
     private val resumeVersionRepository: ResumeVersionRepository,
     private val skillRepository: SkillRepository,
+    private val interviewOpeningGenerationService: InterviewOpeningGenerationService,
     private val interviewFollowUpGenerationService: InterviewFollowUpGenerationService,
     private val clockService: ClockService,
     private val objectMapper: ObjectMapper,
@@ -95,15 +96,6 @@ class InterviewSessionService(
         val now = clockService.now()
         val sessionType = normalizeSessionType(request.sessionType)
         val resumeVersionId = resolveResumeVersionId(userId, request.resumeVersionId, sessionType)
-        val questionIds = resolveQuestionIds(
-            userId = userId,
-            sessionType = sessionType,
-            requestedCount = request.questionCount,
-            seedQuestionIds = request.seedQuestionIds,
-        )
-        if (questionIds.isEmpty()) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "No questions available for interview session")
-        }
 
         val session = interviewSessionRepository.save(
             InterviewSessionEntity(
@@ -116,9 +108,18 @@ class InterviewSessionService(
                 updatedAt = now,
             ),
         )
-        interviewSessionQuestionRepository.saveAll(
-            buildSeedRows(session.id, questionIds, resumeVersionId, now),
+        val initialRows = buildInitialRows(
+            userId = userId,
+            session = session,
+            requestedCount = request.questionCount,
+            seedQuestionIds = request.seedQuestionIds,
+            resumeVersionId = resumeVersionId,
+            now = now,
         )
+        if (initialRows.isEmpty()) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "No questions available for interview session")
+        }
+        interviewSessionQuestionRepository.saveAll(initialRows)
         return getSession(userId, session.id)
     }
 
@@ -362,6 +363,87 @@ class InterviewSessionService(
                 updatedAt = now,
             )
         }
+    }
+
+    private fun buildInitialRows(
+        userId: Long,
+        session: InterviewSessionEntity,
+        requestedCount: Int,
+        seedQuestionIds: List<Long>,
+        resumeVersionId: Long?,
+        now: java.time.Instant,
+    ): List<InterviewSessionQuestionEntity> {
+        if (session.sessionType == SESSION_TYPE_RESUME_MOCK && resumeVersionId != null) {
+            val openingRow = buildGeneratedOpeningRow(
+                userId = userId,
+                session = session,
+                resumeVersionId = resumeVersionId,
+                now = now,
+            )
+            if (openingRow != null) {
+                return listOf(openingRow)
+            }
+        }
+
+        val questionIds = resolveQuestionIds(
+            userId = userId,
+            sessionType = session.sessionType,
+            requestedCount = requestedCount,
+            seedQuestionIds = seedQuestionIds,
+        )
+        if (questionIds.isEmpty()) {
+            return emptyList()
+        }
+        return buildSeedRows(session.id, questionIds, resumeVersionId, now)
+    }
+
+    private fun buildGeneratedOpeningRow(
+        userId: Long,
+        session: InterviewSessionEntity,
+        resumeVersionId: Long,
+        now: java.time.Instant,
+    ): InterviewSessionQuestionEntity? {
+        val generated = interviewOpeningGenerationService.generateResumeOpening(resumeVersionId) ?: return null
+        val categoryId = resolveGeneratedQuestionCategoryId(userId)
+        val generatedQuestion = questionRepository.save(
+            QuestionEntity(
+                authorUserId = userId,
+                categoryId = categoryId,
+                title = generated.promptText,
+                body = generated.bodyText ?: generated.promptText,
+                questionType = QUESTION_TYPE_BEHAVIORAL,
+                difficultyLevel = QUESTION_DIFFICULTY_MEDIUM,
+                sourceType = QUESTION_SOURCE_TYPE_INTERVIEW_AI,
+                qualityStatus = QUESTION_QUALITY_STATUS_GENERATED,
+                visibility = QUESTION_VISIBILITY_PRIVATE,
+                expectedAnswerSeconds = DEFAULT_EXPECTED_ANSWER_SECONDS,
+                isActive = true,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+        val categoryName = categoryRepository.findById(categoryId).orElse(null)?.name
+        return InterviewSessionQuestionEntity(
+            interviewSessionId = session.id,
+            questionId = generatedQuestion.id,
+            parentSessionQuestionId = null,
+            promptText = generated.promptText,
+            bodyText = generated.bodyText,
+            questionSourceType = SOURCE_TYPE_AI_OPENING,
+            orderIndex = 1,
+            isFollowUp = false,
+            depth = 0,
+            categoryName = categoryName,
+            tagsJson = objectMapper.writeValueAsString(generated.tags),
+            focusSkillNamesJson = objectMapper.writeValueAsString(generated.focusSkillNames),
+            resumeContextSummary = generated.resumeContextSummary,
+            generationRationale = generated.generationRationale,
+            generationStatus = GENERATION_STATUS_AI_GENERATED,
+            llmModel = generated.llmModel,
+            llmPromptVersion = generated.llmPromptVersion,
+            createdAt = now,
+            updatedAt = now,
+        )
     }
 
     private fun maybeInsertFollowUp(
@@ -694,6 +776,18 @@ class InterviewSessionService(
         return selected.take(limit)
     }
 
+    private fun resolveGeneratedQuestionCategoryId(userId: Long): Long {
+        val recommendedQuestionId = questionService.getResumeBasedQuestions(userId, 1).firstOrNull()?.questionId
+        if (recommendedQuestionId != null) {
+            val recommendedQuestion = questionRepository.findByIdAndIsActiveTrue(recommendedQuestionId)
+            if (recommendedQuestion != null) {
+                return recommendedQuestion.categoryId
+            }
+        }
+        return categoryRepository.findAll().firstOrNull()?.id
+            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "No category available for interview question generation")
+    }
+
     private companion object {
         const val STATUS_IN_PROGRESS = "in_progress"
         const val STATUS_COMPLETED = "completed"
@@ -704,6 +798,7 @@ class InterviewSessionService(
         const val SOURCE_LABEL_INTERVIEW = "Interview"
         const val SOURCE_TYPE_CATALOG_SEED = "catalog_seed"
         const val SOURCE_TYPE_CATALOG_FOLLOW_UP = "catalog_follow_up"
+        const val SOURCE_TYPE_AI_OPENING = "ai_opening"
         const val SOURCE_TYPE_AI_FOLLOW_UP = "ai_follow_up"
         const val GENERATION_STATUS_SEEDED = "seeded"
         const val GENERATION_STATUS_CATALOG_FOLLOW_UP = "catalog_follow_up"
@@ -716,6 +811,9 @@ class InterviewSessionService(
         const val QUESTION_SOURCE_TYPE_INTERVIEW_AI = "interview_ai"
         const val QUESTION_QUALITY_STATUS_GENERATED = "generated"
         const val QUESTION_VISIBILITY_PRIVATE = "private"
+        const val QUESTION_TYPE_BEHAVIORAL = "behavioral"
+        const val QUESTION_DIFFICULTY_MEDIUM = "MEDIUM"
+        const val DEFAULT_EXPECTED_ANSWER_SECONDS = 180
         val SUPPORTED_SESSION_TYPES = setOf(SESSION_TYPE_RESUME_MOCK, SESSION_TYPE_REVIEW_MOCK, SESSION_TYPE_TOPIC_MOCK)
     }
 }
