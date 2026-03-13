@@ -27,6 +27,12 @@ class ResumeProjectSnapshotEntity(
     val roleName: String? = null,
     @Column(name = "summary_text", nullable = false)
     val summaryText: String,
+    @Column(name = "content_text")
+    val contentText: String? = null,
+    @Column(name = "project_category_code")
+    val projectCategoryCode: String? = null,
+    @Column(name = "project_category_name")
+    val projectCategoryName: String? = null,
     @Column(name = "tech_stack_text")
     val techStackText: String? = null,
     @Column(name = "started_on")
