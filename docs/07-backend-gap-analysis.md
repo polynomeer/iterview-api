@@ -47,6 +47,8 @@ This is the stable baseline and should remain operational throughout the extensi
 - no skill radar, gaps, or progress endpoints
 - no updated home fields for weak skills or resume risks
 - no interview session APIs
+- no interview history listing endpoint
+- no archive source metadata that distinguishes practice questions from interview questions
 
 ### Missing Seed Coverage
 - current Flyway seed only covers companies, roles, categories, and tags
@@ -156,10 +158,12 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
 ### Phase 8 - Interview Sessions
 - implement minimal session create/read/progress flow
 - add:
+  - `GET /api/interview-sessions`
   - `POST /api/interview-sessions`
   - `GET /api/interview-sessions/{sessionId}`
   - `POST /api/interview-sessions/{sessionId}/answers`
   - `POST /api/interview-sessions/{sessionId}/next-question`
+- extend archive responses with source metadata for practice vs interview origin
 - keep answer attempts immutable and linked cleanly
 
 ### Phase 9 - Tests and Validation

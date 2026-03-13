@@ -885,10 +885,24 @@ Response:
     "difficulty": "HARD",
     "archivedAt": "2026-03-11T04:00:00Z",
     "bestScore": 92,
-    "totalAttemptCount": 3
+    "totalAttemptCount": 3,
+    "sourceType": "practice",
+    "sourceLabel": "Practice",
+    "sourceSessionId": null,
+    "sourceSessionQuestionId": null,
+    "isFollowUp": false
   }
 ]
 ```
+
+Planned additive behavior:
+- archived questions that originated inside interview sessions should return:
+  - `sourceType = "interview"`
+  - `sourceLabel = "Interview"`
+  - `sourceSessionId`
+  - `sourceSessionQuestionId`
+  - `isFollowUp`
+- archive remains question-level even when the source is an interview session
 
 ### Feed
 #### `GET /api/feed`
@@ -1161,6 +1175,27 @@ These should be optional and backward compatible:
 ```
 
 ### Interview Sessions
+#### `GET /api/interview-sessions`
+Purpose:
+- return interview history as session-level records ordered by most recent first
+
+Planned additive response:
+```json
+[
+  {
+    "sessionId": 71,
+    "sessionType": "resume_mock",
+    "status": "completed",
+    "resumeVersionId": 22,
+    "startedAt": "2026-03-13T03:00:00Z",
+    "completedAt": "2026-03-13T03:18:00Z",
+    "questionCount": 5,
+    "answeredCount": 5,
+    "averageScore": 81
+  }
+]
+```
+
 #### `POST /api/interview-sessions`
 Purpose:
 - create a minimal mock-interview session that reuses the existing question, answer, and review model
@@ -1182,6 +1217,11 @@ Notes:
 #### `GET /api/interview-sessions/{sessionId}`
 Purpose:
 - return current session status, ordered questions, current question, and summary counts
+
+Planned additive fields:
+- session-level history metadata suitable for interview history screens
+- per-question source metadata for main questions vs follow-up questions
+- `parentSessionQuestionId` and `isFollowUp` on session questions
 
 #### `POST /api/interview-sessions/{sessionId}/answers`
 Purpose:

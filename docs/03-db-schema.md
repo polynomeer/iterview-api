@@ -242,6 +242,15 @@ Current interpretation:
 - `created_at`
 - `updated_at`
 
+Recommended additive columns for archive source metadata:
+- `source_type`
+- `source_session_id`
+- `source_session_question_id`
+- `source_label`
+
+Purpose:
+- keep archive question-level while preserving whether the mastered item came from a normal practice flow or an interview session turn
+
 ### `review_queue`
 - `id`
 - `user_id`
@@ -616,6 +625,54 @@ Notes:
 - `answer_scores` remains the current source for existing APIs
 - `answer_analyses` should be introduced only when the product needs stable radar and follow-up analytics
 
+## Interview Session Extensions
+### `interview_sessions`
+Purpose:
+- store one history record for an AI-driven mock interview session
+
+Columns:
+- `id`
+- `user_id`
+- `resume_version_id`
+- `session_type`
+- `status`
+- `started_at`
+- `completed_at`
+- `question_count`
+- `answered_count`
+- `average_score`
+- `summary_text`
+- `created_at`
+- `updated_at`
+
+Notes:
+- one row represents one full interview run
+- this is the anchor for interview history screens
+
+### `interview_session_questions`
+Purpose:
+- store question snapshots for main interview questions and follow-up questions generated within a session
+
+Columns:
+- `id`
+- `interview_session_id`
+- `question_id`
+- `parent_session_question_id`
+- `prompt_text`
+- `question_source_type`
+- `is_follow_up`
+- `display_order`
+- `depth`
+- `category_name`
+- `tags_json`
+- `created_at`
+- `updated_at`
+
+Notes:
+- `question_id` stays nullable so AI-generated follow-up prompts can still be stored even when they do not map to the global catalog
+- `parent_session_question_id` links a follow-up question back to its parent within the same session
+- `prompt_text` must be stored as a snapshot because follow-up prompts may not exist in the global `questions` table
+
 ## Skill and Benchmark Extensions
 ### `skill_category_scores`
 Purpose:
@@ -664,6 +721,7 @@ Columns:
 - unique(`parent_question_id`, `child_question_id`, `relationship_type`) on `question_relationships`
 - unique(`question_id`, `skill_name`, `skill_category_code`) on `question_skill_mappings`
 - unique(`user_id`, `skill_category_code`) on the latest logical score row if the design keeps one active score row per category
+- unique(`interview_session_id`, `display_order`) on `interview_session_questions`
 
 ## Required Indexes
 ### Existing Read Paths
@@ -696,6 +754,9 @@ Columns:
 - `answer_analyses(answer_attempt_id)`
 - `skill_category_scores(user_id, skill_category_code)`
 - `career_benchmarks(job_role_id, experience_band_code, skill_category_code)`
+- `interview_sessions(user_id, started_at desc)`
+- `interview_session_questions(interview_session_id, display_order)`
+- `interview_session_questions(parent_session_question_id)`
 
 ## Migration Guidance
 - every schema change must use Flyway

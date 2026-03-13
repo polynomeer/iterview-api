@@ -13,6 +13,7 @@ Current implemented domains:
 - `review`
 - `dailycard`
 - `feed`
+- `interview`
 
 Planned additive domain:
 - `skill`
@@ -51,6 +52,7 @@ The new product direction should fit into this structure instead of introducing 
 - archive decisions
 - review queue reads and actions
 - future review prioritization inputs from resume risk and skill gaps
+- archive read models should remain question-level even when the source is an interview turn
 
 ### `dailycard`
 - daily question generation
@@ -59,6 +61,13 @@ The new product direction should fit into this structure instead of introducing 
 
 ### `feed`
 - popular, trending, and company-related catalog slices
+
+### `interview`
+- interview session lifecycle
+- session-scoped question progression
+- follow-up question generation and storage
+- session history reads
+- linkage from interview turns into archive, answer, and review flows
 
 ### `skill` (planned)
 - skill-category score aggregation
@@ -150,6 +159,14 @@ Do not move product rules into `common`.
 - update progress aggregate
 - future: persist analysis dimensions used by skill radar and gap analysis
 
+### Interview Sessions
+- create interview session from active resume context, topic context, or review context
+- persist session-level summary and status
+- persist session question snapshots for main questions and follow-up questions
+- submit session answers through the same answer scoring pipeline
+- expose interview history separately from archive
+- mark archive-visible source metadata so archived questions can still show whether they came from practice or interview
+
 ### Review and Learning Loop
 - determine retry need
 - schedule or clear retry items
@@ -167,6 +184,7 @@ Do not move product rules into `common`.
 - answer submission must remain transactional
 - score persistence, feedback creation, progress updates, and retry scheduling should stay in the same transaction
 - resume activation should remain transactional so one version is active per resume
+- interview answer submission should remain transactional with session-question progression and answer persistence
 - read-heavy aggregation endpoints should use read-only transactions where appropriate
 
 ## Future Async Boundaries

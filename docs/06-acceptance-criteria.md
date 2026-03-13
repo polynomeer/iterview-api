@@ -69,9 +69,13 @@
 ## Interview Sessions
 - users can create a session without bypassing the existing question-answer-review flow
 - session questions keep stable ordering and expose current, queued, and answered states
+- interview history is visible at the session level
+- follow-up questions remain attributable to the parent session question
 - session answer submission reuses standard answer scoring, feedback persistence, and retry scheduling
 - a session can complete without mutating historical answer attempts
 - minimal session support remains additive and does not imply live or realtime interview behavior
+- archive remains question-level even for interview-originated questions
+- archive items can distinguish `practice` and `interview` origin through additive metadata
 
 ## Data and Schema Quality
 - every schema change uses Flyway

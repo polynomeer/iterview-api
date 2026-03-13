@@ -135,6 +135,20 @@ Acceptance intent:
 - old clients can ignore the new fields
 - new clients can render the updated learning dashboard
 
+## Phase 5A - Interview History and Archive Source Metadata
+1. extend interview session APIs with session-history reads
+2. persist session question snapshots for follow-up questions that do not exist in the global catalog
+3. add question-level archive source metadata so archived questions can distinguish:
+   - `practice`
+   - `interview`
+4. keep archive question-level and avoid replacing it with a session-only archive
+5. ensure follow-up interview turns can be revisited from both interview history and archive
+
+Acceptance intent:
+- one interview session appears once in interview history
+- each question and follow-up from that session can still appear as a question-level archived item
+- archive source metadata is additive and backward compatible
+
 ## Phase 6 - Seed and Test Hardening
 1. extend seed/reference data for:
    - skill categories

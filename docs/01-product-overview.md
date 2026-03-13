@@ -8,6 +8,7 @@ The updated product direction is:
 - answer-driven learning and retry loops
 - skill radar and gap analysis
 - question tree and follow-up visualization
+- AI-driven mock interview sessions with resume-based follow-up questions
 - curated model answers and related learning materials
 - personalized daily practice grounded in the user's role, target companies, and resume history
 
@@ -32,6 +33,7 @@ Resume PDF Upload
 -> LLM Structured Extraction
 -> Extract + Validate Signals
 -> Question Selection
+-> Interview Session or Practice Question
 -> Answer Submission
 -> Score + Feedback
 -> Progress + Review Queue
@@ -68,13 +70,19 @@ This is an additive evolution of the current backend, not a new product line.
 - attach question-linked learning materials that explain concepts, tradeoffs, and background knowledge
 - let users understand both breadth and depth of their preparation
 
-### 3. Answer Analysis and Review
+### 3. Mock Interview Loop
+- support AI-driven mock interviews grounded in the active resume version
+- allow one interview session to generate a main question plus follow-up questions within the same session
+- store one session-level history record for each completed or in-progress interview
+- preserve each interview question and follow-up as a question-level record that can later appear in archive and review flows
+- keep interview sessions additive to the existing practice loop rather than replacing practice questions
+### 4. Answer Analysis and Review
 - keep answer attempts append-only
 - keep scoring centralized in one service
 - enrich analysis output so weak patterns, follow-up readiness, and skill gaps can be derived from answer history
 - preserve current retry scheduling and archive semantics
 
-### 4. Skill and Readiness Insights
+### 5. Skill and Readiness Insights
 - calculate skill-category performance from answer history
 - compare user progress against role and career-stage benchmarks
 - feed those insights back into home recommendations, review queue prioritization, and resume defense preparation
@@ -95,13 +103,13 @@ This is an additive evolution of the current backend, not a new product line.
 - richer structured resume sections for profile, contacts, education, awards, certifications, and project-level achievements
 - richer project records extracted from resume PDFs, including title, content, tags, and category classification
 - question relationship modeling for follow-up trees
+- interview-session history, interview question snapshots, and archive source metadata
 - question-linked model answers and richer learning material metadata
 - richer answer analysis beyond the current score + feedback rows
 - skill radar, gap analysis, and benchmark APIs
 - stronger home dashboard summaries tied to readiness and risk
 
 ### Explicitly Out of Scope Unless Requested
-- mock interview sessions
 - live voice or streaming interview features
 - public answer publishing or comparison
 - GitHub sync
@@ -118,6 +126,8 @@ This is an additive evolution of the current backend, not a new product line.
 - user progress is cached aggregate state per user-question pair
 - retry scheduling is persisted, not recomputed ad hoc on every read
 - archived questions must stay out of the active retry loop unless explicitly reset
+- archive remains question-level, even when the question originated from an interview session
+- archive items should preserve whether they came from `practice` or `interview`
 - new intelligence features should reuse current progress, answer, and resume records where possible
 - model answers and learning materials are global reference content, not user-generated answer attempts
 
