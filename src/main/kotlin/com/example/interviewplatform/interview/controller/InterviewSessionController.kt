@@ -5,6 +5,7 @@ import com.example.interviewplatform.interview.dto.CreateInterviewSessionRequest
 import com.example.interviewplatform.interview.dto.InterviewSessionAdvanceResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionAnswerResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionDetailResponseDto
+import com.example.interviewplatform.interview.dto.InterviewSessionListItemDto
 import com.example.interviewplatform.interview.dto.SubmitInterviewSessionAnswerRequest
 import com.example.interviewplatform.interview.service.InterviewSessionService
 import io.swagger.v3.oas.annotations.Operation
@@ -28,6 +29,11 @@ class InterviewSessionController(
     private val interviewSessionService: InterviewSessionService,
     private val currentUserProvider: CurrentUserProvider,
 ) {
+    @GetMapping
+    @Operation(summary = "List interview sessions")
+    fun listSessions(): List<InterviewSessionListItemDto> =
+        interviewSessionService.listSessions(currentUserProvider.currentUserId())
+
     @PostMapping
     @Operation(summary = "Create interview session")
     fun createSession(@Valid @RequestBody request: CreateInterviewSessionRequest): InterviewSessionDetailResponseDto =

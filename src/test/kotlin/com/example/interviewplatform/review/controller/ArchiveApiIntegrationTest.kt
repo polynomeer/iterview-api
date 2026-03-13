@@ -86,6 +86,9 @@ class ArchiveApiIntegrationTest {
             .andExpect(jsonPath("$[0].questionId").value(archivedQuestionId))
             .andExpect(jsonPath("$[0].title").value("Archived Question"))
             .andExpect(jsonPath("$[0].bestScore").value(91))
+            .andExpect(jsonPath("$[0].sourceType").value("practice"))
+            .andExpect(jsonPath("$[0].sourceLabel").value("Practice"))
+            .andExpect(jsonPath("$[0].isFollowUp").value(false))
             .andExpect(jsonPath("$[1]").doesNotExist())
     }
 
@@ -111,6 +114,56 @@ class ArchiveApiIntegrationTest {
         mockMvc.perform(get("/api/archive").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$[0]").doesNotExist())
+    }
+
+    @Test
+    fun `archive endpoint exposes interview source metadata`() {
+        val questionId = insertQuestion("Interview Archived Question", "MEDIUM")
+        jdbcTemplate.update(
+            """
+            INSERT INTO interview_sessions (
+                id, user_id, resume_version_id, session_type, status, started_at, ended_at, created_at, updated_at
+            ) VALUES (
+                77, 1, NULL, 'resume_mock', 'completed', now() - interval '10 minute', now(), now(), now()
+            )
+            """.trimIndent(),
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO interview_session_questions (
+                id, interview_session_id, question_id, parent_session_question_id, prompt_text, question_source_type,
+                order_index, is_follow_up, depth, category_name, tags_json, answer_attempt_id, created_at, updated_at
+            ) VALUES (
+                88, 77, ?, NULL, 'Interview prompt', 'catalog_seed',
+                1, true, 1, 'System Design', '[]', NULL, now(), now()
+            )
+            """.trimIndent(),
+            questionId,
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO user_question_progress (
+                user_id, question_id, latest_answer_attempt_id, best_answer_attempt_id, latest_score, best_score,
+                total_attempt_count, unanswered_count, current_status, archived_at, last_answered_at, next_review_at,
+                mastery_level, source_type, source_label, source_session_id, source_session_question_id, is_follow_up,
+                created_at, updated_at
+            ) VALUES (
+                1, ?, NULL, NULL, 92, 92,
+                3, 0, 'archived', now(), now(), NULL,
+                'advanced', 'interview', 'Interview', 77, 88, true,
+                now(), now()
+            )
+            """.trimIndent(),
+            questionId,
+        )
+
+        mockMvc.perform(get("/api/archive").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].sourceType").value("interview"))
+            .andExpect(jsonPath("$[0].sourceLabel").value("Interview"))
+            .andExpect(jsonPath("$[0].sourceSessionId").value(77))
+            .andExpect(jsonPath("$[0].sourceSessionQuestionId").value(88))
+            .andExpect(jsonPath("$[0].isFollowUp").value(true))
     }
 
     private fun insertQuestion(title: String, difficulty: String): Long {

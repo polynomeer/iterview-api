@@ -18,4 +18,14 @@ data class ArchivedQuestionDto(
     val bestScore: BigDecimal?,
     @field:Schema(description = "Number of attempts submitted before archiving")
     val totalAttemptCount: Int,
+    @field:Schema(description = "Archive source type", nullable = true, example = "practice")
+    val sourceType: String?,
+    @field:Schema(description = "Archive source label", nullable = true, example = "Practice")
+    val sourceLabel: String?,
+    @field:Schema(description = "Interview session id when archived from interview", nullable = true)
+    val sourceSessionId: Long?,
+    @field:Schema(description = "Interview session question id when archived from interview", nullable = true)
+    val sourceSessionQuestionId: Long?,
+    @field:Schema(description = "Whether the archived question was a follow-up")
+    val isFollowUp: Boolean,
 )

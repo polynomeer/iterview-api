@@ -16,10 +16,24 @@ class InterviewSessionQuestionEntity(
     val id: Long = 0,
     @Column(name = "interview_session_id", nullable = false)
     val interviewSessionId: Long,
-    @Column(name = "question_id", nullable = false)
-    val questionId: Long,
+    @Column(name = "question_id")
+    val questionId: Long? = null,
+    @Column(name = "parent_session_question_id")
+    val parentSessionQuestionId: Long? = null,
+    @Column(name = "prompt_text")
+    val promptText: String? = null,
+    @Column(name = "question_source_type", nullable = false)
+    val questionSourceType: String,
     @Column(name = "order_index", nullable = false)
     val orderIndex: Int,
+    @Column(name = "is_follow_up", nullable = false)
+    val isFollowUp: Boolean = false,
+    @Column(name = "depth", nullable = false)
+    val depth: Int = 0,
+    @Column(name = "category_name")
+    val categoryName: String? = null,
+    @Column(name = "tags_json")
+    val tagsJson: String? = null,
     @Column(name = "answer_attempt_id")
     val answerAttemptId: Long? = null,
     @Column(name = "created_at", nullable = false)

@@ -30,6 +30,11 @@ class ArchiveService(
                 archivedAt = archivedAt,
                 bestScore = progress.bestScore,
                 totalAttemptCount = progress.totalAttemptCount,
+                sourceType = progress.sourceType,
+                sourceLabel = progress.sourceLabel,
+                sourceSessionId = progress.sourceSessionId,
+                sourceSessionQuestionId = progress.sourceSessionQuestionId,
+                isFollowUp = progress.isFollowUp,
             )
         }
     }

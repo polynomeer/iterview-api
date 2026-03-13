@@ -46,7 +46,12 @@ class AnswerService(
     private val clockService: ClockService,
 ) {
     @Transactional
-    fun submitAnswer(userId: Long, questionId: Long, request: SubmitAnswerRequest): SubmitAnswerResponseDto {
+    fun submitAnswer(
+        userId: Long,
+        questionId: Long,
+        request: SubmitAnswerRequest,
+        progressSource: AnswerProgressSource? = null,
+    ): SubmitAnswerResponseDto {
         requireActiveQuestion(questionId)
         validateResumeVersionOwnership(userId, request.resumeVersionId)
 
@@ -113,6 +118,7 @@ class AnswerService(
             progressStatus = progressStatus,
             nextReviewAt = nextReviewAt,
             shouldArchive = shouldArchive,
+            progressSource = progressSource ?: practiceProgressSource(),
             now = now,
         )
         userQuestionProgressRepository.save(updatedProgress)
@@ -273,6 +279,7 @@ class AnswerService(
         progressStatus: String,
         nextReviewAt: java.time.Instant?,
         shouldArchive: Boolean,
+        progressSource: AnswerProgressSource,
         now: java.time.Instant,
     ): UserQuestionProgressEntity {
         val latestScore = score.totalScore.toBigDecimal()
@@ -297,10 +304,20 @@ class AnswerService(
             lastAnsweredAt = now,
             nextReviewAt = nextReviewAt,
             masteryLevel = masteryLevelFor(score.totalScore),
+            sourceType = progressSource.sourceType,
+            sourceLabel = progressSource.sourceLabel,
+            sourceSessionId = progressSource.sourceSessionId,
+            sourceSessionQuestionId = progressSource.sourceSessionQuestionId,
+            isFollowUp = progressSource.isFollowUp,
             createdAt = previousProgress?.createdAt ?: now,
             updatedAt = now,
         )
     }
+
+    private fun practiceProgressSource(): AnswerProgressSource = AnswerProgressSource(
+        sourceType = "practice",
+        sourceLabel = "Practice",
+    )
 
     private fun toProgressSummary(progress: UserQuestionProgressEntity): UserProgressSummaryDto = UserProgressSummaryDto(
         currentStatus = progress.currentStatus,

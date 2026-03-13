@@ -41,6 +41,16 @@ class UserQuestionProgressEntity(
     val nextReviewAt: Instant? = null,
     @Column(name = "mastery_level")
     val masteryLevel: String? = null,
+    @Column(name = "source_type")
+    val sourceType: String? = null,
+    @Column(name = "source_label")
+    val sourceLabel: String? = null,
+    @Column(name = "source_session_id")
+    val sourceSessionId: Long? = null,
+    @Column(name = "source_session_question_id")
+    val sourceSessionQuestionId: Long? = null,
+    @Column(name = "is_follow_up", nullable = false)
+    val isFollowUp: Boolean = false,
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant,
     @Column(name = "updated_at", nullable = false)

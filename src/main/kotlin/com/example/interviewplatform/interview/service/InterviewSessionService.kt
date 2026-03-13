@@ -2,12 +2,14 @@ package com.example.interviewplatform.interview.service
 
 import com.example.interviewplatform.answer.dto.SubmitAnswerRequest
 import com.example.interviewplatform.answer.repository.AnswerScoreRepository
+import com.example.interviewplatform.answer.service.AnswerProgressSource
 import com.example.interviewplatform.answer.service.AnswerService
 import com.example.interviewplatform.common.service.ClockService
 import com.example.interviewplatform.interview.dto.CreateInterviewSessionRequest
 import com.example.interviewplatform.interview.dto.InterviewSessionAdvanceResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionAnswerResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionDetailResponseDto
+import com.example.interviewplatform.interview.dto.InterviewSessionListItemDto
 import com.example.interviewplatform.interview.dto.InterviewSessionQuestionDto
 import com.example.interviewplatform.interview.dto.SubmitInterviewSessionAnswerRequest
 import com.example.interviewplatform.interview.entity.InterviewSessionEntity
@@ -16,11 +18,16 @@ import com.example.interviewplatform.interview.mapper.InterviewSessionMapper
 import com.example.interviewplatform.interview.repository.InterviewSessionQuestionRepository
 import com.example.interviewplatform.interview.repository.InterviewSessionRepository
 import com.example.interviewplatform.question.entity.QuestionEntity
+import com.example.interviewplatform.question.repository.CategoryRepository
+import com.example.interviewplatform.question.repository.QuestionRelationshipRepository
 import com.example.interviewplatform.question.repository.QuestionRepository
+import com.example.interviewplatform.question.repository.QuestionTagRepository
+import com.example.interviewplatform.question.repository.TagRepository
 import com.example.interviewplatform.question.service.QuestionService
 import com.example.interviewplatform.resume.repository.ResumeRepository
 import com.example.interviewplatform.resume.repository.ResumeVersionRepository
 import com.example.interviewplatform.review.repository.ReviewQueueRepository
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -31,6 +38,10 @@ class InterviewSessionService(
     private val interviewSessionRepository: InterviewSessionRepository,
     private val interviewSessionQuestionRepository: InterviewSessionQuestionRepository,
     private val questionRepository: QuestionRepository,
+    private val questionRelationshipRepository: QuestionRelationshipRepository,
+    private val questionTagRepository: QuestionTagRepository,
+    private val tagRepository: TagRepository,
+    private val categoryRepository: CategoryRepository,
     private val questionService: QuestionService,
     private val answerService: AnswerService,
     private val answerScoreRepository: AnswerScoreRepository,
@@ -38,7 +49,36 @@ class InterviewSessionService(
     private val resumeRepository: ResumeRepository,
     private val resumeVersionRepository: ResumeVersionRepository,
     private val clockService: ClockService,
+    private val objectMapper: ObjectMapper,
 ) {
+    @Transactional(readOnly = true)
+    fun listSessions(userId: Long): List<InterviewSessionListItemDto> {
+        val sessions = interviewSessionRepository.findByUserIdOrderByStartedAtDesc(userId)
+        if (sessions.isEmpty()) {
+            return emptyList()
+        }
+
+        val rowsBySessionId = interviewSessionQuestionRepository
+            .findByInterviewSessionIdInOrderByInterviewSessionIdAscOrderIndexAsc(sessions.map { it.id })
+            .groupBy { it.interviewSessionId }
+
+        return sessions.map { session ->
+            val rows = rowsBySessionId[session.id].orEmpty()
+            val summary = summarize(rows)
+            InterviewSessionMapper.toListItemDto(
+                id = session.id,
+                sessionType = session.sessionType,
+                status = session.status,
+                resumeVersionId = session.resumeVersionId,
+                startedAt = session.startedAt,
+                endedAt = session.endedAt,
+                questionCount = summary.totalQuestions,
+                answeredCount = summary.answeredQuestions,
+                averageScore = summary.averageScore,
+            )
+        }
+    }
+
     @Transactional
     fun createSession(userId: Long, request: CreateInterviewSessionRequest): InterviewSessionDetailResponseDto {
         val now = clockService.now()
@@ -66,15 +106,7 @@ class InterviewSessionService(
             ),
         )
         interviewSessionQuestionRepository.saveAll(
-            questionIds.mapIndexed { index, questionId ->
-                InterviewSessionQuestionEntity(
-                    interviewSessionId = session.id,
-                    questionId = questionId,
-                    orderIndex = index + 1,
-                    createdAt = now,
-                    updatedAt = now,
-                )
-            },
+            buildSeedRows(session.id, questionIds, now),
         )
         return getSession(userId, session.id)
     }
@@ -107,11 +139,19 @@ class InterviewSessionService(
 
         val submission = answerService.submitAnswer(
             userId = userId,
-            questionId = row.questionId,
+            questionId = row.questionId
+                ?: throw ResponseStatusException(HttpStatus.CONFLICT, "Interview session question is not bound to a catalog question: ${row.id}"),
             request = SubmitAnswerRequest(
                 answerMode = request.answerMode,
                 contentText = request.contentText,
                 resumeVersionId = request.resumeVersionId ?: session.resumeVersionId,
+            ),
+            progressSource = AnswerProgressSource(
+                sourceType = SOURCE_TYPE_INTERVIEW,
+                sourceLabel = SOURCE_LABEL_INTERVIEW,
+                sourceSessionId = session.id,
+                sourceSessionQuestionId = row.id,
+                isFollowUp = row.isFollowUp,
             ),
         )
         interviewSessionQuestionRepository.save(
@@ -119,13 +159,21 @@ class InterviewSessionService(
                 id = row.id,
                 interviewSessionId = row.interviewSessionId,
                 questionId = row.questionId,
+                parentSessionQuestionId = row.parentSessionQuestionId,
+                promptText = row.promptText,
+                questionSourceType = row.questionSourceType,
                 orderIndex = row.orderIndex,
+                isFollowUp = row.isFollowUp,
+                depth = row.depth,
+                categoryName = row.categoryName,
+                tagsJson = row.tagsJson,
                 answerAttemptId = submission.answerAttemptId,
                 createdAt = row.createdAt,
                 updatedAt = now,
             ),
         )
 
+        maybeInsertFollowUp(sessionId = session.id, answeredRow = row, now = now)
         val refreshedRows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(session.id)
         val unresolvedNext = refreshedRows.firstOrNull { it.answerAttemptId == null }
         val updatedSession = if (unresolvedNext == null) {
@@ -205,10 +253,11 @@ class InterviewSessionService(
         session: InterviewSessionEntity,
         rows: List<InterviewSessionQuestionEntity>,
     ): InterviewSessionDetailResponseDto {
-        val questionById = questionRepository.findAllById(rows.map { it.questionId }).associateBy { it.id }
+        val questionIds = rows.mapNotNull { it.questionId }.distinct()
+        val questionById = questionRepository.findAllById(questionIds).associateBy { it.id }
         val currentRowId = rows.firstOrNull { it.answerAttemptId == null }?.id
-        val questionDtos = rows.mapNotNull { row ->
-            val question = questionById[row.questionId] ?: return@mapNotNull null
+        val questionDtos = rows.map { row ->
+            val question = row.questionId?.let(questionById::get)
             InterviewSessionMapper.toQuestionDto(
                 row = row,
                 question = question,
@@ -246,6 +295,108 @@ class InterviewSessionService(
             return null
         }
         return totalScores.average()
+    }
+
+    private fun buildSeedRows(
+        sessionId: Long,
+        questionIds: List<Long>,
+        now: java.time.Instant,
+    ): List<InterviewSessionQuestionEntity> {
+        val questionsById = questionRepository.findAllById(questionIds).associateBy { it.id }
+        val categoryNameById = categoryRepository.findAllById(questionsById.values.map { it.categoryId }.distinct())
+            .associate { it.id to it.name }
+        val tagsJsonByQuestionId = loadTagsJson(questionIds)
+
+        return questionIds.mapIndexedNotNull { index, questionId ->
+            val question = questionsById[questionId] ?: return@mapIndexedNotNull null
+            InterviewSessionQuestionEntity(
+                interviewSessionId = sessionId,
+                questionId = question.id,
+                parentSessionQuestionId = null,
+                promptText = question.title,
+                questionSourceType = SOURCE_TYPE_CATALOG_SEED,
+                orderIndex = index + 1,
+                isFollowUp = false,
+                depth = 0,
+                categoryName = categoryNameById[question.categoryId],
+                tagsJson = tagsJsonByQuestionId[question.id],
+                createdAt = now,
+                updatedAt = now,
+            )
+        }
+    }
+
+    private fun maybeInsertFollowUp(sessionId: Long, answeredRow: InterviewSessionQuestionEntity, now: java.time.Instant) {
+        val parentQuestionId = answeredRow.questionId ?: return
+        val existingRows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(sessionId)
+        if (existingRows.any { it.parentSessionQuestionId == answeredRow.id }) {
+            return
+        }
+
+        val edge = questionRelationshipRepository.findByParentQuestionIdOrderByDisplayOrderAscIdAsc(parentQuestionId)
+            .firstOrNull { it.relationshipType.lowercase() == RELATIONSHIP_TYPE_FOLLOW_UP }
+            ?: return
+        val childQuestion = questionRepository.findByIdAndIsActiveTrue(edge.childQuestionId) ?: return
+        if (existingRows.any { it.questionId == childQuestion.id && it.parentSessionQuestionId == answeredRow.id }) {
+            return
+        }
+
+        val shiftedRows = existingRows.filter { it.orderIndex > answeredRow.orderIndex }.map { row ->
+            InterviewSessionQuestionEntity(
+                id = row.id,
+                interviewSessionId = row.interviewSessionId,
+                questionId = row.questionId,
+                parentSessionQuestionId = row.parentSessionQuestionId,
+                promptText = row.promptText,
+                questionSourceType = row.questionSourceType,
+                orderIndex = row.orderIndex + 1,
+                isFollowUp = row.isFollowUp,
+                depth = row.depth,
+                categoryName = row.categoryName,
+                tagsJson = row.tagsJson,
+                answerAttemptId = row.answerAttemptId,
+                createdAt = row.createdAt,
+                updatedAt = now,
+            )
+        }
+        if (shiftedRows.isNotEmpty()) {
+            interviewSessionQuestionRepository.saveAll(shiftedRows)
+        }
+
+        val categoryName = categoryRepository.findById(childQuestion.categoryId).orElse(null)?.name
+        val tagsJson = loadTagsJson(listOf(childQuestion.id))[childQuestion.id]
+        interviewSessionQuestionRepository.save(
+            InterviewSessionQuestionEntity(
+                interviewSessionId = sessionId,
+                questionId = childQuestion.id,
+                parentSessionQuestionId = answeredRow.id,
+                promptText = childQuestion.title,
+                questionSourceType = SOURCE_TYPE_CATALOG_FOLLOW_UP,
+                orderIndex = answeredRow.orderIndex + 1,
+                isFollowUp = true,
+                depth = answeredRow.depth + 1,
+                categoryName = categoryName,
+                tagsJson = tagsJson,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+    }
+
+    private fun loadTagsJson(questionIds: List<Long>): Map<Long, String> {
+        if (questionIds.isEmpty()) {
+            return emptyMap()
+        }
+        val edges = questionTagRepository.findByIdQuestionIdIn(questionIds)
+        if (edges.isEmpty()) {
+            return emptyMap()
+        }
+        val tagsById = tagRepository.findAllById(edges.map { it.id.tagId }.distinct()).associateBy { it.id }
+        return edges.groupBy { it.id.questionId }.mapValues { (_, rows) ->
+            objectMapper.writeValueAsString(
+                rows.mapNotNull { edge -> tagsById[edge.id.tagId]?.name }.distinct(),
+            )
+        }
     }
 
     private fun questionStatus(
@@ -331,9 +482,14 @@ class InterviewSessionService(
         const val STATUS_CURRENT = "current"
         const val STATUS_ANSWERED = "answered"
         const val STATUS_QUEUED = "queued"
+        const val SOURCE_TYPE_INTERVIEW = "interview"
+        const val SOURCE_LABEL_INTERVIEW = "Interview"
+        const val SOURCE_TYPE_CATALOG_SEED = "catalog_seed"
+        const val SOURCE_TYPE_CATALOG_FOLLOW_UP = "catalog_follow_up"
         const val SESSION_TYPE_RESUME_MOCK = "resume_mock"
         const val SESSION_TYPE_REVIEW_MOCK = "review_mock"
         const val SESSION_TYPE_TOPIC_MOCK = "topic_mock"
+        const val RELATIONSHIP_TYPE_FOLLOW_UP = "follow_up"
         const val REVIEW_STATUS_PENDING = "pending"
         val SUPPORTED_SESSION_TYPES = setOf(SESSION_TYPE_RESUME_MOCK, SESSION_TYPE_REVIEW_MOCK, SESSION_TYPE_TOPIC_MOCK)
     }

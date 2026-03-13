@@ -132,6 +132,41 @@ class InterviewSessionApiIntegrationTest {
     }
 
     @Test
+    fun `list sessions returns session history summaries`() {
+        val categoryId = insertCategory("History")
+        val firstQuestionId = insertQuestion("Explain idempotency", categoryId)
+        val secondQuestionId = insertQuestion("Explain retries", categoryId)
+
+        val sessionResponse = createTopicSession(listOf(firstQuestionId, secondQuestionId))
+        val sessionId = sessionResponse.get("id").asLong()
+        val firstSessionQuestionId = sessionResponse.get("questions")[0].get("id").asLong()
+
+        mockMvc.perform(
+            post("/api/interview-sessions/$sessionId/answers")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "sessionQuestionId" to firstSessionQuestionId,
+                            "answerMode" to "text",
+                            "contentText" to "We used dedupe keys, idempotency tokens, and replay-safe consumers.\n".repeat(5),
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+
+        mockMvc.perform(get("/api/interview-sessions").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].id").value(sessionId))
+            .andExpect(jsonPath("$[0].sessionType").value("topic_mock"))
+            .andExpect(jsonPath("$[0].questionCount").value(2))
+            .andExpect(jsonPath("$[0].answeredCount").value(1))
+            .andExpect(jsonPath("$[0].averageScore").isNumber)
+    }
+
+    @Test
     fun `session answers progress and complete session`() {
         val categoryId = insertCategory("Architecture")
         val firstQuestionId = insertQuestion("Design idempotent jobs", categoryId)
@@ -192,6 +227,66 @@ class InterviewSessionApiIntegrationTest {
             .andExpect(jsonPath("$.questions[0].status").value("answered"))
             .andExpect(jsonPath("$.questions[1].status").value("answered"))
             .andExpect(jsonPath("$.summary.averageScore").isNumber)
+    }
+
+    @Test
+    fun `answering a session question inserts follow up and stores interview source metadata`() {
+        val categoryId = insertCategory("Follow Up")
+        val parentQuestionId = insertQuestion("Describe a difficult production incident", categoryId)
+        val childQuestionId = insertQuestion("What metrics did you watch during mitigation", categoryId)
+        jdbcTemplate.update(
+            """
+            INSERT INTO question_relationships (
+                parent_question_id, child_question_id, relationship_type, depth, display_order, created_at
+            ) VALUES (?, ?, 'follow_up', 1, 1, now())
+            """.trimIndent(),
+            parentQuestionId,
+            childQuestionId,
+        )
+
+        val sessionResponse = createTopicSession(listOf(parentQuestionId))
+        val sessionId = sessionResponse.get("id").asLong()
+        val parentSessionQuestionId = sessionResponse.get("questions")[0].get("id").asLong()
+
+        mockMvc.perform(
+            post("/api/interview-sessions/$sessionId/answers")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "sessionQuestionId" to parentSessionQuestionId,
+                            "answerMode" to "text",
+                            "contentText" to "We reduced blast radius, watched saturation, error rate, and queue lag while rolling back.\n".repeat(5),
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.nextQuestion.isFollowUp").value(true))
+            .andExpect(jsonPath("$.nextQuestion.parentSessionQuestionId").value(parentSessionQuestionId))
+            .andExpect(jsonPath("$.nextQuestion.sourceType").value("catalog_follow_up"))
+
+        mockMvc.perform(get("/api/interview-sessions/$sessionId").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.questions[1].questionId").value(childQuestionId))
+            .andExpect(jsonPath("$.questions[1].isFollowUp").value(true))
+            .andExpect(jsonPath("$.questions[1].depth").value(1))
+
+        jdbcTemplate.queryForMap(
+            """
+            SELECT source_type, source_label, source_session_id, source_session_question_id, is_follow_up
+            FROM user_question_progress
+            WHERE user_id = 1 AND question_id = ?
+            """.trimIndent(),
+            parentQuestionId,
+        ).also { row ->
+            org.junit.jupiter.api.Assertions.assertEquals("interview", row["source_type"])
+            org.junit.jupiter.api.Assertions.assertEquals("Interview", row["source_label"])
+            org.junit.jupiter.api.Assertions.assertEquals(sessionId, (row["source_session_id"] as Number).toLong())
+            org.junit.jupiter.api.Assertions.assertEquals(parentSessionQuestionId, (row["source_session_question_id"] as Number).toLong())
+            org.junit.jupiter.api.Assertions.assertEquals(false, row["is_follow_up"])
+        }
     }
 
     @Test
