@@ -61,6 +61,7 @@ class ProfileApiIntegrationTest {
             .andExpect(jsonPath("$.profile.nickname").doesNotExist())
             .andExpect(jsonPath("$.settings.targetScoreThreshold").value(80))
             .andExpect(jsonPath("$.settings.passScoreThreshold").value(60))
+            .andExpect(jsonPath("$.settings.preferredLanguage").value("ko"))
             .andExpect(jsonPath("$.activeResumeVersionSummary").isEmpty)
             .andExpect(jsonPath("$.targetCompanies").isArray)
     }
@@ -97,6 +98,7 @@ class ProfileApiIntegrationTest {
                 "passScoreThreshold" to 65,
                 "retryEnabled" to true,
                 "dailyQuestionCount" to 2,
+                "preferredLanguage" to "en",
             ),
         )
 
@@ -110,6 +112,25 @@ class ProfileApiIntegrationTest {
             .andExpect(jsonPath("$.targetScoreThreshold").value(85))
             .andExpect(jsonPath("$.passScoreThreshold").value(65))
             .andExpect(jsonPath("$.dailyQuestionCount").value(2))
+            .andExpect(jsonPath("$.preferredLanguage").value("en"))
+    }
+
+    @Test
+    fun `patch settings rejects unsupported preferred language`() {
+        val settingsBody = objectMapper.writeValueAsString(
+            mapOf(
+                "preferredLanguage" to "ja",
+            ),
+        )
+
+        mockMvc.perform(
+            patch("/api/me/settings")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(settingsBody),
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error.message").value("preferredLanguage must be one of: ko, en"))
     }
 
     @Test

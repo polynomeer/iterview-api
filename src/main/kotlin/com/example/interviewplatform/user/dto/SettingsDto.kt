@@ -5,4 +5,5 @@ data class SettingsDto(
     val passScoreThreshold: Int,
     val retryEnabled: Boolean,
     val dailyQuestionCount: Int,
+    val preferredLanguage: String,
 )

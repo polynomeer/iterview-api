@@ -14,4 +14,5 @@ data class UpdateSettingsRequest(
     @field:Min(1)
     @field:Max(10)
     val dailyQuestionCount: Int?,
+    val preferredLanguage: String?,
 )

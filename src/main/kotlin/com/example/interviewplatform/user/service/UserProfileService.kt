@@ -132,6 +132,7 @@ class UserProfileService(
             passScoreThreshold = passScore,
             retryEnabled = request.retryEnabled ?: existing.retryEnabled,
             dailyQuestionCount = request.dailyQuestionCount ?: existing.dailyQuestionCount,
+            preferredLanguage = normalizePreferredLanguage(request.preferredLanguage ?: existing.preferredLanguage),
             createdAt = existing.createdAt,
             updatedAt = now,
         )
@@ -198,9 +199,18 @@ class UserProfileService(
             passScoreThreshold = 60,
             retryEnabled = true,
             dailyQuestionCount = 1,
+            preferredLanguage = DEFAULT_PREFERRED_LANGUAGE,
             createdAt = now,
             updatedAt = now,
         )
+    }
+
+    private fun normalizePreferredLanguage(value: String): String {
+        val normalized = value.trim().lowercase()
+        if (normalized !in SUPPORTED_LANGUAGES) {
+            throw DomainValidationException("preferredLanguage must be one of: ${SUPPORTED_LANGUAGES.joinToString(", ")}")
+        }
+        return normalized
     }
 
     private fun listTargetCompanies(userId: Long): List<TargetCompanyDto> {
@@ -238,5 +248,10 @@ class UserProfileService(
             versionNo = activeVersion.versionNo,
             uploadedAt = activeVersion.uploadedAt,
         )
+    }
+
+    private companion object {
+        const val DEFAULT_PREFERRED_LANGUAGE = "ko"
+        val SUPPORTED_LANGUAGES = setOf("ko", "en")
     }
 }

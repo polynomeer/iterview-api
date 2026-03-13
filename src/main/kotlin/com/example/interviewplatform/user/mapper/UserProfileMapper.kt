@@ -21,5 +21,6 @@ object UserProfileMapper {
         passScoreThreshold = entity.passScoreThreshold,
         retryEnabled = entity.retryEnabled,
         dailyQuestionCount = entity.dailyQuestionCount,
+        preferredLanguage = entity.preferredLanguage,
     )
 }

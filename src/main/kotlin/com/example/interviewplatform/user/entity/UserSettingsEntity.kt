@@ -20,6 +20,8 @@ class UserSettingsEntity(
     val retryEnabled: Boolean = true,
     @Column(name = "daily_question_count", nullable = false)
     val dailyQuestionCount: Int = 1,
+    @Column(name = "preferred_language", nullable = false)
+    val preferredLanguage: String = "ko",
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant,
     @Column(name = "updated_at", nullable = false)
