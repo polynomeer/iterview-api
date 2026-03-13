@@ -72,9 +72,13 @@ This is an additive evolution of the current backend, not a new product line.
 
 ### 3. Mock Interview Loop
 - support AI-driven mock interviews grounded in the active resume version
+- let the user explicitly choose which resume version to use before starting an interview
+- generate the opening interview question from the selected resume version rather than always starting from a fixed catalog prompt
 - allow one interview session to generate a main question plus follow-up questions within the same session
+- generate follow-up questions from the user's answer, resume evidence, and current session depth
 - store one session-level history record for each completed or in-progress interview
 - preserve each interview question and follow-up as a question-level record that can later appear in archive and review flows
+- store every asked interview turn in archive as a question-level item while still keeping the enclosing session in interview history
 - keep interview sessions additive to the existing practice loop rather than replacing practice questions
 ### 4. Answer Analysis and Review
 - keep answer attempts append-only
@@ -128,6 +132,8 @@ This is an additive evolution of the current backend, not a new product line.
 - archived questions must stay out of the active retry loop unless explicitly reset
 - archive remains question-level, even when the question originated from an interview session
 - archive items should preserve whether they came from `practice` or `interview`
+- interview history remains session-level and must not replace archive
+- a resume-based interview session must remain attributable to the chosen `resumeVersionId` for its full lifetime
 - new intelligence features should reuse current progress, answer, and resume records where possible
 - model answers and learning materials are global reference content, not user-generated answer attempts
 

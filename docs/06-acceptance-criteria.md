@@ -68,16 +68,21 @@
 
 ## Interview Sessions
 - users can create a session without bypassing the existing question-answer-review flow
+- `resume_mock` interview creation can require explicit resume-version selection without breaking other session types
 - session questions keep stable ordering and expose current, queued, and answered states
 - interview history is visible at the session level
+- interview history can show which resume version grounded the session
 - follow-up questions remain attributable to the parent session question
+- the opening question for a resume-based interview can be AI-generated from the selected resume version and still be stored as a stable session snapshot
 - session answer submission reuses standard answer scoring, feedback persistence, and retry scheduling
 - a session can complete without mutating historical answer attempts
 - minimal session support remains additive and does not imply live or realtime interview behavior
 - archive remains question-level even for interview-originated questions
 - archive items can distinguish `practice` and `interview` origin through additive metadata
+- every asked interview question and follow-up can later appear as a question-level archive item linked back to the parent session
 - `resume_mock` can insert AI-generated follow-up questions without mutating prior session questions
 - generated follow-up snapshots preserve prompt text, optional body text, focus skills, resume context summary, and generation rationale
+- generated follow-up prompts can use the immediately preceding answer as grounding input
 - invalid or empty LLM follow-up output does not break the session; the service falls back safely
 
 ## Data and Schema Quality

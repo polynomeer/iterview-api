@@ -81,12 +81,19 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `generationStatus`
   - `llmModel`
   - `llmPromptVersion`
+- Resume interview creation should expose one explicit `resumeVersionId` selector in the frontend start flow rather than silently relying on whichever version happens to be active.
+- The opening question for a resume-based interview may also be AI-generated from the selected resume version and should be rendered from session snapshot fields the same way as AI follow-ups.
 - Frontend should not assume every follow-up maps to a global `questionId`; AI-generated follow-ups may rely on snapshot fields only.
 - Recommended rendering fallback for session questions:
   - use `title` as the primary visible prompt
   - use `bodyText` as supporting interviewer framing when present
   - use `questionId` only for deep-linking or fetching catalog question detail when non-null
   - use `sourceType` and `generationStatus` together to distinguish seeded, catalog follow-up, and AI-generated turns
+- Recommended interview-start flow:
+  - fetch resume containers or latest resume summary before opening the Interview start sheet
+  - present one explicit resume-version selector for `resume_mock`
+  - send the selected `resumeVersionId` in `POST /api/interview-sessions`
+  - navigate to `/interviews/{sessionId}` and render the returned opening question immediately
 - Recommended archive badge mapping:
   - `sourceType = practice` -> `Practice`
   - `sourceType = interview` -> `Interview`

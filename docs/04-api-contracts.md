@@ -60,7 +60,11 @@ Authenticated endpoints:
 - `POST /api/review-queue/{queueId}/done`
 - `GET /api/archive`
 - `GET /api/feed`
-
+- `GET /api/interview-sessions`
+- `POST /api/interview-sessions`
+- `GET /api/interview-sessions/{sessionId}`
+- `POST /api/interview-sessions/{sessionId}/answers`
+- `POST /api/interview-sessions/{sessionId}/next-question`
 ## Standard Error Response
 All error responses use this shape:
 
@@ -1252,3 +1256,38 @@ The following interview features are still intentionally deferred:
 - live or streaming mock interview sessions
 - voice transcription pipeline
 - AI realtime interactions that bypass the standard answer-attempt model
+### Interview Session
+Current implementation already exposes session list/detail/progression APIs. The updated product direction extends them in a backward-compatible way for resume-selected AI interview flow.
+
+Planned additive behavior:
+- Interview start from the Interview tab should let the user select a specific `resumeVersionId`.
+- `POST /api/interview-sessions` should accept `sessionType = resume_mock` plus the selected `resumeVersionId` and optional interview-start metadata such as question count or goal.
+- The first session question may be AI-generated from the selected resume version and therefore may not have a global `questionId`.
+- `POST /api/interview-sessions/{sessionId}/answers` and `POST /api/interview-sessions/{sessionId}/next-question` should allow answer-driven follow-up question generation without changing the existing response shape contract.
+- Every session question asked during the interview should later be visible as a question-level archive item through additive source metadata.
+
+Planned additive request shape for `POST /api/interview-sessions`:
+```json
+{
+  "sessionType": "resume_mock",
+  "resumeVersionId": 22,
+  "questionCount": 5,
+  "interviewGoal": "backend_general",
+  "targetRoleId": 1
+}
+```
+
+Planned additive session-question semantics:
+- `questionSourceType = ai_opening` when the opener was generated from resume context
+- `questionSourceType = ai_follow_up` when the question was generated from the user's answer
+- `parentSessionQuestionId` links follow-ups to the immediately prior relevant turn
+- `resumeContextSummary`, `focusSkillNames`, and `generationRationale` explain why the AI asked the question
+
+Planned additive archive semantics:
+- archive stays question-level
+- every interview turn can appear in archive
+- archive items from interview sessions should carry:
+  - `sourceType = interview`
+  - `sourceSessionId`
+  - `sourceSessionQuestionId`
+  - `isFollowUp`

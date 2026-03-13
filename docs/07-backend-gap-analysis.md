@@ -49,6 +49,9 @@ This is the stable baseline and should remain operational throughout the extensi
 - no interview session APIs
 - no interview history listing endpoint
 - no archive source metadata that distinguishes practice questions from interview questions
+- no interview-start contract that forces explicit resume-version selection for `resume_mock`
+- no AI-generated opening-question contract for resume-based interviews
+- no guarantee that every interview turn is archived as a question-level record
 
 ### Missing Seed Coverage
 - current Flyway seed only covers companies, roles, categories, and tags
@@ -163,6 +166,8 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
   - `GET /api/interview-sessions/{sessionId}`
   - `POST /api/interview-sessions/{sessionId}/answers`
   - `POST /api/interview-sessions/{sessionId}/next-question`
+- extend `POST /api/interview-sessions` so `resume_mock` uses one explicit `resumeVersionId`
+- generate both opener and follow-up questions from resume context through an interview LLM boundary with deterministic fallback
 - extend archive responses with source metadata for practice vs interview origin
 - keep answer attempts immutable and linked cleanly
 

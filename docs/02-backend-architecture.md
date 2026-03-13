@@ -64,7 +64,9 @@ The new product direction should fit into this structure instead of introducing 
 
 ### `interview`
 - interview session lifecycle
+- interview start context selection, especially resume-version selection for `resume_mock`
 - session-scoped question progression
+- AI-generated opening interview question generation from resume evidence
 - follow-up question generation and storage
 - session history reads
 - linkage from interview turns into archive, answer, and review flows
@@ -161,12 +163,16 @@ Do not move product rules into `common`.
 
 ### Interview Sessions
 - create interview session from active resume context, topic context, or review context
+- for `resume_mock`, require or resolve one explicit `resumeVersionId` before creating the first session question
 - persist session-level summary and status
 - persist session question snapshots for main questions and follow-up questions
+- persist opening-question generation metadata so the system can distinguish catalog-seeded openings from AI-generated resume-specific openings
 - submit session answers through the same answer scoring pipeline
 - expose interview history separately from archive
 - mark archive-visible source metadata so archived questions can still show whether they came from practice or interview
+- archive every interview turn, including follow-ups, as a question-level record linked back to the parent interview session
 - for `resume_mock`, generate follow-up prompts through an interview-specific LLM service boundary when configured
+- use the selected resume version plus the immediately preceding answer as the primary grounding input for follow-up generation
 - persist generation metadata on session question snapshots so seeded questions, catalog follow-ups, fallback follow-ups, and AI-generated follow-ups remain distinguishable
 - keep a deterministic non-LLM fallback path so local development and non-AI environments remain usable
 
@@ -225,6 +231,20 @@ Recommended validation layers for rich resume extraction:
   - project tags can be normalized without discarding the source excerpt that produced them
 
 The current implementation already supports synchronous PDF parsing into `raw_text`. The next additive step should keep that behavior, then layer LLM-backed structured extraction behind a service boundary so prompt and provider changes do not leak into controllers.
+
+Recommended interview pipeline:
+1. fetch candidate resume options and let the user choose one explicit `resumeVersionId`
+2. create `interview_sessions` row with `session_type = resume_mock` and the selected `resumeVersionId`
+3. call an interview-specific LLM boundary to generate the opening question from resume evidence
+4. persist the opening question as an `interview_session_questions` snapshot even if it does not map to the global catalog
+5. accept the user's answer through the normal answer pipeline
+6. call the interview follow-up generator with:
+   - selected resume version context
+   - prior session question snapshot
+   - submitted answer content
+   - current follow-up depth and session state
+7. persist each follow-up snapshot and link it to its parent with `parent_session_question_id`
+8. write every asked session question into archive-oriented progress metadata so archive remains question-level
 
 ## Error Handling
 At minimum keep explicit domain errors for:

@@ -137,21 +137,25 @@ Acceptance intent:
 
 ## Phase 5A - Interview History and Archive Source Metadata
 1. extend interview session APIs with session-history reads
-2. persist enriched session question snapshots for follow-up questions that do not exist in the global catalog
-3. add an interview-specific LLM generation boundary for resume-grounded follow-up prompts
-4. validate generated follow-up payloads before inserting them into an active session
-5. persist generation metadata (`generationStatus`, rationale, model, prompt version) with each inserted follow-up
+2. require or resolve one explicit `resumeVersionId` at interview start for `resume_mock`
+3. generate the opening interview question from the selected resume version through an interview-specific LLM boundary
+4. persist enriched session question snapshots for opening questions and follow-up questions that do not exist in the global catalog
+5. add an interview-specific LLM generation boundary for answer-driven resume-grounded follow-up prompts
+6. validate generated question payloads before inserting them into an active session
+7. persist generation metadata (`generationStatus`, rationale, model, prompt version) with each inserted opening or follow-up question
 6. keep deterministic fallback behavior when the LLM is disabled or returns unusable output
 7. add question-level archive source metadata so archived questions can distinguish:
    - `practice`
    - `interview`
 8. keep archive question-level and avoid replacing it with a session-only archive
-9. ensure follow-up interview turns can be revisited from both interview history and archive
+9. ensure every asked interview turn is eligible for archive persistence
+10. ensure follow-up interview turns can be revisited from both interview history and archive
 
 Acceptance intent:
 - one interview session appears once in interview history
 - each question and follow-up from that session can still appear as a question-level archived item
 - archive source metadata is additive and backward compatible
+- resume-selected interview sessions stay pinned to the chosen resume version for their full lifetime
 
 ## Phase 6 - Seed and Test Hardening
 1. extend seed/reference data for:

@@ -247,6 +247,7 @@ Recommended additive columns for archive source metadata:
 - `source_session_id`
 - `source_session_question_id`
 - `source_label`
+- `is_follow_up`
 
 Purpose:
 - keep archive question-level while preserving whether the mastered item came from a normal practice flow or an interview session turn
@@ -648,6 +649,8 @@ Columns:
 Notes:
 - one row represents one full interview run
 - this is the anchor for interview history screens
+- for `resume_mock`, `resume_version_id` is the pinned interview grounding context selected at session start
+- this row should remain stable even when many question-level archive items are later derived from the session
 
 ### `interview_session_questions`
 Purpose:
@@ -682,6 +685,8 @@ Notes:
 - `body_text` stores richer interviewer framing or constraints when the follow-up is generated outside the global catalog
 - `focus_skill_names_json` and `resume_context_summary` preserve why a follow-up was asked
 - `generation_status` should distinguish `seeded`, `catalog_follow_up`, `ai_generated`, and `fallback`
+- opening questions should be able to use `question_source_type = ai_opening` when they were generated from resume context instead of selected from the catalog
+- every row in this table is expected to be representable as one archive-visible question turn, even though the canonical interview history remains session-level
 
 ## Skill and Benchmark Extensions
 ### `skill_category_scores`
