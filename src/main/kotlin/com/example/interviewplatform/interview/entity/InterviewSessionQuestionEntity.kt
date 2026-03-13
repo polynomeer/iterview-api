@@ -50,6 +50,8 @@ class InterviewSessionQuestionEntity(
     val llmModel: String? = null,
     @Column(name = "llm_prompt_version")
     val llmPromptVersion: String? = null,
+    @Column(name = "content_locale")
+    val contentLocale: String? = null,
     @Column(name = "answer_attempt_id")
     val answerAttemptId: Long? = null,
     @Column(name = "created_at", nullable = false)

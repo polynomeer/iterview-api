@@ -4,6 +4,7 @@ import com.example.interviewplatform.answer.dto.SubmitAnswerRequest
 import com.example.interviewplatform.answer.repository.AnswerScoreRepository
 import com.example.interviewplatform.answer.service.AnswerProgressSource
 import com.example.interviewplatform.answer.service.AnswerService
+import com.example.interviewplatform.common.service.AppLocaleService
 import com.example.interviewplatform.common.service.ClockService
 import com.example.interviewplatform.interview.dto.CreateInterviewSessionRequest
 import com.example.interviewplatform.interview.dto.InterviewSessionAdvanceResponseDto
@@ -72,6 +73,7 @@ class InterviewSessionService(
     private val interviewResumeEvidenceAssembler: InterviewResumeEvidenceAssembler,
     private val interviewOpeningGenerationService: InterviewOpeningGenerationService,
     private val interviewFollowUpGenerationService: InterviewFollowUpGenerationService,
+    private val appLocaleService: AppLocaleService,
     private val clockService: ClockService,
     private val objectMapper: ObjectMapper,
     @Value("\${app.interview.follow-up.max-depth:2}")
@@ -268,6 +270,7 @@ class InterviewSessionService(
                 generationStatus = row.generationStatus,
                 llmModel = row.llmModel,
                 llmPromptVersion = row.llmPromptVersion,
+                contentLocale = row.contentLocale,
                 answerAttemptId = submission.answerAttemptId,
                 createdAt = row.createdAt,
                 updatedAt = now,
@@ -453,6 +456,7 @@ class InterviewSessionService(
                 resumeEvidenceJson = null,
                 generationRationale = "Selected from the initial interview question pool.",
                 generationStatus = GENERATION_STATUS_SEEDED,
+                contentLocale = null,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -554,6 +558,7 @@ class InterviewSessionService(
             generationStatus = GENERATION_STATUS_AI_GENERATED,
             llmModel = generated.llmModel,
             llmPromptVersion = generated.llmPromptVersion,
+            contentLocale = generated.contentLocale,
             createdAt = now,
             updatedAt = now,
         )
@@ -584,7 +589,7 @@ class InterviewSessionService(
             depth = 0,
             sourceType = SOURCE_TYPE_COVERAGE_PLANNER,
             generationStatus = GENERATION_STATUS_COVERAGE_PLANNED,
-            generationRationale = "Generated from the next uncovered resume evidence item in full coverage mode.",
+            generationRationale = deterministicCoverageRationale(appLocaleService.resolveLanguage()),
             now = now,
         )
     }
@@ -661,6 +666,7 @@ class InterviewSessionService(
                 resumeEvidenceJson = null,
                 generationRationale = "Follow-up selected from the catalog relationship graph.",
                 generationStatus = GENERATION_STATUS_CATALOG_FOLLOW_UP,
+                contentLocale = null,
                 createdAt = now,
                 updatedAt = now,
             ),
@@ -719,6 +725,7 @@ class InterviewSessionService(
                 generationStatus = GENERATION_STATUS_AI_GENERATED,
                 llmModel = generated.llmModel,
                 llmPromptVersion = generated.llmPromptVersion,
+                contentLocale = generated.contentLocale,
                 createdAt = now,
                 updatedAt = now,
             ),
@@ -882,7 +889,7 @@ class InterviewSessionService(
             depth = 0,
             sourceType = SOURCE_TYPE_COVERAGE_PLANNER,
             generationStatus = GENERATION_STATUS_COVERAGE_PLANNED,
-            generationRationale = "Generated from the next uncovered resume evidence item in full coverage mode.",
+            generationRationale = deterministicCoverageRationale(appLocaleService.resolveLanguage()),
             now = now,
         )
         val savedRow = interviewSessionQuestionRepository.save(newRow.copyForInsert(orderIndex = nextOrderIndex, now = now))
@@ -903,16 +910,9 @@ class InterviewSessionService(
         now: java.time.Instant,
     ): InterviewSessionQuestionEntity {
         val categoryId = resolveGeneratedQuestionCategoryId(userId)
-        val title = when (targetItem.section) {
-            "project" -> "Walk me through ${targetItem.label ?: "this project"} in concrete detail."
-            "experience" -> "Describe the problem and solution behind ${targetItem.label ?: "this experience"}."
-            "award" -> "What specific work led to ${targetItem.label ?: "this award"}?"
-            "certification" -> "How has ${targetItem.label ?: "this certification"} affected your real work?"
-            "education" -> "How has ${targetItem.label ?: "this education experience"} influenced your engineering work?"
-            else -> "Explain the concrete example behind ${targetItem.label ?: "this resume detail"}."
-        }
-        val body =
-            "Resume evidence: ${targetItem.snippet}\nAnswer with the situation, your role, the decisions you made, the result, and what you learned."
+        val contentLocale = appLocaleService.resolveLanguage()
+        val title = deterministicCoverageTitle(targetItem, contentLocale)
+        val body = deterministicCoverageBody(targetItem, contentLocale)
         val generatedQuestion = questionRepository.save(
             QuestionEntity(
                 authorUserId = userId,
@@ -959,6 +959,7 @@ class InterviewSessionService(
             ),
             generationRationale = generationRationale,
             generationStatus = generationStatus,
+            contentLocale = contentLocale,
             createdAt = now,
             updatedAt = now,
         )
@@ -1026,6 +1027,7 @@ class InterviewSessionService(
             generationStatus = generationStatus,
             llmModel = llmModel,
             llmPromptVersion = llmPromptVersion,
+            contentLocale = contentLocale,
             answerAttemptId = answerAttemptId,
             createdAt = createdAt,
             updatedAt = now,
@@ -1039,6 +1041,37 @@ class InterviewSessionService(
         "education" -> 100 - index
         else -> 50 - index
     }
+
+    private fun deterministicCoverageTitle(targetItem: InterviewSessionEvidenceItemEntity, language: String): String =
+        when (language.lowercase()) {
+            "en" -> when (targetItem.section) {
+                "project" -> "Walk me through ${targetItem.label ?: "this project"} in concrete detail."
+                "experience" -> "Describe the problem and solution behind ${targetItem.label ?: "this experience"}."
+                else -> "Explain the concrete example behind ${targetItem.label ?: "this resume detail"}."
+            }
+
+            else -> when (targetItem.section) {
+                "project" -> "${targetItem.label ?: "이 프로젝트"}를 어떤 문제와 맥락에서 진행했는지 구체적으로 설명해 주세요."
+                "experience" -> "${targetItem.label ?: "이 경험"}에서 해결하려던 문제와 실제 해결 과정을 설명해 주세요."
+                else -> "${targetItem.label ?: "이 이력서 내용"}에 담긴 구체적인 사례를 설명해 주세요."
+            }
+        }
+
+    private fun deterministicCoverageBody(targetItem: InterviewSessionEvidenceItemEntity, language: String): String =
+        when (language.lowercase()) {
+            "en" ->
+                "Resume evidence: ${targetItem.snippet}\nAnswer with the situation, your role, the decisions you made, the result, and what you learned."
+
+            else ->
+                "이력서 근거: ${targetItem.snippet}\n상황, 맡았던 역할, 내린 의사결정, 결과, 그리고 배운 점까지 포함해 설명해 주세요."
+        }
+
+    private fun deterministicCoverageRationale(language: String): String =
+        if (language.lowercase() == "en") {
+            "Generated from the next uncovered resume evidence item in full coverage mode."
+        } else {
+            "풀 커버리지 모드에서 아직 질문하지 않은 다음 이력서 근거를 바탕으로 생성했습니다."
+        }
 
     private fun evidenceKey(sourceRecordType: String, sourceRecordId: Long): String = "$sourceRecordType:$sourceRecordId"
 
@@ -1077,6 +1110,7 @@ class InterviewSessionService(
                         generationStatus = row.generationStatus,
                         llmModel = row.llmModel,
                         llmPromptVersion = row.llmPromptVersion,
+                        contentLocale = row.contentLocale,
                         answerAttemptId = row.answerAttemptId,
                         createdAt = row.createdAt,
                         updatedAt = now,

@@ -1,6 +1,7 @@
 package com.example.interviewplatform.interview.service
 
 data class InterviewFollowUpGenerationInput(
+    val outputLanguage: String,
     val parentPromptText: String,
     val parentBodyText: String?,
     val answerText: String,
@@ -23,6 +24,7 @@ data class GeneratedInterviewFollowUp(
     val generationRationale: String,
     val llmModel: String?,
     val llmPromptVersion: String?,
+    val contentLocale: String,
 )
 
 interface InterviewFollowUpGenerationClient {

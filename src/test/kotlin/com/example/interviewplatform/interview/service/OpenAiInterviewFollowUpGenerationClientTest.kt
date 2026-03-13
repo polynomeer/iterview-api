@@ -45,6 +45,7 @@ class OpenAiInterviewFollowUpGenerationClientTest {
 
         val result = client.generate(
             InterviewFollowUpGenerationInput(
+                outputLanguage = "en",
                 parentPromptText = "Tell me about a payments migration",
                 parentBodyText = "Explain the rollout.",
                 answerText = "We migrated traffic gradually.",
@@ -80,6 +81,7 @@ class OpenAiInterviewFollowUpGenerationClientTest {
         assertEquals("The answer skipped rollback criteria and monitoring specifics.", result.generationRationale)
         assertEquals("gpt-5-mini", result.llmModel)
         assertEquals("interview-follow-up-v1", result.llmPromptVersion)
+        assertEquals("en", result.contentLocale)
     }
 
     private class FakeTransport(

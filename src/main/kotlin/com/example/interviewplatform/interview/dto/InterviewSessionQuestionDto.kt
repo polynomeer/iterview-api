@@ -22,5 +22,6 @@ data class InterviewSessionQuestionDto(
     val generationStatus: String,
     val llmModel: String?,
     val llmPromptVersion: String?,
+    val contentLocale: String?,
     val answerAttemptId: Long?,
 )

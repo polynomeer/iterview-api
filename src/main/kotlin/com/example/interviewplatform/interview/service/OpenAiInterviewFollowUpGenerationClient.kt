@@ -32,7 +32,7 @@ class OpenAiInterviewFollowUpGenerationClient(
             body = body,
             timeout = Duration.ofSeconds(timeoutSeconds),
         )
-        return parseResponse(response)
+        return parseResponse(response, input)
     }
 
     private fun buildRequest(input: InterviewFollowUpGenerationInput): Map<String, Any> = mapOf(
@@ -57,7 +57,7 @@ class OpenAiInterviewFollowUpGenerationClient(
         ),
     )
 
-    private fun parseResponse(responseBody: String): GeneratedInterviewFollowUp {
+    private fun parseResponse(responseBody: String, input: InterviewFollowUpGenerationInput): GeneratedInterviewFollowUp {
         val root = objectMapper.readTree(responseBody)
         val outputText = root.path("output_text").asText(null)
             ?: throw IllegalStateException("OpenAI interview follow-up response did not include output_text")
@@ -74,10 +74,11 @@ class OpenAiInterviewFollowUpGenerationClient(
             resumeContextSummary = payload.path("resumeContextSummary").asText(null)?.trim()?.ifBlank { null },
             resumeEvidence = payload.path("resumeEvidence").mapNotNull(::parseResumeEvidenceItem),
             generationRationale = payload.path("generationRationale").asText("").trim().ifBlank {
-                "Generated follow-up based on the answer and active resume context."
+                defaultGenerationRationale(input.outputLanguage)
             },
             llmModel = root.path("model").asText(model),
             llmPromptVersion = promptVersion,
+            contentLocale = input.outputLanguage,
         )
     }
 
@@ -95,6 +96,8 @@ class OpenAiInterviewFollowUpGenerationClient(
         bodyText should add the exact lens the interviewer wants: metrics, trade-offs, rollback criteria, design assumptions, communication, ownership, or failure handling.
         Avoid generic "tell me more" style questions.
         Avoid repeating the parent question with only superficial wording changes.
+        Generate promptText, bodyText, tags, focusSkillNames, resumeContextSummary, and generationRationale in the requested output language.
+        Do not translate resumeEvidence.snippet. Keep resume evidence in its original source language.
         tags should be short topic labels.
         focusSkillNames should align to technical or behavioral skills likely being assessed.
         resumeEvidence should contain one or two short, specific resume snippets that justify why this follow-up remains grounded in the resume.
@@ -105,6 +108,7 @@ class OpenAiInterviewFollowUpGenerationClient(
 
     private fun userPrompt(input: InterviewFollowUpGenerationInput): String = buildString {
         appendLine("Prompt version: $promptVersion")
+        appendLine("Output language: ${languageName(input.outputLanguage)} (${input.outputLanguage})")
         appendLine("Parent question:")
         appendLine(input.parentPromptText)
         input.parentBodyText?.let {
@@ -235,4 +239,16 @@ class OpenAiInterviewFollowUpGenerationClient(
             endOffset = node.path("endOffset").takeIf { !it.isMissingNode && !it.isNull }?.asInt(),
         )
     }
+
+    private fun languageName(language: String): String = when (language.lowercase()) {
+        "en" -> "English"
+        else -> "Korean"
+    }
+
+    private fun defaultGenerationRationale(language: String): String =
+        if (language.lowercase() == "en") {
+            "Generated follow-up based on the answer and active resume context."
+        } else {
+            "답변과 현재 이력서 맥락을 바탕으로 꼬리질문을 생성했습니다."
+        }
 }

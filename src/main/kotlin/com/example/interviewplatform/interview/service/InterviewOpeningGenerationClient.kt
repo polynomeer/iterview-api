@@ -1,6 +1,7 @@
 package com.example.interviewplatform.interview.service
 
 data class InterviewOpeningGenerationInput(
+    val outputLanguage: String,
     val resumeSummaryText: String?,
     val resumeSkillNames: List<String>,
     val resumeProjectSummaries: List<String>,
@@ -19,6 +20,7 @@ data class GeneratedInterviewOpening(
     val generationRationale: String,
     val llmModel: String?,
     val llmPromptVersion: String?,
+    val contentLocale: String,
 )
 
 interface InterviewOpeningGenerationClient {

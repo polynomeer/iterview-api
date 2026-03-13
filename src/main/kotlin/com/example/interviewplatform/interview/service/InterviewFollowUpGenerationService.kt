@@ -1,5 +1,6 @@
 package com.example.interviewplatform.interview.service
 
+import com.example.interviewplatform.common.service.AppLocaleService
 import com.example.interviewplatform.interview.entity.InterviewSessionEntity
 import com.example.interviewplatform.interview.entity.InterviewSessionQuestionEntity
 import com.example.interviewplatform.resume.repository.ResumeProjectSnapshotRepository
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class InterviewFollowUpGenerationService(
     private val client: InterviewFollowUpGenerationClient,
+    private val appLocaleService: AppLocaleService,
     private val resumeVersionRepository: ResumeVersionRepository,
     private val resumeSkillSnapshotRepository: ResumeSkillSnapshotRepository,
     private val resumeProjectSnapshotRepository: ResumeProjectSnapshotRepository,
@@ -31,8 +33,10 @@ class InterviewFollowUpGenerationService(
             return null
         }
         val version = resumeVersionRepository.findById(resumeVersionId).orElse(null) ?: return null
+        val outputLanguage = appLocaleService.resolveLanguage()
         val input = InterviewFollowUpGenerationInput(
-            parentPromptText = answeredRow.promptText ?: "Interview question",
+            outputLanguage = outputLanguage,
+            parentPromptText = answeredRow.promptText ?: defaultParentPrompt(outputLanguage),
             parentBodyText = answeredRow.bodyText,
             answerText = answerText.trim(),
             resumeSummaryText = version.summaryText?.takeIf { it.isNotBlank() } ?: version.rawText?.take(1500),
@@ -58,4 +62,7 @@ class InterviewFollowUpGenerationService(
         )
         return runCatching { client.generate(input) }.getOrNull()
     }
+
+    private fun defaultParentPrompt(language: String): String =
+        if (language.lowercase() == "en") "Interview question" else "면접 질문"
 }

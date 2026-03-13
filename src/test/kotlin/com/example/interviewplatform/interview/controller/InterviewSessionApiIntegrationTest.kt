@@ -107,6 +107,7 @@ class InterviewSessionApiIntegrationTest {
             .andExpect(jsonPath("$.resumeVersionId").value(resumeVersionId))
             .andExpect(jsonPath("$.currentQuestion.questionId").value(questionId))
             .andExpect(jsonPath("$.currentQuestion.bodyText").value("Explain Spring transaction boundaries body"))
+            .andExpect(jsonPath("$.currentQuestion.contentLocale").value(nullValue()))
             .andExpect(jsonPath("$.currentQuestion.tags[0]").value("transactions"))
             .andExpect(jsonPath("$.currentQuestion.focusSkillNames[0]").value(startsWith("Spring Boot")))
             .andExpect(jsonPath("$.currentQuestion.generationStatus").value("seeded"))
@@ -158,6 +159,9 @@ class InterviewSessionApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.interviewMode").value("full_coverage"))
             .andExpect(jsonPath("$.currentQuestion.sourceType").value("coverage_planner"))
+            .andExpect(jsonPath("$.currentQuestion.title").value("Payment platform migration를 어떤 문제와 맥락에서 진행했는지 구체적으로 설명해 주세요."))
+            .andExpect(jsonPath("$.currentQuestion.bodyText").value("이력서 근거: Led a staged payment migration, reduced risk with feature flags, and improved conversion after the rollout.\n상황, 맡았던 역할, 내린 의사결정, 결과, 그리고 배운 점까지 포함해 설명해 주세요."))
+            .andExpect(jsonPath("$.currentQuestion.contentLocale").value("ko"))
             .andExpect(jsonPath("$.currentQuestion.resumeEvidence[0].sourceRecordType").value("resume_project_snapshot"))
             .andReturn()
             .response

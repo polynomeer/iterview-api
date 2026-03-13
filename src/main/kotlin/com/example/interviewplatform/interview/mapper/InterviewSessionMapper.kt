@@ -38,6 +38,7 @@ object InterviewSessionMapper {
         generationStatus = row.generationStatus,
         llmModel = row.llmModel,
         llmPromptVersion = row.llmPromptVersion,
+        contentLocale = row.contentLocale,
         answerAttemptId = row.answerAttemptId,
     )
 

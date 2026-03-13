@@ -1,5 +1,6 @@
 package com.example.interviewplatform.interview.service
 
+import com.example.interviewplatform.common.service.AppLocaleService
 import com.example.interviewplatform.resume.repository.ResumeProjectSnapshotRepository
 import com.example.interviewplatform.resume.repository.ResumeRiskItemRepository
 import com.example.interviewplatform.resume.repository.ResumeSkillSnapshotRepository
@@ -10,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class InterviewOpeningGenerationService(
     private val client: InterviewOpeningGenerationClient,
+    private val appLocaleService: AppLocaleService,
     private val resumeVersionRepository: ResumeVersionRepository,
     private val resumeSkillSnapshotRepository: ResumeSkillSnapshotRepository,
     private val resumeProjectSnapshotRepository: ResumeProjectSnapshotRepository,
@@ -25,7 +27,9 @@ class InterviewOpeningGenerationService(
             return null
         }
         val version = resumeVersionRepository.findById(resumeVersionId).orElse(null) ?: return null
+        val outputLanguage = appLocaleService.resolveLanguage()
         val input = InterviewOpeningGenerationInput(
+            outputLanguage = outputLanguage,
             resumeSummaryText = version.summaryText?.takeIf { it.isNotBlank() } ?: version.rawText?.take(1500),
             resumeSkillNames = resumeSkillSnapshotRepository.findByResumeVersionIdOrderByIdAsc(resumeVersionId)
                 .map { it.skillName }

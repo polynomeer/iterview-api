@@ -31,7 +31,7 @@ class OpenAiInterviewOpeningGenerationClient(
             body = body,
             timeout = Duration.ofSeconds(timeoutSeconds),
         )
-        return parseResponse(response)
+        return parseResponse(response, input)
     }
 
     private fun buildRequest(input: InterviewOpeningGenerationInput): Map<String, Any> = mapOf(
@@ -56,7 +56,7 @@ class OpenAiInterviewOpeningGenerationClient(
         ),
     )
 
-    private fun parseResponse(responseBody: String): GeneratedInterviewOpening {
+    private fun parseResponse(responseBody: String, input: InterviewOpeningGenerationInput): GeneratedInterviewOpening {
         val root = objectMapper.readTree(responseBody)
         val outputText = root.path("output_text").asText(null)
             ?: throw IllegalStateException("OpenAI interview opening response did not include output_text")
@@ -73,10 +73,11 @@ class OpenAiInterviewOpeningGenerationClient(
             resumeContextSummary = payload.path("resumeContextSummary").asText(null)?.trim()?.ifBlank { null },
             resumeEvidence = payload.path("resumeEvidence").mapNotNull(::parseResumeEvidenceItem),
             generationRationale = payload.path("generationRationale").asText("").trim().ifBlank {
-                "Generated opening question from the selected resume context."
+                defaultGenerationRationale(input.outputLanguage)
             },
             llmModel = root.path("model").asText(model),
             llmPromptVersion = promptVersion,
+            contentLocale = input.outputLanguage,
         )
     }
 
@@ -94,6 +95,8 @@ class OpenAiInterviewOpeningGenerationClient(
         Avoid generic prompts like "Tell me about X technology" unless they are anchored to a real resume claim.
         Avoid lists of sub-questions.
         Avoid mentioning that the question was generated from a resume.
+        Generate promptText, bodyText, tags, focusSkillNames, resumeContextSummary, and generationRationale in the requested output language.
+        Do not translate resumeEvidence.snippet. Keep resume evidence in its original source language.
         promptText should be concise and interview-ready.
         bodyText should guide the expected depth, such as asking for STAR structure, decision criteria, trade-offs, failure handling, metrics, or design constraints.
         tags should be short topic labels.
@@ -107,6 +110,7 @@ class OpenAiInterviewOpeningGenerationClient(
 
     private fun userPrompt(input: InterviewOpeningGenerationInput): String = buildString {
         appendLine("Prompt version: $promptVersion")
+        appendLine("Output language: ${languageName(input.outputLanguage)} (${input.outputLanguage})")
         input.resumeSummaryText?.takeIf { it.isNotBlank() }?.let {
             appendLine("Resume summary:")
             appendLine(it)
@@ -224,4 +228,16 @@ class OpenAiInterviewOpeningGenerationClient(
             endOffset = node.path("endOffset").takeIf { !it.isMissingNode && !it.isNull }?.asInt(),
         )
     }
+
+    private fun languageName(language: String): String = when (language.lowercase()) {
+        "en" -> "English"
+        else -> "Korean"
+    }
+
+    private fun defaultGenerationRationale(language: String): String =
+        if (language.lowercase() == "en") {
+            "Generated opening question from the selected resume context."
+        } else {
+            "선택한 이력서 맥락을 바탕으로 시작 질문을 생성했습니다."
+        }
 }
