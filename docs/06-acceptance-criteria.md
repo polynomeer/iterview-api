@@ -82,6 +82,10 @@
 - every asked interview question and follow-up can later appear as a question-level archive item linked back to the parent session
 - `resume_mock` can insert AI-generated follow-up questions without mutating prior session questions
 - generated follow-up snapshots preserve prompt text, optional body text, focus skills, resume context summary, and generation rationale
+- generated opener and follow-up snapshots can also preserve one or more compact `resumeEvidence` snippets that explain why the question was asked
+- each evidence item can identify the resume section or parsed record type it came from, such as project, experience, award, certification, or education
+- evidence snippets remain short supporting context and do not replace the main prompt text
+- missing or empty `resumeEvidence` must not break session rendering or session persistence
 - generated follow-up prompts can use the immediately preceding answer as grounding input
 - invalid or empty LLM follow-up output does not break the session; the service falls back safely
 

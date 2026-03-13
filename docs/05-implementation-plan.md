@@ -143,19 +143,22 @@ Acceptance intent:
 5. add an interview-specific LLM generation boundary for answer-driven resume-grounded follow-up prompts
 6. validate generated question payloads before inserting them into an active session
 7. persist generation metadata (`generationStatus`, rationale, model, prompt version) with each inserted opening or follow-up question
-6. keep deterministic fallback behavior when the LLM is disabled or returns unusable output
-7. add question-level archive source metadata so archived questions can distinguish:
+8. keep deterministic fallback behavior when the LLM is disabled or returns unusable output
+9. add `resumeEvidence` snapshot support so each opener or follow-up can include one or more short resume excerpts that justify why the question was asked
+10. store evidence as compact snippet metadata rather than recomputing it from raw resume text at read time
+11. add question-level archive source metadata so archived questions can distinguish:
    - `practice`
    - `interview`
-8. keep archive question-level and avoid replacing it with a session-only archive
-9. ensure every asked interview turn is eligible for archive persistence
-10. ensure follow-up interview turns can be revisited from both interview history and archive
+12. keep archive question-level and avoid replacing it with a session-only archive
+13. ensure every asked interview turn is eligible for archive persistence
+14. ensure follow-up interview turns can be revisited from both interview history and archive
 
 Acceptance intent:
 - one interview session appears once in interview history
 - each question and follow-up from that session can still appear as a question-level archived item
 - archive source metadata is additive and backward compatible
 - resume-selected interview sessions stay pinned to the chosen resume version for their full lifetime
+- question cards can later show a `Based on your resume` block without needing to recalculate evidence from the current resume state
 
 ## Phase 6 - Seed and Test Hardening
 1. extend seed/reference data for:
@@ -171,6 +174,7 @@ Acceptance intent:
    - review priority computation
 3. add repository integration tests for new query-heavy paths
 4. add API integration tests for new endpoints
+5. add contract coverage for interview snapshot evidence serialization and empty-evidence fallback behavior
 
 ## Sequencing Rules
 - do not bundle schema, API, and UI assumptions into one oversized change

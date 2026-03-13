@@ -177,6 +177,39 @@ Current interpretation:
 - this supports many-to-many question-to-material linkage today
 - it is sufficient for generic related resources, but not for model-answer ordering, visibility, or answer-style metadata
 
+## Interview Session Snapshot Extensions
+Current implemented direction:
+- `interview_session_questions` already acts as the immutable turn snapshot for opener and follow-up questions
+- AI-generated questions may not map cleanly to a reusable catalog row, so the session snapshot remains the frontend source of truth during interview playback
+
+Recommended additive columns for resume-grounded evidence display:
+- `resume_evidence_json`
+
+Recommended shape for `resume_evidence_json`:
+```json
+[
+  {
+    "type": "resume_sentence",
+    "section": "project",
+    "label": "Payments migration",
+    "snippet": "Led phased rollout of the payments migration with rollback safeguards.",
+    "sourceRecordType": "resume_project_snapshot",
+    "sourceRecordId": 123,
+    "confidence": 0.92,
+    "startOffset": null,
+    "endOffset": null
+  }
+]
+```
+
+Interpretation:
+- each session question may keep one or more resume evidence snippets
+- evidence is stored on the session-question snapshot, not recomputed at read time
+- `snippet` should be a short quote or excerpt, not the full resume paragraph
+- `section` supports frontend badges such as `Project`, `Experience`, `Award`, `Certification`, or `Education`
+- `sourceRecordType` and `sourceRecordId` let the frontend deep-link into parsed resume sections later without changing the question payload contract
+- offsets are optional future-facing metadata for raw-text highlighting and should not be required in the first implementation
+
 ## Current Answer and Progress Tables
 ### `daily_cards`
 - `id`

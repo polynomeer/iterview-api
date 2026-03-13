@@ -1220,6 +1220,7 @@ Notes:
 - `seedQuestionIds` are optional and are used as a starting pool or fallback hint, not a replacement for server-side selection
 - for `resume_mock`, the backend now tries to generate the opening question from the selected resume version
 - if opener generation is unavailable or fails validation, the backend falls back to deterministic server-side question selection
+- planned additive behavior: opener generation should also persist one or more `resumeEvidence` snippets that explain which resume sentence, project, achievement, certification, or education record triggered the question
 
 #### `GET /api/interview-sessions/{sessionId}`
 Purpose:
@@ -1241,9 +1242,30 @@ Implemented additive fields on session questions:
 - `llmModel`
 - `llmPromptVersion`
 
+Planned additive fields for resume-grounded question evidence:
+- `resumeEvidence`
+
+Recommended `resumeEvidence` item shape:
+```json
+{
+  "type": "resume_sentence",
+  "section": "project",
+  "label": "Payments migration",
+  "snippet": "Led phased rollout of the payments migration with rollback safeguards.",
+  "sourceRecordType": "resume_project_snapshot",
+  "sourceRecordId": 123,
+  "confidence": 0.92,
+  "startOffset": null,
+  "endOffset": null
+}
+```
+
 Current semantics:
 - the opening session question may be AI-generated from the selected resume version
 - session questions should be rendered from snapshot fields first and should not depend on catalog `questionId`
+- `resumeEvidence` is additive metadata and should be used as a compact `Based on your resume` explanation block, not as the main prompt
+- clients must not assume evidence is always present; an empty array or missing field remains valid
+- evidence snippets should be short excerpts, not full resume paragraphs
 
 #### `POST /api/interview-sessions/{sessionId}/answers`
 Purpose:
@@ -1253,6 +1275,7 @@ Behavior:
 - `resume_mock` sessions should try to generate the next follow-up through the interview LLM client when configured
 - if LLM generation is unavailable or fails validation, the backend may fall back to catalog follow-ups or the remaining queued questions
 - the inserted follow-up must still be persisted as an immutable session question snapshot
+- planned additive behavior: follow-up generation should persist fresh `resumeEvidence` snippets when the next question is anchored to a new sentence, project, or achievement from the resume
 
 #### `POST /api/interview-sessions/{sessionId}/next-question`
 Purpose:

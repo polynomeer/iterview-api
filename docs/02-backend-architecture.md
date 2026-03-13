@@ -174,6 +174,7 @@ Do not move product rules into `common`.
 - for `resume_mock`, generate follow-up prompts through an interview-specific LLM service boundary when configured
 - use the selected resume version plus the immediately preceding answer as the primary grounding input for follow-up generation
 - persist generation metadata on session question snapshots so seeded questions, catalog follow-ups, fallback follow-ups, and AI-generated follow-ups remain distinguishable
+- persist compact `resumeEvidence` snippets on session-question snapshots so question cards can explain which resume sentence, project, or credential triggered the prompt
 - keep a deterministic non-LLM fallback path so local development and non-AI environments remain usable
 
 ### Review and Learning Loop

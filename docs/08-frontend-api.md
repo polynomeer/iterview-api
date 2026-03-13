@@ -82,6 +82,16 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `generationStatus`
   - `llmModel`
   - `llmPromptVersion`
+- Planned additive session-question metadata for resume-grounded evidence:
+  - `resumeEvidence`
+  - each item may include:
+    - `type`
+    - `section`
+    - `label`
+    - `snippet`
+    - `sourceRecordType`
+    - `sourceRecordId`
+    - `confidence`
 - Resume interview creation should expose one explicit `resumeVersionId` selector in the frontend start flow rather than silently relying on whichever version happens to be active.
 - The opening question for a resume-based interview may also be AI-generated from the selected resume version and should be rendered from session snapshot fields the same way as AI follow-ups.
 - Frontend should not assume every follow-up maps to a global `questionId`; AI-generated follow-ups may rely on snapshot fields only.
@@ -104,6 +114,12 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - order by `orderIndex`
   - use `parentSessionQuestionId` and `depth` for indentation or connector lines
   - show `focusSkillNames` and `resumeContextSummary` as secondary evidence, not as the main prompt content
+  - when `resumeEvidence` is present, render one compact `Based on your resume` block on the question card
+  - default to showing at most the first one or two evidence items
+  - use `section` or `label` as a small badge or eyebrow label
+  - use `snippet` as the visible quoted evidence text
+  - never replace the question title with the evidence snippet
+  - do not require deep-link behavior for the first implementation; `sourceRecordType` and `sourceRecordId` are forward-compatible metadata
 - The home payload is backward compatible. Newly added fields are optional and can be ignored by older clients.
 
 ## Recommended Frontend Usage
