@@ -55,6 +55,7 @@ object InterviewSessionMapper {
     fun toListItemDto(
         id: Long,
         sessionType: String,
+        interviewMode: String,
         status: String,
         resumeVersionId: Long?,
         startedAt: Instant,
@@ -65,6 +66,7 @@ object InterviewSessionMapper {
     ): InterviewSessionListItemDto = InterviewSessionListItemDto(
         id = id,
         sessionType = sessionType,
+        interviewMode = interviewMode,
         status = status,
         resumeVersionId = resumeVersionId,
         startedAt = startedAt,

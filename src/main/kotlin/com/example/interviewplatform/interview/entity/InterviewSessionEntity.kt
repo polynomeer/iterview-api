@@ -20,6 +20,8 @@ class InterviewSessionEntity(
     val resumeVersionId: Long? = null,
     @Column(name = "session_type", nullable = false)
     val sessionType: String,
+    @Column(name = "interview_mode", nullable = false)
+    val interviewMode: String,
     @Column(nullable = false)
     val status: String,
     @Column(name = "started_at", nullable = false)

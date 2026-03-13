@@ -5,6 +5,7 @@ import java.time.Instant
 data class InterviewSessionDetailResponseDto(
     val id: Long,
     val sessionType: String,
+    val interviewMode: String,
     val status: String,
     val resumeVersionId: Long?,
     val startedAt: Instant,

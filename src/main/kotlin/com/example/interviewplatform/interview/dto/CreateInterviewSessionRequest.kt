@@ -10,6 +10,7 @@ data class CreateInterviewSessionRequest(
     @field:Min(1)
     @field:Max(10)
     val questionCount: Int = 5,
+    val interviewMode: String? = null,
     val resumeVersionId: Long? = null,
     val seedQuestionIds: List<Long> = emptyList(),
 )

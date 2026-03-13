@@ -81,6 +81,7 @@ class InterviewSessionService(
             InterviewSessionMapper.toListItemDto(
                 id = session.id,
                 sessionType = session.sessionType,
+                interviewMode = session.interviewMode,
                 status = session.status,
                 resumeVersionId = session.resumeVersionId,
                 startedAt = session.startedAt,
@@ -96,6 +97,7 @@ class InterviewSessionService(
     fun createSession(userId: Long, request: CreateInterviewSessionRequest): InterviewSessionDetailResponseDto {
         val now = clockService.now()
         val sessionType = normalizeSessionType(request.sessionType)
+        val interviewMode = normalizeInterviewMode(request.interviewMode)
         val resumeVersionId = resolveResumeVersionId(userId, request.resumeVersionId, sessionType)
 
         val session = interviewSessionRepository.save(
@@ -103,6 +105,7 @@ class InterviewSessionService(
                 userId = userId,
                 resumeVersionId = resumeVersionId,
                 sessionType = sessionType,
+                interviewMode = interviewMode,
                 status = STATUS_IN_PROGRESS,
                 startedAt = now,
                 createdAt = now,
@@ -212,6 +215,7 @@ class InterviewSessionService(
                     userId = session.userId,
                     resumeVersionId = session.resumeVersionId,
                     sessionType = session.sessionType,
+                    interviewMode = session.interviewMode,
                     status = STATUS_COMPLETED,
                     startedAt = session.startedAt,
                     endedAt = now,
@@ -226,6 +230,7 @@ class InterviewSessionService(
                     userId = session.userId,
                     resumeVersionId = session.resumeVersionId,
                     sessionType = session.sessionType,
+                    interviewMode = session.interviewMode,
                     status = STATUS_IN_PROGRESS,
                     startedAt = session.startedAt,
                     endedAt = session.endedAt,
@@ -259,6 +264,7 @@ class InterviewSessionService(
                     userId = session.userId,
                     resumeVersionId = session.resumeVersionId,
                     sessionType = session.sessionType,
+                    interviewMode = session.interviewMode,
                     status = STATUS_COMPLETED,
                     startedAt = session.startedAt,
                     endedAt = now,
@@ -303,6 +309,7 @@ class InterviewSessionService(
         return InterviewSessionDetailResponseDto(
             id = session.id,
             sessionType = session.sessionType,
+            interviewMode = session.interviewMode,
             status = session.status,
             resumeVersionId = session.resumeVersionId,
             startedAt = session.startedAt,
@@ -719,6 +726,14 @@ class InterviewSessionService(
         return normalized
     }
 
+    private fun normalizeInterviewMode(value: String?): String {
+        val normalized = value?.trim()?.lowercase()?.takeIf { it.isNotBlank() } ?: INTERVIEW_MODE_FREE_INTERVIEW
+        if (normalized !in SUPPORTED_INTERVIEW_MODES) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported interviewMode: $value")
+        }
+        return normalized
+    }
+
     private fun resolveResumeVersionId(userId: Long, requestedResumeVersionId: Long?): Long? {
         if (requestedResumeVersionId == null) {
             return null
@@ -814,6 +829,11 @@ class InterviewSessionService(
         const val SESSION_TYPE_RESUME_MOCK = "resume_mock"
         const val SESSION_TYPE_REVIEW_MOCK = "review_mock"
         const val SESSION_TYPE_TOPIC_MOCK = "topic_mock"
+        const val INTERVIEW_MODE_QUICK_SCREEN = "quick_screen"
+        const val INTERVIEW_MODE_MOCK_30 = "mock_30"
+        const val INTERVIEW_MODE_MOCK_60 = "mock_60"
+        const val INTERVIEW_MODE_FREE_INTERVIEW = "free_interview"
+        const val INTERVIEW_MODE_FULL_COVERAGE = "full_coverage"
         const val RELATIONSHIP_TYPE_FOLLOW_UP = "follow_up"
         const val REVIEW_STATUS_PENDING = "pending"
         const val QUESTION_SOURCE_TYPE_INTERVIEW_AI = "interview_ai"
@@ -823,5 +843,12 @@ class InterviewSessionService(
         const val QUESTION_DIFFICULTY_MEDIUM = "MEDIUM"
         const val DEFAULT_EXPECTED_ANSWER_SECONDS = 180
         val SUPPORTED_SESSION_TYPES = setOf(SESSION_TYPE_RESUME_MOCK, SESSION_TYPE_REVIEW_MOCK, SESSION_TYPE_TOPIC_MOCK)
+        val SUPPORTED_INTERVIEW_MODES = setOf(
+            INTERVIEW_MODE_QUICK_SCREEN,
+            INTERVIEW_MODE_MOCK_30,
+            INTERVIEW_MODE_MOCK_60,
+            INTERVIEW_MODE_FREE_INTERVIEW,
+            INTERVIEW_MODE_FULL_COVERAGE,
+        )
     }
 }
