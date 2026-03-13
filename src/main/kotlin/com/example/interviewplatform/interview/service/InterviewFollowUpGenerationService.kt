@@ -16,6 +16,7 @@ class InterviewFollowUpGenerationService(
     private val resumeSkillSnapshotRepository: ResumeSkillSnapshotRepository,
     private val resumeProjectSnapshotRepository: ResumeProjectSnapshotRepository,
     private val resumeRiskItemRepository: ResumeRiskItemRepository,
+    private val interviewResumeEvidenceAssembler: InterviewResumeEvidenceAssembler,
 ) {
     @Transactional(readOnly = true)
     fun generateResumeFollowUp(
@@ -51,6 +52,7 @@ class InterviewFollowUpGenerationService(
             resumeRiskSummaries = resumeRiskItemRepository.findByResumeVersionIdOrderBySeverityDescIdAsc(resumeVersionId)
                 .map { "${it.title} (${it.severity}): ${it.description}" }
                 .take(4),
+            resumeEvidenceCandidates = interviewResumeEvidenceAssembler.loadCandidates(resumeVersionId),
             parentTags = parentTags,
             parentFocusSkillNames = parentFocusSkillNames,
         )

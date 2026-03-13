@@ -14,6 +14,7 @@ class InterviewOpeningGenerationService(
     private val resumeSkillSnapshotRepository: ResumeSkillSnapshotRepository,
     private val resumeProjectSnapshotRepository: ResumeProjectSnapshotRepository,
     private val resumeRiskItemRepository: ResumeRiskItemRepository,
+    private val interviewResumeEvidenceAssembler: InterviewResumeEvidenceAssembler,
 ) {
     @Transactional(readOnly = true)
     fun generateResumeOpening(resumeVersionId: Long): GeneratedInterviewOpening? {
@@ -39,6 +40,7 @@ class InterviewOpeningGenerationService(
             resumeRiskSummaries = resumeRiskItemRepository.findByResumeVersionIdOrderBySeverityDescIdAsc(resumeVersionId)
                 .map { "${it.title} (${it.severity}): ${it.description}" }
                 .take(5),
+            resumeEvidenceCandidates = interviewResumeEvidenceAssembler.loadCandidates(resumeVersionId),
         )
         return runCatching { client.generate(input) }.getOrNull()
     }

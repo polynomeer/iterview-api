@@ -72,6 +72,7 @@ class OpenAiInterviewFollowUpGenerationClient(
             tags = payload.path("tags").mapNotNull { it.asText(null)?.trim()?.ifBlank { null } }.distinct(),
             focusSkillNames = payload.path("focusSkillNames").mapNotNull { it.asText(null)?.trim()?.ifBlank { null } }.distinct(),
             resumeContextSummary = payload.path("resumeContextSummary").asText(null)?.trim()?.ifBlank { null },
+            resumeEvidence = payload.path("resumeEvidence").mapNotNull(::parseResumeEvidenceItem),
             generationRationale = payload.path("generationRationale").asText("").trim().ifBlank {
                 "Generated follow-up based on the answer and active resume context."
             },
@@ -96,6 +97,8 @@ class OpenAiInterviewFollowUpGenerationClient(
         Avoid repeating the parent question with only superficial wording changes.
         tags should be short topic labels.
         focusSkillNames should align to technical or behavioral skills likely being assessed.
+        resumeEvidence should contain one or two short, specific resume snippets that justify why this follow-up remains grounded in the resume.
+        Prefer evidence tied to a concrete project, experience, award, certification, or education record.
         generationRationale should explain what gap or unresolved point triggered this follow-up.
         Return only schema-compliant JSON.
     """.trimIndent()
@@ -131,6 +134,13 @@ class OpenAiInterviewFollowUpGenerationClient(
             appendLine("Resume risk areas:")
             input.resumeRiskSummaries.forEach { appendLine("- $it") }
         }
+        if (input.resumeEvidenceCandidates.isNotEmpty()) {
+            appendLine()
+            appendLine("Resume evidence candidates:")
+            input.resumeEvidenceCandidates.forEach { candidate ->
+                appendLine("- [${candidate.sourceRecordType}:${candidate.sourceRecordId}] section=${candidate.section} label=${candidate.label ?: "-"} snippet=${candidate.snippet}")
+            }
+        }
         if (input.parentTags.isNotEmpty()) {
             appendLine()
             appendLine("Parent tags: ${input.parentTags.joinToString(", ")}")
@@ -155,6 +165,7 @@ class OpenAiInterviewFollowUpGenerationClient(
             "tags" to arrayOfStringsSchema(),
             "focusSkillNames" to arrayOfStringsSchema(),
             "resumeContextSummary" to nullableStringSchema(),
+            "resumeEvidence" to resumeEvidenceArraySchema(),
             "generationRationale" to stringSchema(),
         ),
         "required" to listOf(
@@ -163,6 +174,7 @@ class OpenAiInterviewFollowUpGenerationClient(
             "tags",
             "focusSkillNames",
             "resumeContextSummary",
+            "resumeEvidence",
             "generationRationale",
         ),
     )
@@ -175,4 +187,52 @@ class OpenAiInterviewFollowUpGenerationClient(
         "type" to "array",
         "items" to stringSchema(),
     )
+
+    private fun resumeEvidenceArraySchema(): Map<String, Any> = mapOf(
+        "type" to "array",
+        "items" to mapOf(
+            "type" to "object",
+            "additionalProperties" to false,
+            "properties" to mapOf(
+                "type" to stringSchema(),
+                "section" to nullableStringSchema(),
+                "label" to nullableStringSchema(),
+                "snippet" to stringSchema(),
+                "sourceRecordType" to nullableStringSchema(),
+                "sourceRecordId" to mapOf("type" to listOf("integer", "null")),
+                "confidence" to mapOf("type" to listOf("number", "null")),
+                "startOffset" to mapOf("type" to listOf("integer", "null")),
+                "endOffset" to mapOf("type" to listOf("integer", "null")),
+            ),
+            "required" to listOf(
+                "type",
+                "section",
+                "label",
+                "snippet",
+                "sourceRecordType",
+                "sourceRecordId",
+                "confidence",
+                "startOffset",
+                "endOffset",
+            ),
+        ),
+    )
+
+    private fun parseResumeEvidenceItem(node: JsonNode): GeneratedInterviewResumeEvidence? {
+        val snippet = node.path("snippet").asText("").trim()
+        if (snippet.isBlank()) {
+            return null
+        }
+        return GeneratedInterviewResumeEvidence(
+            type = node.path("type").asText("resume_sentence").trim().ifBlank { "resume_sentence" },
+            section = node.path("section").asText(null)?.trim()?.ifBlank { null },
+            label = node.path("label").asText(null)?.trim()?.ifBlank { null },
+            snippet = snippet,
+            sourceRecordType = node.path("sourceRecordType").asText(null)?.trim()?.ifBlank { null },
+            sourceRecordId = node.path("sourceRecordId").takeIf { !it.isMissingNode && !it.isNull }?.asLong(),
+            confidence = node.path("confidence").takeIf { !it.isMissingNode && !it.isNull }?.asDouble(),
+            startOffset = node.path("startOffset").takeIf { !it.isMissingNode && !it.isNull }?.asInt(),
+            endOffset = node.path("endOffset").takeIf { !it.isMissingNode && !it.isNull }?.asInt(),
+        )
+    }
 }

@@ -71,6 +71,7 @@ class OpenAiInterviewOpeningGenerationClient(
             tags = payload.path("tags").mapNotNull { it.asText(null)?.trim()?.ifBlank { null } }.distinct(),
             focusSkillNames = payload.path("focusSkillNames").mapNotNull { it.asText(null)?.trim()?.ifBlank { null } }.distinct(),
             resumeContextSummary = payload.path("resumeContextSummary").asText(null)?.trim()?.ifBlank { null },
+            resumeEvidence = payload.path("resumeEvidence").mapNotNull(::parseResumeEvidenceItem),
             generationRationale = payload.path("generationRationale").asText("").trim().ifBlank {
                 "Generated opening question from the selected resume context."
             },
@@ -97,6 +98,9 @@ class OpenAiInterviewOpeningGenerationClient(
         bodyText should guide the expected depth, such as asking for STAR structure, decision criteria, trade-offs, failure handling, metrics, or design constraints.
         tags should be short topic labels.
         focusSkillNames should align to the actual technical or behavioral skills being assessed.
+        resumeEvidence should contain one or two short, specific resume snippets that justify why this question was asked.
+        Prefer evidence tied to a concrete project, experience, award, certification, or education record.
+        Do not paste long paragraphs from the resume.
         generationRationale should briefly explain which resume evidence triggered this question style.
         Return only schema-compliant JSON.
     """.trimIndent()
@@ -121,6 +125,13 @@ class OpenAiInterviewOpeningGenerationClient(
             appendLine("Resume risk areas:")
             input.resumeRiskSummaries.forEach { appendLine("- $it") }
         }
+        if (input.resumeEvidenceCandidates.isNotEmpty()) {
+            appendLine()
+            appendLine("Resume evidence candidates:")
+            input.resumeEvidenceCandidates.forEach { candidate ->
+                appendLine("- [${candidate.sourceRecordType}:${candidate.sourceRecordId}] section=${candidate.section} label=${candidate.label ?: "-"} snippet=${candidate.snippet}")
+            }
+        }
         appendLine()
         appendLine("Question design goal:")
         appendLine("Generate a realistic opener that is specific enough to be answerable from the resume, but deep enough to reveal explanation quality, problem-solving structure, technical understanding, or design judgment.")
@@ -135,6 +146,7 @@ class OpenAiInterviewOpeningGenerationClient(
             "tags" to arrayOfStringsSchema(),
             "focusSkillNames" to arrayOfStringsSchema(),
             "resumeContextSummary" to nullableStringSchema(),
+            "resumeEvidence" to resumeEvidenceArraySchema(),
             "generationRationale" to stringSchema(),
         ),
         "required" to listOf(
@@ -143,6 +155,7 @@ class OpenAiInterviewOpeningGenerationClient(
             "tags",
             "focusSkillNames",
             "resumeContextSummary",
+            "resumeEvidence",
             "generationRationale",
         ),
     )
@@ -155,4 +168,52 @@ class OpenAiInterviewOpeningGenerationClient(
         "type" to "array",
         "items" to stringSchema(),
     )
+
+    private fun resumeEvidenceArraySchema(): Map<String, Any> = mapOf(
+        "type" to "array",
+        "items" to mapOf(
+            "type" to "object",
+            "additionalProperties" to false,
+            "properties" to mapOf(
+                "type" to stringSchema(),
+                "section" to nullableStringSchema(),
+                "label" to nullableStringSchema(),
+                "snippet" to stringSchema(),
+                "sourceRecordType" to nullableStringSchema(),
+                "sourceRecordId" to mapOf("type" to listOf("integer", "null")),
+                "confidence" to mapOf("type" to listOf("number", "null")),
+                "startOffset" to mapOf("type" to listOf("integer", "null")),
+                "endOffset" to mapOf("type" to listOf("integer", "null")),
+            ),
+            "required" to listOf(
+                "type",
+                "section",
+                "label",
+                "snippet",
+                "sourceRecordType",
+                "sourceRecordId",
+                "confidence",
+                "startOffset",
+                "endOffset",
+            ),
+        ),
+    )
+
+    private fun parseResumeEvidenceItem(node: com.fasterxml.jackson.databind.JsonNode): GeneratedInterviewResumeEvidence? {
+        val snippet = node.path("snippet").asText("").trim()
+        if (snippet.isBlank()) {
+            return null
+        }
+        return GeneratedInterviewResumeEvidence(
+            type = node.path("type").asText("resume_sentence").trim().ifBlank { "resume_sentence" },
+            section = node.path("section").asText(null)?.trim()?.ifBlank { null },
+            label = node.path("label").asText(null)?.trim()?.ifBlank { null },
+            snippet = snippet,
+            sourceRecordType = node.path("sourceRecordType").asText(null)?.trim()?.ifBlank { null },
+            sourceRecordId = node.path("sourceRecordId").takeIf { !it.isMissingNode && !it.isNull }?.asLong(),
+            confidence = node.path("confidence").takeIf { !it.isMissingNode && !it.isNull }?.asDouble(),
+            startOffset = node.path("startOffset").takeIf { !it.isMissingNode && !it.isNull }?.asInt(),
+            endOffset = node.path("endOffset").takeIf { !it.isMissingNode && !it.isNull }?.asInt(),
+        )
+    }
 }

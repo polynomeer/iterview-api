@@ -30,7 +30,7 @@ class OpenAiInterviewFollowUpGenerationClientTest {
         val response = """
             {
               "model": "gpt-5-mini",
-              "output_text": "{\"promptText\":\"How did you verify rollback readiness?\",\"bodyText\":\"Focus on the signals and fallback threshold.\",\"tags\":[\"payments\",\"rollback\"],\"focusSkillNames\":[\"Risk Management\",\"Observability\"],\"resumeContextSummary\":\"Resume references a payments migration and latency target.\",\"generationRationale\":\"The answer skipped rollback criteria and monitoring specifics.\"}"
+              "output_text": "{\"promptText\":\"How did you verify rollback readiness?\",\"bodyText\":\"Focus on the signals and fallback threshold.\",\"tags\":[\"payments\",\"rollback\"],\"focusSkillNames\":[\"Risk Management\",\"Observability\"],\"resumeContextSummary\":\"Resume references a payments migration and latency target.\",\"resumeEvidence\":[{\"type\":\"resume_sentence\",\"section\":\"project\",\"label\":\"Payments migration\",\"snippet\":\"Led phased rollout of the payments migration with rollback safeguards.\",\"sourceRecordType\":\"resume_project_snapshot\",\"sourceRecordId\":12,\"confidence\":0.93,\"startOffset\":null,\"endOffset\":null}],\"generationRationale\":\"The answer skipped rollback criteria and monitoring specifics.\"}"
             }
         """.trimIndent()
         val client = OpenAiInterviewFollowUpGenerationClient(
@@ -52,6 +52,15 @@ class OpenAiInterviewFollowUpGenerationClientTest {
                 resumeSkillNames = listOf("Kotlin", "Spring Boot"),
                 resumeProjectSummaries = listOf("Payments migration - backend lead"),
                 resumeRiskSummaries = listOf("Latency claim (HIGH): need deeper defense"),
+                resumeEvidenceCandidates = listOf(
+                    InterviewResumeEvidenceCandidate(
+                        section = "project",
+                        label = "Payments migration",
+                        snippet = "Led phased rollout of the payments migration with rollback safeguards.",
+                        sourceRecordType = "resume_project_snapshot",
+                        sourceRecordId = 12,
+                    ),
+                ),
                 parentTags = listOf("payments"),
                 parentFocusSkillNames = listOf("Distributed Systems"),
             ),
@@ -63,6 +72,11 @@ class OpenAiInterviewFollowUpGenerationClientTest {
         assertEquals(listOf("payments", "rollback"), result.tags)
         assertEquals(listOf("Risk Management", "Observability"), result.focusSkillNames)
         assertEquals("Resume references a payments migration and latency target.", result.resumeContextSummary)
+        assertEquals(1, result.resumeEvidence.size)
+        assertEquals("project", result.resumeEvidence[0].section)
+        assertEquals("Payments migration", result.resumeEvidence[0].label)
+        assertEquals("resume_project_snapshot", result.resumeEvidence[0].sourceRecordType)
+        assertEquals(12L, result.resumeEvidence[0].sourceRecordId)
         assertEquals("The answer skipped rollback criteria and monitoring specifics.", result.generationRationale)
         assertEquals("gpt-5-mini", result.llmModel)
         assertEquals("interview-follow-up-v1", result.llmPromptVersion)

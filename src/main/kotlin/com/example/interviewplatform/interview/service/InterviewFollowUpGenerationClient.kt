@@ -8,6 +8,7 @@ data class InterviewFollowUpGenerationInput(
     val resumeSkillNames: List<String>,
     val resumeProjectSummaries: List<String>,
     val resumeRiskSummaries: List<String>,
+    val resumeEvidenceCandidates: List<InterviewResumeEvidenceCandidate>,
     val parentTags: List<String>,
     val parentFocusSkillNames: List<String>,
 )
@@ -18,6 +19,7 @@ data class GeneratedInterviewFollowUp(
     val tags: List<String>,
     val focusSkillNames: List<String>,
     val resumeContextSummary: String?,
+    val resumeEvidence: List<GeneratedInterviewResumeEvidence>,
     val generationRationale: String,
     val llmModel: String?,
     val llmPromptVersion: String?,

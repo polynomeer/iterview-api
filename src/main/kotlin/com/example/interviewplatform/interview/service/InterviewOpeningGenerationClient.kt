@@ -5,6 +5,7 @@ data class InterviewOpeningGenerationInput(
     val resumeSkillNames: List<String>,
     val resumeProjectSummaries: List<String>,
     val resumeRiskSummaries: List<String>,
+    val resumeEvidenceCandidates: List<InterviewResumeEvidenceCandidate>,
 )
 
 data class GeneratedInterviewOpening(
@@ -13,6 +14,7 @@ data class GeneratedInterviewOpening(
     val tags: List<String>,
     val focusSkillNames: List<String>,
     val resumeContextSummary: String?,
+    val resumeEvidence: List<GeneratedInterviewResumeEvidence>,
     val generationRationale: String,
     val llmModel: String?,
     val llmPromptVersion: String?,

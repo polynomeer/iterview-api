@@ -442,7 +442,7 @@ class InterviewSessionService(
             tagsJson = objectMapper.writeValueAsString(generated.tags),
             focusSkillNamesJson = objectMapper.writeValueAsString(generated.focusSkillNames),
             resumeContextSummary = generated.resumeContextSummary,
-            resumeEvidenceJson = null,
+            resumeEvidenceJson = encodeResumeEvidence(generated.resumeEvidence),
             generationRationale = generated.generationRationale,
             generationStatus = GENERATION_STATUS_AI_GENERATED,
             llmModel = generated.llmModel,
@@ -574,7 +574,7 @@ class InterviewSessionService(
                 tagsJson = objectMapper.writeValueAsString(generated.tags),
                 focusSkillNamesJson = objectMapper.writeValueAsString(generated.focusSkillNames),
                 resumeContextSummary = generated.resumeContextSummary,
-                resumeEvidenceJson = null,
+                resumeEvidenceJson = encodeResumeEvidence(generated.resumeEvidence),
                 generationRationale = generated.generationRationale,
                 generationStatus = GENERATION_STATUS_AI_GENERATED,
                 llmModel = generated.llmModel,
@@ -688,6 +688,13 @@ class InterviewSessionService(
         return runCatching {
             objectMapper.readValue(value, object : TypeReference<List<InterviewResumeEvidenceDto>>() {})
         }.getOrElse { emptyList() }
+    }
+
+    private fun encodeResumeEvidence(value: List<GeneratedInterviewResumeEvidence>): String? {
+        if (value.isEmpty()) {
+            return null
+        }
+        return objectMapper.writeValueAsString(value)
     }
 
     private fun questionStatus(

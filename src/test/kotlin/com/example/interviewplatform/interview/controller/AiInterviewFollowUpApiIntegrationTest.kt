@@ -89,6 +89,8 @@ class AiInterviewFollowUpApiIntegrationTest {
             .andExpect(jsonPath("$.currentQuestion.sourceType").value("ai_opening"))
             .andExpect(jsonPath("$.currentQuestion.questionId").isNumber)
             .andExpect(jsonPath("$.currentQuestion.bodyText").value("Focus on the migration scope, trade-offs, and how you measured success."))
+            .andExpect(jsonPath("$.currentQuestion.resumeEvidence[0].section").value("project"))
+            .andExpect(jsonPath("$.currentQuestion.resumeEvidence[0].label").value("Payments migration"))
             .andExpect(jsonPath("$.currentQuestion.generationStatus").value("ai_generated"))
             .andReturn()
             .response.contentAsString.let(objectMapper::readTree)
@@ -115,6 +117,8 @@ class AiInterviewFollowUpApiIntegrationTest {
             .andExpect(jsonPath("$.nextQuestion.bodyText").value("Describe rollback criteria, monitoring signals, and communication flow."))
             .andExpect(jsonPath("$.nextQuestion.tags[0]").value("payments"))
             .andExpect(jsonPath("$.nextQuestion.focusSkillNames[0]").value("Risk Management"))
+            .andExpect(jsonPath("$.nextQuestion.resumeEvidence[0].section").value("project"))
+            .andExpect(jsonPath("$.nextQuestion.resumeEvidence[0].sourceRecordType").value("resume_project_snapshot"))
             .andExpect(jsonPath("$.nextQuestion.generationStatus").value("ai_generated"))
             .andExpect(jsonPath("$.nextQuestion.llmModel").value("gpt-5-mini"))
             .andExpect(jsonPath("$.nextQuestion.llmPromptVersion").value("interview-follow-up-v1"))
@@ -123,6 +127,7 @@ class AiInterviewFollowUpApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.questions[1].sourceType").value("ai_follow_up"))
             .andExpect(jsonPath("$.questions[1].resumeContextSummary").value("Resume mentions a payments platform migration with latency targets."))
+            .andExpect(jsonPath("$.questions[1].resumeEvidence[0].snippet").value("Led phased rollout of the payments migration with rollback safeguards."))
             .andExpect(jsonPath("$.questions[1].generationRationale").value("The answer mentioned the migration outcome but did not defend cutover risk controls."))
     }
 
@@ -215,9 +220,9 @@ class AiInterviewFollowUpApiIntegrationTest {
         fun interviewLlmApiTransport(): InterviewLlmApiTransport = object : InterviewLlmApiTransport {
             override fun postJson(url: String, apiKey: String, body: String, timeout: Duration): String {
                 val outputText = if (body.contains("\"name\":\"interview_opening\"")) {
-                    "{\"promptText\":\"Tell me about the payments migration you led and the trade-offs you had to manage.\",\"bodyText\":\"Focus on the migration scope, trade-offs, and how you measured success.\",\"tags\":[\"payments\",\"migration\"],\"focusSkillNames\":[\"System Design\",\"Ownership\"],\"resumeContextSummary\":\"Resume highlights ownership of a payments platform migration.\",\"generationRationale\":\"The resume shows a high-impact migration, so the opener should start from the strongest concrete project.\"}"
+                    "{\"promptText\":\"Tell me about the payments migration you led and the trade-offs you had to manage.\",\"bodyText\":\"Focus on the migration scope, trade-offs, and how you measured success.\",\"tags\":[\"payments\",\"migration\"],\"focusSkillNames\":[\"System Design\",\"Ownership\"],\"resumeContextSummary\":\"Resume highlights ownership of a payments platform migration.\",\"resumeEvidence\":[{\"type\":\"resume_sentence\",\"section\":\"project\",\"label\":\"Payments migration\",\"snippet\":\"Led phased rollout of the payments migration with rollback safeguards.\",\"sourceRecordType\":\"resume_project_snapshot\",\"sourceRecordId\":1,\"confidence\":0.94,\"startOffset\":null,\"endOffset\":null}],\"generationRationale\":\"The resume shows a high-impact migration, so the opener should start from the strongest concrete project.\"}"
                 } else {
-                    "{\"promptText\":\"How did you de-risk the cutover window?\",\"bodyText\":\"Describe rollback criteria, monitoring signals, and communication flow.\",\"tags\":[\"payments\",\"migration\"],\"focusSkillNames\":[\"Risk Management\",\"Observability\"],\"resumeContextSummary\":\"Resume mentions a payments platform migration with latency targets.\",\"generationRationale\":\"The answer mentioned the migration outcome but did not defend cutover risk controls.\"}"
+                    "{\"promptText\":\"How did you de-risk the cutover window?\",\"bodyText\":\"Describe rollback criteria, monitoring signals, and communication flow.\",\"tags\":[\"payments\",\"migration\"],\"focusSkillNames\":[\"Risk Management\",\"Observability\"],\"resumeContextSummary\":\"Resume mentions a payments platform migration with latency targets.\",\"resumeEvidence\":[{\"type\":\"resume_sentence\",\"section\":\"project\",\"label\":\"Payments migration\",\"snippet\":\"Led phased rollout of the payments migration with rollback safeguards.\",\"sourceRecordType\":\"resume_project_snapshot\",\"sourceRecordId\":1,\"confidence\":0.91,\"startOffset\":null,\"endOffset\":null}],\"generationRationale\":\"The answer mentioned the migration outcome but did not defend cutover risk controls.\"}"
                 }
                 return """
                     {
