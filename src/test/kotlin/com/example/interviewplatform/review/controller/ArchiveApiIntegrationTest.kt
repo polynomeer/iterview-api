@@ -166,6 +166,46 @@ class ArchiveApiIntegrationTest {
             .andExpect(jsonPath("$[0].isFollowUp").value(true))
     }
 
+    @Test
+    fun `archive endpoint includes asked interview session turns even without mastered progress rows`() {
+        val firstQuestionId = insertQuestion("Interview opener", "MEDIUM")
+        val secondQuestionId = insertQuestion("Interview follow up", "HARD")
+        jdbcTemplate.update(
+            """
+            INSERT INTO interview_sessions (
+                id, user_id, resume_version_id, session_type, status, started_at, ended_at, created_at, updated_at
+            ) VALUES (
+                91, 1, NULL, 'resume_mock', 'completed', now() - interval '20 minute', now(), now(), now()
+            )
+            """.trimIndent(),
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO interview_session_questions (
+                id, interview_session_id, question_id, parent_session_question_id, prompt_text, question_source_type,
+                order_index, is_follow_up, depth, category_name, tags_json, answer_attempt_id, created_at, updated_at
+            ) VALUES
+                (101, 91, ?, NULL, 'Interview opener prompt', 'ai_opening', 1, false, 0, 'Behavioral', '[]', NULL, now() - interval '5 minute', now() - interval '5 minute'),
+                (102, 91, ?, 101, 'Interview follow up prompt', 'ai_follow_up', 2, true, 1, 'Behavioral', '[]', NULL, now() - interval '4 minute', now() - interval '4 minute')
+            """.trimIndent(),
+            firstQuestionId,
+            secondQuestionId,
+        )
+
+        mockMvc.perform(get("/api/archive").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].questionId").value(secondQuestionId))
+            .andExpect(jsonPath("$[0].sourceType").value("interview"))
+            .andExpect(jsonPath("$[0].sourceSessionId").value(91))
+            .andExpect(jsonPath("$[0].sourceSessionQuestionId").value(102))
+            .andExpect(jsonPath("$[0].isFollowUp").value(true))
+            .andExpect(jsonPath("$[1].questionId").value(firstQuestionId))
+            .andExpect(jsonPath("$[1].sourceType").value("interview"))
+            .andExpect(jsonPath("$[1].sourceSessionId").value(91))
+            .andExpect(jsonPath("$[1].sourceSessionQuestionId").value(101))
+            .andExpect(jsonPath("$[1].isFollowUp").value(false))
+    }
+
     private fun insertQuestion(title: String, difficulty: String): Long {
         val categoryId = jdbcTemplate.queryForObject("SELECT id FROM categories WHERE name = 'System Design'", Long::class.java)
         return jdbcTemplate.queryForObject(
