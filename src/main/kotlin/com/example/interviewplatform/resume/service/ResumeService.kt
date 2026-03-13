@@ -28,6 +28,7 @@ import com.example.interviewplatform.resume.entity.ResumeExperienceSnapshotEntit
 import com.example.interviewplatform.resume.entity.ResumeEntity
 import com.example.interviewplatform.resume.entity.ResumeProfileSnapshotEntity
 import com.example.interviewplatform.resume.entity.ResumeProjectSnapshotEntity
+import com.example.interviewplatform.resume.entity.ResumeProjectTagEntity
 import com.example.interviewplatform.resume.entity.ResumeRiskItemEntity
 import com.example.interviewplatform.resume.entity.ResumeSkillSnapshotEntity
 import com.example.interviewplatform.resume.entity.ResumeVersionEntity
@@ -42,6 +43,7 @@ import com.example.interviewplatform.resume.repository.ResumeEducationItemReposi
 import com.example.interviewplatform.resume.repository.ResumeExperienceSnapshotRepository
 import com.example.interviewplatform.resume.repository.ResumeProfileSnapshotRepository
 import com.example.interviewplatform.resume.repository.ResumeProjectSnapshotRepository
+import com.example.interviewplatform.resume.repository.ResumeProjectTagRepository
 import com.example.interviewplatform.resume.repository.ResumeRepository
 import com.example.interviewplatform.resume.repository.ResumeRiskItemRepository
 import com.example.interviewplatform.resume.repository.ResumeSkillSnapshotRepository
@@ -68,6 +70,7 @@ class ResumeService(
     private val resumeContactPointRepository: ResumeContactPointRepository,
     private val resumeCompetencyItemRepository: ResumeCompetencyItemRepository,
     private val resumeProjectSnapshotRepository: ResumeProjectSnapshotRepository,
+    private val resumeProjectTagRepository: ResumeProjectTagRepository,
     private val resumeAchievementItemRepository: ResumeAchievementItemRepository,
     private val resumeEducationItemRepository: ResumeEducationItemRepository,
     private val resumeCertificationItemRepository: ResumeCertificationItemRepository,
@@ -328,10 +331,15 @@ class ResumeService(
     @Transactional(readOnly = true)
     fun listResumeVersionProjects(userId: Long, versionId: Long): ResumeProjectSnapshotResponseDto {
         val version = requireOwnedVersion(userId, versionId)
+        val projects = resumeProjectSnapshotRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(versionId)
+        val tagsByProjectId = resumeProjectTagRepository
+            .findByResumeProjectSnapshotIdInOrderByResumeProjectSnapshotIdAscDisplayOrderAscIdAsc(projects.map { it.id })
+            .groupBy { it.resumeProjectSnapshotId }
         return ResumeProjectSnapshotResponseDto(
             resumeVersionId = version.id,
-            items = resumeProjectSnapshotRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(versionId)
-                .map(ResumeIntelligenceMapper::toProjectDto),
+            items = projects.map { project ->
+                ResumeIntelligenceMapper.toProjectDto(project, tagsByProjectId[project.id].orEmpty())
+            },
             generatedAt = version.uploadedAt,
         )
     }
@@ -457,6 +465,10 @@ class ResumeService(
         val now = clockService.now()
         resumeRiskItemRepository.deleteByResumeVersionId(version.id)
         resumeAchievementItemRepository.deleteByResumeVersionId(version.id)
+        val existingProjects = resumeProjectSnapshotRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(version.id)
+        if (existingProjects.isNotEmpty()) {
+            resumeProjectTagRepository.deleteByResumeProjectSnapshotIdIn(existingProjects.map { it.id })
+        }
         resumeProjectSnapshotRepository.deleteByResumeVersionId(version.id)
         resumeAwardItemRepository.deleteByResumeVersionId(version.id)
         resumeCertificationItemRepository.deleteByResumeVersionId(version.id)
@@ -571,6 +583,9 @@ class ResumeService(
                         organizationName = project.organizationName.truncateTo(255),
                         roleName = project.roleName.truncateTo(255),
                         summaryText = project.summaryText,
+                        contentText = project.contentText,
+                        projectCategoryCode = project.projectCategoryCode.truncateTo(128),
+                        projectCategoryName = project.projectCategoryName.truncateTo(255),
                         techStackText = project.techStackText,
                         startedOn = project.startedOn,
                         endedOn = project.endedOn,
@@ -583,6 +598,24 @@ class ResumeService(
             )
         }
         val projectByDisplayOrder = savedProjects.associateBy { it.displayOrder }
+        if (savedProjects.isNotEmpty()) {
+            val sourceProjectsByDisplayOrder = extracted.projects.associateBy { it.displayOrder }
+            resumeProjectTagRepository.saveAll(
+                savedProjects.flatMap { savedProject ->
+                    sourceProjectsByDisplayOrder[savedProject.displayOrder].orEmptyProjectTags().map { tag ->
+                        ResumeProjectTagEntity(
+                            resumeProjectSnapshotId = savedProject.id,
+                            tagName = tag.tagName.truncateTo(128).orEmpty(),
+                            tagType = tag.tagType.truncateTo(64),
+                            displayOrder = tag.displayOrder,
+                            sourceText = tag.sourceText,
+                            createdAt = now,
+                            updatedAt = now,
+                        )
+                    }
+                },
+            )
+        }
 
         if (extracted.achievements.isNotEmpty()) {
             resumeAchievementItemRepository.saveAll(
@@ -802,3 +835,5 @@ private fun String?.truncateTo(maxLength: Int): String? =
     this?.trim()?.takeIf { it.isNotEmpty() }?.let { value ->
         if (value.length <= maxLength) value else value.take(maxLength)
     }
+
+private fun ExtractedResumeProject?.orEmptyProjectTags(): List<ExtractedResumeProjectTag> = this?.tags.orEmpty()

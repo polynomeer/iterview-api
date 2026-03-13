@@ -9,6 +9,7 @@ import com.example.interviewplatform.resume.dto.ResumeEducationItemDto
 import com.example.interviewplatform.resume.dto.ResumeExperienceSnapshotDto
 import com.example.interviewplatform.resume.dto.ResumeProfileSnapshotDto
 import com.example.interviewplatform.resume.dto.ResumeProjectSnapshotDto
+import com.example.interviewplatform.resume.dto.ResumeProjectTagDto
 import com.example.interviewplatform.resume.dto.ResumeRiskItemDto
 import com.example.interviewplatform.resume.dto.ResumeSkillSnapshotDto
 import com.example.interviewplatform.resume.entity.ResumeAchievementItemEntity
@@ -20,6 +21,7 @@ import com.example.interviewplatform.resume.entity.ResumeEducationItemEntity
 import com.example.interviewplatform.resume.entity.ResumeExperienceSnapshotEntity
 import com.example.interviewplatform.resume.entity.ResumeProfileSnapshotEntity
 import com.example.interviewplatform.resume.entity.ResumeProjectSnapshotEntity
+import com.example.interviewplatform.resume.entity.ResumeProjectTagEntity
 import com.example.interviewplatform.resume.entity.ResumeRiskItemEntity
 import com.example.interviewplatform.resume.entity.ResumeSkillSnapshotEntity
 import com.example.interviewplatform.skill.entity.SkillCategoryEntity
@@ -91,16 +93,28 @@ object ResumeIntelligenceMapper {
         displayOrder = entity.displayOrder,
     )
 
-    fun toProjectDto(entity: ResumeProjectSnapshotEntity): ResumeProjectSnapshotDto = ResumeProjectSnapshotDto(
+    fun toProjectDto(entity: ResumeProjectSnapshotEntity, tags: List<ResumeProjectTagEntity>): ResumeProjectSnapshotDto = ResumeProjectSnapshotDto(
         id = entity.id,
         resumeExperienceSnapshotId = entity.resumeExperienceSnapshotId,
         title = entity.title,
         organizationName = entity.organizationName,
         roleName = entity.roleName,
         summaryText = entity.summaryText,
+        contentText = entity.contentText,
+        projectCategoryCode = entity.projectCategoryCode,
+        projectCategoryName = entity.projectCategoryName,
+        tags = tags.map(::toProjectTagDto),
         techStackText = entity.techStackText,
         startedOn = entity.startedOn,
         endedOn = entity.endedOn,
+        displayOrder = entity.displayOrder,
+        sourceText = entity.sourceText,
+    )
+
+    fun toProjectTagDto(entity: ResumeProjectTagEntity): ResumeProjectTagDto = ResumeProjectTagDto(
+        id = entity.id,
+        tagName = entity.tagName,
+        tagType = entity.tagType,
         displayOrder = entity.displayOrder,
         sourceText = entity.sourceText,
     )

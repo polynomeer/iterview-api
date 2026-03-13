@@ -78,12 +78,23 @@ data class ExtractedResumeProject(
     val organizationName: String?,
     val roleName: String?,
     val summaryText: String,
+    val contentText: String?,
+    val projectCategoryCode: String?,
+    val projectCategoryName: String?,
+    val tags: List<ExtractedResumeProjectTag>,
     val techStackText: String?,
     val startedOn: java.time.LocalDate?,
     val endedOn: java.time.LocalDate?,
     val displayOrder: Int,
     val sourceText: String?,
     val experienceDisplayOrder: Int?,
+)
+
+data class ExtractedResumeProjectTag(
+    val tagName: String,
+    val tagType: String?,
+    val displayOrder: Int,
+    val sourceText: String?,
 )
 
 data class ExtractedResumeAchievement(

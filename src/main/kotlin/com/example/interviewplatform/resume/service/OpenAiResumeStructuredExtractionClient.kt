@@ -154,6 +154,14 @@ class OpenAiResumeStructuredExtractionClient(
                 "organizationName" to nullableString(),
                 "roleName" to nullableString(),
                 "summaryText" to string(),
+                "contentText" to nullableString(),
+                "projectCategoryCode" to nullableString(),
+                "projectCategoryName" to nullableString(),
+                "tags" to arrayOfObjects(
+                    "tagName" to string(),
+                    "tagType" to nullableString(),
+                    "sourceText" to nullableString(),
+                ),
                 "techStackText" to nullableString(),
                 "startedOn" to nullableString(),
                 "endedOn" to nullableString(),
@@ -269,6 +277,17 @@ class OpenAiResumeStructuredExtractionClient(
         organizationName = node.path("organizationName").asText(null),
         roleName = node.path("roleName").asText(null),
         summaryText = node.path("summaryText").asText(),
+        contentText = node.path("contentText").asText(null),
+        projectCategoryCode = node.path("projectCategoryCode").asText(null),
+        projectCategoryName = node.path("projectCategoryName").asText(null),
+        tags = node.path("tags").mapIndexed { index, tagNode ->
+            ExtractedResumeProjectTag(
+                tagName = tagNode.path("tagName").asText(),
+                tagType = tagNode.path("tagType").asText(null),
+                displayOrder = index + 1,
+                sourceText = tagNode.path("sourceText").asText(null),
+            )
+        },
         techStackText = node.path("techStackText").asText(null),
         startedOn = node.path("startedOn").asText(null)?.let(LocalDate::parse),
         endedOn = node.path("endedOn").asText(null)?.let(LocalDate::parse),

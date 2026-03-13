@@ -333,6 +333,43 @@ class ResumeApiIntegrationTest {
     }
 
     @Test
+    fun `resume projects endpoint returns content category and tags`() {
+        val resumeId = createResume("Project Resume")
+        val versionId = createResumeVersion(
+            resumeId = resumeId,
+            fileUrl = "https://files.example.com/project-resume.pdf",
+            summaryText = "Backend engineer with payments experience",
+            rawText = """
+                Resume Project
+                Mail : projects@example.com
+                💼 경력
+                Acme Corp - Backend Engineer 2024.01 ~ 현재
+                Led commerce backend platform work.
+                📜 프로젝트
+                Payments Platform Revamp 2024.02 ~ 2024.12
+                기술스택 Kotlin, Spring Boot, PostgreSQL
+                Built payment APIs and billing workflows for checkout.
+                Improved checkout latency by 35% with cache optimization.
+            """.trimIndent(),
+            parsedJson = null,
+        )
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/projects").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.resumeVersionId").value(versionId))
+            .andExpect(jsonPath("$.items.length()").value(1))
+            .andExpect(jsonPath("$.items[0].title").value("Payments Platform Revamp"))
+            .andExpect(jsonPath("$.items[0].contentText").isNotEmpty)
+            .andExpect(jsonPath("$.items[0].projectCategoryCode").value("payments"))
+            .andExpect(jsonPath("$.items[0].projectCategoryName").value("Payments"))
+            .andExpect(jsonPath("$.items[0].tags.length()").isNotEmpty)
+            .andExpect(jsonPath("$.items[0].tags[0].tagName").isNotEmpty)
+
+        assertCountAtLeast("resume_project_snapshots", versionId, 1)
+        assertProjectTagCountAtLeast(versionId, 1)
+    }
+
+    @Test
     fun `invalid pdf upload stores failed version status`() {
         val resumeId = createResume("Broken Resume")
         val invalidPdf = MockMultipartFile(
@@ -513,5 +550,19 @@ class ResumeApiIntegrationTest {
             resumeVersionId,
         )
         assertTrue(actual >= minimum, "Expected at least $minimum rows in $tableName for resume version $resumeVersionId but found $actual")
+    }
+
+    private fun assertProjectTagCountAtLeast(resumeVersionId: Long, minimum: Int) {
+        val actual = jdbcTemplate.queryForObject(
+            """
+            SELECT COUNT(*)
+            FROM resume_project_tags rpt
+            JOIN resume_project_snapshots rps ON rps.id = rpt.resume_project_snapshot_id
+            WHERE rps.resume_version_id = ?
+            """.trimIndent(),
+            Int::class.java,
+            resumeVersionId,
+        )
+        assertTrue(actual >= minimum, "Expected at least $minimum project tags for resume version $resumeVersionId but found $actual")
     }
 }

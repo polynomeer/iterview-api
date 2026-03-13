@@ -177,11 +177,17 @@ class PlaceholderResumeSignalExtractionService(
         sections.projectEntries.take(12).mapIndexed { index, entry ->
             val header = parseProjectHeader(entry.firstOrNull().orEmpty())
             val sourceText = entry.joinToString(" ")
+            val contentText = entry.drop(1).joinToString("\n").ifBlank { null }
+            val category = inferProjectCategory(sourceText)
             ExtractedResumeProject(
                 title = header.title ?: "Project ${index + 1}",
                 organizationName = experiences.getOrNull(index)?.companyName,
                 roleName = null,
                 summaryText = entry.drop(1).take(4).joinToString(" ").ifBlank { sourceText },
+                contentText = contentText,
+                projectCategoryCode = category?.first,
+                projectCategoryName = category?.second,
+                tags = inferProjectTags(sourceText),
                 techStackText = entry.firstOrNull { it.startsWith("기술 ") || it.startsWith("기술스택 ") },
                 startedOn = header.startedOn,
                 endedOn = header.endedOn,
@@ -371,6 +377,33 @@ class PlaceholderResumeSignalExtractionService(
         else -> "low"
     }
 
+    private fun inferProjectCategory(sourceText: String): Pair<String, String>? {
+        val normalized = sourceText.lowercase()
+        return when {
+            listOf("payment", "checkout", "billing", "결제").any { normalized.contains(it) } -> "payments" to "Payments"
+            listOf("search", "recommend", "ranking", "추천").any { normalized.contains(it) } -> "recommendation" to "Recommendation"
+            listOf("infra", "platform", "deployment", "ci/cd", "observability").any { normalized.contains(it) } -> "platform" to "Platform"
+            listOf("data", "analytics", "etl", "warehouse").any { normalized.contains(it) } -> "data" to "Data"
+            else -> null
+        }
+    }
+
+    private fun inferProjectTags(sourceText: String): List<ExtractedResumeProjectTag> {
+        val normalized = sourceText.lowercase()
+        return PROJECT_TAG_RULES.mapNotNull { rule ->
+            if (rule.keywords.any { normalized.contains(it) }) {
+                ExtractedResumeProjectTag(
+                    tagName = rule.tagName,
+                    tagType = rule.tagType,
+                    displayOrder = rule.displayOrder,
+                    sourceText = sourceText,
+                )
+            } else {
+                null
+            }
+        }
+    }
+
     private companion object {
         val KNOWN_SKILLS = listOf("Spring Boot", "Kotlin", "Java", "Go", "Python", "JPA", "QueryDSL", "MySQL", "Redis", "RabbitMQ", "SQS", "Docker", "AWS")
         val IMPACT_HINTS = listOf("improved", "reduced", "increased", "latency", "throughput", "개선", "단축")
@@ -386,6 +419,13 @@ class PlaceholderResumeSignalExtractionService(
         val METRIC_PATTERN = Regex("""\d+(?:\.\d+)?(?:%|배|건|GB|MB|초|분|시간)""")
         val CERT_CODE_PATTERN = Regex("""[A-Z0-9-]{5,}""")
         val SCORE_PATTERN = Regex("""\b\d{3,4}점\b""")
+        val PROJECT_TAG_RULES = listOf(
+            ProjectTagRule("backend", "domain", 1, listOf("backend", "api", "spring", "kotlin", "java")),
+            ProjectTagRule("payments", "business", 2, listOf("payment", "checkout", "billing", "결제")),
+            ProjectTagRule("performance", "quality", 3, listOf("latency", "throughput", "cache", "성능", "개선")),
+            ProjectTagRule("infra", "domain", 4, listOf("infra", "platform", "deployment", "ci/cd", "docker", "aws")),
+            ProjectTagRule("data", "domain", 5, listOf("data", "etl", "analytics", "warehouse", "pipeline")),
+        )
     }
 }
 
@@ -413,7 +453,7 @@ private data class ParsedResumeSections(
             sections[current] = mutableListOf()
             lines.forEach { line ->
                 val nextSection = when {
-                    line.contains("기술스택") -> "skills"
+                    current != "projects" && line.contains("기술스택") -> "skills"
                     line.contains("보유 역량") -> "competencies"
                     line.contains("교육 및 활동") -> "education"
                     line.contains("수상이력") -> "awards"
@@ -492,4 +532,11 @@ private data class AchievementSource(
     val sourceText: String,
     val experienceDisplayOrder: Int?,
     val projectDisplayOrder: Int?,
+)
+
+private data class ProjectTagRule(
+    val tagName: String,
+    val tagType: String,
+    val displayOrder: Int,
+    val keywords: List<String>,
 )
