@@ -6,6 +6,7 @@ data class InterviewOpeningGenerationInput(
     val resumeProjectSummaries: List<String>,
     val resumeRiskSummaries: List<String>,
     val resumeEvidenceCandidates: List<InterviewResumeEvidenceCandidate>,
+    val preferredResumeEvidenceCandidates: List<InterviewResumeEvidenceCandidate> = emptyList(),
 )
 
 data class GeneratedInterviewOpening(

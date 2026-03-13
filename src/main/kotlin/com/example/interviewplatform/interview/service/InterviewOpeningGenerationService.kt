@@ -17,7 +17,10 @@ class InterviewOpeningGenerationService(
     private val interviewResumeEvidenceAssembler: InterviewResumeEvidenceAssembler,
 ) {
     @Transactional(readOnly = true)
-    fun generateResumeOpening(resumeVersionId: Long): GeneratedInterviewOpening? {
+    fun generateResumeOpening(
+        resumeVersionId: Long,
+        preferredEvidenceCandidates: List<InterviewResumeEvidenceCandidate> = emptyList(),
+    ): GeneratedInterviewOpening? {
         if (!client.isEnabled()) {
             return null
         }
@@ -41,6 +44,7 @@ class InterviewOpeningGenerationService(
                 .map { "${it.title} (${it.severity}): ${it.description}" }
                 .take(5),
             resumeEvidenceCandidates = interviewResumeEvidenceAssembler.loadCandidates(resumeVersionId),
+            preferredResumeEvidenceCandidates = preferredEvidenceCandidates,
         )
         return runCatching { client.generate(input) }.getOrNull()
     }

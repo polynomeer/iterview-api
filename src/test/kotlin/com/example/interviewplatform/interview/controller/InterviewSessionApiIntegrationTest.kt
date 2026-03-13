@@ -132,6 +132,75 @@ class InterviewSessionApiIntegrationTest {
     }
 
     @Test
+    fun `full coverage resume session creates evidence inventory and resume map`() {
+        val resumeVersionId = insertResumeVersion()
+        insertResumeProject(resumeVersionId)
+        insertResumeAward(resumeVersionId)
+        insertResumeCertification(resumeVersionId)
+        insertResumeEducation(resumeVersionId)
+
+        val sessionResponse = mockMvc.perform(
+            post("/api/interview-sessions")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "sessionType" to "resume_mock",
+                            "interviewMode" to "full_coverage",
+                            "questionCount" to 1,
+                            "resumeVersionId" to resumeVersionId,
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.interviewMode").value("full_coverage"))
+            .andExpect(jsonPath("$.currentQuestion.sourceType").value("coverage_planner"))
+            .andExpect(jsonPath("$.currentQuestion.resumeEvidence[0].sourceRecordType").value("resume_project_snapshot"))
+            .andReturn()
+            .response
+            .contentAsString
+
+        val sessionJson = objectMapper.readTree(sessionResponse)
+        val sessionId = sessionJson.get("id").asLong()
+        val sessionQuestionId = sessionJson.get("currentQuestion").get("id").asLong()
+
+        mockMvc.perform(get("/api/interview-sessions/$sessionId/coverage").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.overallCoveragePercent").value(25))
+            .andExpect(jsonPath("$.evidenceItems.length()").value(4))
+            .andExpect(jsonPath("$.evidenceItems[0].coverageStatus").value("asked"))
+            .andExpect(jsonPath("$.evidenceItems[0].linkedQuestionIds[0]").value(sessionQuestionId))
+
+        mockMvc.perform(
+            post("/api/interview-sessions/$sessionId/answers")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "sessionQuestionId" to sessionQuestionId,
+                            "answerMode" to "text",
+                            "contentText" to "I led the migration, staged rollout, monitored errors, and measured conversion lift after the release.\n".repeat(5),
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+
+        mockMvc.perform(get("/api/interview-sessions/$sessionId/coverage").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.overallCoveragePercent").value(50))
+            .andExpect(jsonPath("$.defendedCoveragePercent").value(25))
+
+        mockMvc.perform(get("/api/interview-sessions/$sessionId/resume-map").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.resumeVersionId").value(resumeVersionId))
+            .andExpect(jsonPath("$.evidenceItems[0].relatedQuestions[0].sessionQuestionId").value(sessionQuestionId))
+    }
+
+    @Test
     fun `review mock session prioritizes pending review questions`() {
         val categoryId = insertCategory("Distributed Systems")
         val questionId = insertQuestion("Explain retry backoff", categoryId)
@@ -524,6 +593,72 @@ class InterviewSessionApiIntegrationTest {
             resumeId,
         )
     }
+
+    private fun insertResumeProject(resumeVersionId: Long): Long =
+        jdbcTemplate.queryForObject(
+            """
+            INSERT INTO resume_project_snapshots (
+                resume_version_id, title, organization_name, role_name, summary_text, content_text,
+                project_category_code, project_category_name, tech_stack_text, display_order, source_text, created_at, updated_at
+            ) VALUES (
+                ?, 'Payment platform migration', 'Example Corp', 'Backend Engineer',
+                'Migrated the payment platform without downtime',
+                'Led a staged payment migration, reduced risk with feature flags, and improved conversion after the rollout.',
+                'backend_platform', 'Backend Platform', 'Kotlin, Spring Boot, PostgreSQL', 1,
+                'Led a staged payment migration, reduced risk with feature flags, and improved conversion after the rollout.',
+                now(), now()
+            ) RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            resumeVersionId,
+        )
+
+    private fun insertResumeAward(resumeVersionId: Long): Long =
+        jdbcTemplate.queryForObject(
+            """
+            INSERT INTO resume_award_items (
+                resume_version_id, title, issuer_name, description, display_order, source_text, created_at, updated_at
+            ) VALUES (
+                ?, 'Engineering Excellence Award', 'Example Corp',
+                'Recognized for leading a high-impact platform migration', 2,
+                'Recognized for leading a high-impact platform migration',
+                now(), now()
+            ) RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            resumeVersionId,
+        )
+
+    private fun insertResumeCertification(resumeVersionId: Long): Long =
+        jdbcTemplate.queryForObject(
+            """
+            INSERT INTO resume_certification_items (
+                resume_version_id, name, issuer_name, credential_code, score_text, display_order, source_text, created_at, updated_at
+            ) VALUES (
+                ?, 'AWS Solutions Architect Associate', 'Amazon', 'AWS-SAA-123', 'Pass', 3,
+                'AWS Solutions Architect Associate',
+                now(), now()
+            ) RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            resumeVersionId,
+        )
+
+    private fun insertResumeEducation(resumeVersionId: Long): Long =
+        jdbcTemplate.queryForObject(
+            """
+            INSERT INTO resume_education_items (
+                resume_version_id, institution_name, degree_name, field_of_study, description, display_order, source_text, created_at, updated_at
+            ) VALUES (
+                ?, 'Example University', 'B.S.', 'Computer Science',
+                'Studied distributed systems and database internals', 4,
+                'Studied distributed systems and database internals',
+                now(), now()
+            ) RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            resumeVersionId,
+        )
 
     private fun insertAnswerAttempt(questionId: Long): Long {
         val answerAttemptId = jdbcTemplate.queryForObject(

@@ -132,6 +132,14 @@ class OpenAiInterviewOpeningGenerationClient(
                 appendLine("- [${candidate.sourceRecordType}:${candidate.sourceRecordId}] section=${candidate.section} label=${candidate.label ?: "-"} snippet=${candidate.snippet}")
             }
         }
+        if (input.preferredResumeEvidenceCandidates.isNotEmpty()) {
+            appendLine()
+            appendLine("Preferred evidence to prioritize for this opener:")
+            input.preferredResumeEvidenceCandidates.forEach { candidate ->
+                appendLine("- [${candidate.sourceRecordType}:${candidate.sourceRecordId}] section=${candidate.section} label=${candidate.label ?: "-"} snippet=${candidate.snippet}")
+            }
+            appendLine("When possible, anchor the opener to one of the preferred evidence items above.")
+        }
         appendLine()
         appendLine("Question design goal:")
         appendLine("Generate a realistic opener that is specific enough to be answerable from the resume, but deep enough to reveal explanation quality, problem-solving structure, technical understanding, or design judgment.")

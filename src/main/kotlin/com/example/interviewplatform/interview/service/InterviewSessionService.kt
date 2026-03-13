@@ -8,14 +8,24 @@ import com.example.interviewplatform.common.service.ClockService
 import com.example.interviewplatform.interview.dto.CreateInterviewSessionRequest
 import com.example.interviewplatform.interview.dto.InterviewSessionAdvanceResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionAnswerResponseDto
+import com.example.interviewplatform.interview.dto.InterviewSessionCoverageEvidenceItemDto
+import com.example.interviewplatform.interview.dto.InterviewSessionCoverageResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionDetailResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionListItemDto
 import com.example.interviewplatform.interview.dto.InterviewResumeEvidenceDto
+import com.example.interviewplatform.interview.dto.InterviewSessionResumeMapEvidenceItemDto
+import com.example.interviewplatform.interview.dto.InterviewSessionResumeMapQuestionDto
+import com.example.interviewplatform.interview.dto.InterviewSessionResumeMapResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionQuestionDto
 import com.example.interviewplatform.interview.dto.SubmitInterviewSessionAnswerRequest
+import com.example.interviewplatform.interview.entity.InterviewSessionEvidenceItemEntity
 import com.example.interviewplatform.interview.entity.InterviewSessionEntity
+import com.example.interviewplatform.interview.entity.InterviewSessionQuestionEvidenceLinkEntity
+import com.example.interviewplatform.interview.entity.InterviewSessionQuestionEvidenceLinkId
 import com.example.interviewplatform.interview.entity.InterviewSessionQuestionEntity
 import com.example.interviewplatform.interview.mapper.InterviewSessionMapper
+import com.example.interviewplatform.interview.repository.InterviewSessionEvidenceItemRepository
+import com.example.interviewplatform.interview.repository.InterviewSessionQuestionEvidenceLinkRepository
 import com.example.interviewplatform.interview.repository.InterviewSessionQuestionRepository
 import com.example.interviewplatform.interview.repository.InterviewSessionRepository
 import com.example.interviewplatform.question.entity.QuestionEntity
@@ -43,6 +53,8 @@ import org.springframework.web.server.ResponseStatusException
 class InterviewSessionService(
     private val interviewSessionRepository: InterviewSessionRepository,
     private val interviewSessionQuestionRepository: InterviewSessionQuestionRepository,
+    private val interviewSessionEvidenceItemRepository: InterviewSessionEvidenceItemRepository,
+    private val interviewSessionQuestionEvidenceLinkRepository: InterviewSessionQuestionEvidenceLinkRepository,
     private val questionRepository: QuestionRepository,
     private val questionRelationshipRepository: QuestionRelationshipRepository,
     private val questionSkillMappingRepository: QuestionSkillMappingRepository,
@@ -57,6 +69,7 @@ class InterviewSessionService(
     private val resumeRiskItemRepository: ResumeRiskItemRepository,
     private val resumeVersionRepository: ResumeVersionRepository,
     private val skillRepository: SkillRepository,
+    private val interviewResumeEvidenceAssembler: InterviewResumeEvidenceAssembler,
     private val interviewOpeningGenerationService: InterviewOpeningGenerationService,
     private val interviewFollowUpGenerationService: InterviewFollowUpGenerationService,
     private val clockService: ClockService,
@@ -112,18 +125,21 @@ class InterviewSessionService(
                 updatedAt = now,
             ),
         )
+        val coverageItems = initializeCoverageInventory(session, resumeVersionId, now)
         val initialRows = buildInitialRows(
             userId = userId,
             session = session,
             requestedCount = request.questionCount,
             seedQuestionIds = request.seedQuestionIds,
             resumeVersionId = resumeVersionId,
+            coverageItems = coverageItems,
             now = now,
         )
         if (initialRows.isEmpty()) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "No questions available for interview session")
         }
-        interviewSessionQuestionRepository.saveAll(initialRows)
+        val savedRows = interviewSessionQuestionRepository.saveAll(initialRows)
+        syncCoverageLinks(session, savedRows, now)
         return getSession(userId, session.id)
     }
 
@@ -132,6 +148,67 @@ class InterviewSessionService(
         val session = requireSession(userId, sessionId)
         val rows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(session.id)
         return toDetailResponse(session, rows)
+    }
+
+    @Transactional(readOnly = true)
+    fun getCoverage(userId: Long, sessionId: Long): InterviewSessionCoverageResponseDto {
+        val session = requireSession(userId, sessionId)
+        val evidenceItems = interviewSessionEvidenceItemRepository.findByInterviewSessionIdOrderByDisplayOrderAscIdAsc(session.id)
+        val linkedQuestionIdsByEvidenceId = loadLinkedQuestionIdsByEvidenceId(evidenceItems.map { it.id })
+        val total = evidenceItems.size
+        val covered = evidenceItems.count { it.coverageStatus != COVERAGE_STATUS_UNASKED }
+        val defended = evidenceItems.count { it.coverageStatus == COVERAGE_STATUS_DEFENDED }
+        return InterviewSessionCoverageResponseDto(
+            sessionId = session.id,
+            interviewMode = session.interviewMode,
+            overallCoveragePercent = percent(covered, total),
+            defendedCoveragePercent = percent(defended, total),
+            evidenceItems = evidenceItems.map { item ->
+                InterviewSessionCoverageEvidenceItemDto(
+                    id = item.id,
+                    section = item.section,
+                    label = item.label,
+                    snippet = item.snippet,
+                    coverageStatus = item.coverageStatus,
+                    linkedQuestionIds = linkedQuestionIdsByEvidenceId[item.id].orEmpty(),
+                )
+            },
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getResumeMap(userId: Long, sessionId: Long): InterviewSessionResumeMapResponseDto {
+        val session = requireSession(userId, sessionId)
+        val evidenceItems = interviewSessionEvidenceItemRepository.findByInterviewSessionIdOrderByDisplayOrderAscIdAsc(session.id)
+        val links = interviewSessionQuestionEvidenceLinkRepository.findByIdInterviewSessionEvidenceItemIdIn(evidenceItems.map { it.id })
+        val rowsById = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(session.id)
+            .associateBy { it.id }
+        val relatedQuestionsByEvidenceId = links.groupBy { it.id.interviewSessionEvidenceItemId }.mapValues { (_, groupedLinks) ->
+            groupedLinks.mapNotNull { link ->
+                rowsById[link.id.interviewSessionQuestionId]?.let { row ->
+                    InterviewSessionResumeMapQuestionDto(
+                        sessionQuestionId = row.id,
+                        title = row.promptText ?: "",
+                        sourceType = row.questionSourceType,
+                    )
+                }
+            }.sortedBy { question -> rowsById[question.sessionQuestionId]?.orderIndex }
+        }
+        return InterviewSessionResumeMapResponseDto(
+            sessionId = session.id,
+            resumeVersionId = session.resumeVersionId,
+            evidenceItems = evidenceItems.map { item ->
+                InterviewSessionResumeMapEvidenceItemDto(
+                    section = item.section,
+                    label = item.label,
+                    snippet = item.snippet,
+                    sourceRecordType = item.sourceRecordType,
+                    sourceRecordId = item.sourceRecordId,
+                    coverageStatus = item.coverageStatus,
+                    relatedQuestions = relatedQuestionsByEvidenceId[item.id].orEmpty(),
+                )
+            },
+        )
     }
 
     @Transactional
@@ -197,7 +274,9 @@ class InterviewSessionService(
             ),
         )
 
-        maybeInsertFollowUp(
+        updateCoverageAfterAnswer(session, row, submission.scoreSummary.totalScore, now)
+
+        val insertedFollowUp = maybeInsertFollowUp(
             userId = userId,
             session = session,
             sessionId = session.id,
@@ -206,6 +285,9 @@ class InterviewSessionService(
             resumeVersionId = session.resumeVersionId,
             now = now,
         )
+        if (!insertedFollowUp) {
+            maybeInsertNextCoverageQuestion(userId = userId, session = session, now = now)
+        }
         val refreshedRows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(session.id)
         val unresolvedNext = refreshedRows.firstOrNull { it.answerAttemptId == null }
         val updatedSession = if (unresolvedNext == null) {
@@ -383,13 +465,27 @@ class InterviewSessionService(
         requestedCount: Int,
         seedQuestionIds: List<Long>,
         resumeVersionId: Long?,
+        coverageItems: List<InterviewSessionEvidenceItemEntity>,
         now: java.time.Instant,
     ): List<InterviewSessionQuestionEntity> {
+        if (session.interviewMode == INTERVIEW_MODE_FULL_COVERAGE && session.sessionType == SESSION_TYPE_RESUME_MOCK && resumeVersionId != null) {
+            val openingRow = buildFullCoverageOpeningRow(
+                userId = userId,
+                session = session,
+                resumeVersionId = resumeVersionId,
+                coverageItems = coverageItems,
+                now = now,
+            )
+            if (openingRow != null) {
+                return listOf(openingRow)
+            }
+        }
         if (session.sessionType == SESSION_TYPE_RESUME_MOCK && resumeVersionId != null) {
             val openingRow = buildGeneratedOpeningRow(
                 userId = userId,
                 session = session,
                 resumeVersionId = resumeVersionId,
+                preferredEvidenceCandidates = emptyList(),
                 now = now,
             )
             if (openingRow != null) {
@@ -413,9 +509,13 @@ class InterviewSessionService(
         userId: Long,
         session: InterviewSessionEntity,
         resumeVersionId: Long,
+        preferredEvidenceCandidates: List<InterviewResumeEvidenceCandidate>,
         now: java.time.Instant,
     ): InterviewSessionQuestionEntity? {
-        val generated = interviewOpeningGenerationService.generateResumeOpening(resumeVersionId) ?: return null
+        val generated = interviewOpeningGenerationService.generateResumeOpening(
+            resumeVersionId = resumeVersionId,
+            preferredEvidenceCandidates = preferredEvidenceCandidates,
+        ) ?: return null
         val categoryId = resolveGeneratedQuestionCategoryId(userId)
         val generatedQuestion = questionRepository.save(
             QuestionEntity(
@@ -459,6 +559,36 @@ class InterviewSessionService(
         )
     }
 
+    private fun buildFullCoverageOpeningRow(
+        userId: Long,
+        session: InterviewSessionEntity,
+        resumeVersionId: Long,
+        coverageItems: List<InterviewSessionEvidenceItemEntity>,
+        now: java.time.Instant,
+    ): InterviewSessionQuestionEntity? {
+        val targetItem = coverageItems.firstOrNull() ?: return null
+        val preferredEvidenceCandidate = targetItem.toEvidenceCandidate()
+        return buildGeneratedOpeningRow(
+            userId = userId,
+            session = session,
+            resumeVersionId = resumeVersionId,
+            preferredEvidenceCandidates = listOf(preferredEvidenceCandidate),
+            now = now,
+        ) ?: buildDeterministicCoverageRow(
+            userId = userId,
+            session = session,
+            targetItem = targetItem,
+            orderIndex = 1,
+            parentSessionQuestionId = null,
+            isFollowUp = false,
+            depth = 0,
+            sourceType = SOURCE_TYPE_COVERAGE_PLANNER,
+            generationStatus = GENERATION_STATUS_COVERAGE_PLANNED,
+            generationRationale = "Generated from the next uncovered resume evidence item in full coverage mode.",
+            now = now,
+        )
+    }
+
     private fun maybeInsertFollowUp(
         userId: Long,
         session: InterviewSessionEntity,
@@ -467,14 +597,14 @@ class InterviewSessionService(
         answerText: String,
         resumeVersionId: Long?,
         now: java.time.Instant,
-    ) {
+    ): Boolean {
         if (answeredRow.depth >= maxFollowUpDepth) {
-            return
+            return false
         }
-        val parentQuestionId = answeredRow.questionId ?: return
+        val parentQuestionId = answeredRow.questionId ?: return false
         val existingRows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(sessionId)
         if (existingRows.any { it.parentSessionQuestionId == answeredRow.id }) {
-            return
+            return false
         }
 
         if (session.sessionType == SESSION_TYPE_RESUME_MOCK) {
@@ -488,22 +618,23 @@ class InterviewSessionService(
             if (generated != null) {
                 insertGeneratedFollowUp(
                     userId = userId,
+                    session = session,
                     parentQuestionId = parentQuestionId,
                     generated = generated,
                     answeredRow = answeredRow,
                     existingRows = existingRows,
                     now = now,
                 )
-                return
+                return true
             }
         }
 
         val edge = questionRelationshipRepository.findByParentQuestionIdOrderByDisplayOrderAscIdAsc(parentQuestionId)
             .firstOrNull { it.relationshipType.lowercase() == RELATIONSHIP_TYPE_FOLLOW_UP }
-            ?: return
-        val childQuestion = questionRepository.findByIdAndIsActiveTrue(edge.childQuestionId) ?: return
+            ?: return false
+        val childQuestion = questionRepository.findByIdAndIsActiveTrue(edge.childQuestionId) ?: return false
         if (existingRows.any { it.questionId == childQuestion.id && it.parentSessionQuestionId == answeredRow.id }) {
-            return
+            return false
         }
 
         shiftRowsForInsertion(existingRows, answeredRow.orderIndex, now)
@@ -534,10 +665,12 @@ class InterviewSessionService(
                 updatedAt = now,
             ),
         )
+        return true
     }
 
     private fun insertGeneratedFollowUp(
         userId: Long,
+        session: InterviewSessionEntity,
         parentQuestionId: Long,
         generated: GeneratedInterviewFollowUp,
         answeredRow: InterviewSessionQuestionEntity,
@@ -566,7 +699,7 @@ class InterviewSessionService(
                 updatedAt = now,
             ),
         )
-        interviewSessionQuestionRepository.save(
+        val savedRow = interviewSessionQuestionRepository.save(
             InterviewSessionQuestionEntity(
                 interviewSessionId = answeredRow.interviewSessionId,
                 questionId = generatedQuestion.id,
@@ -590,7 +723,329 @@ class InterviewSessionService(
                 updatedAt = now,
             ),
         )
+        syncCoverageLinks(session, listOf(savedRow), now)
     }
+
+    private fun initializeCoverageInventory(
+        session: InterviewSessionEntity,
+        resumeVersionId: Long?,
+        now: java.time.Instant,
+    ): List<InterviewSessionEvidenceItemEntity> {
+        if (session.interviewMode != INTERVIEW_MODE_FULL_COVERAGE) {
+            return emptyList()
+        }
+        if (session.sessionType != SESSION_TYPE_RESUME_MOCK || resumeVersionId == null) {
+            throw ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "full_coverage interviewMode is only supported for resume_mock sessions with resumeVersionId",
+            )
+        }
+
+        val candidates = interviewResumeEvidenceAssembler.loadCandidates(resumeVersionId, FULL_COVERAGE_EVIDENCE_LIMIT)
+        if (candidates.isEmpty()) {
+            return emptyList()
+        }
+        return interviewSessionEvidenceItemRepository.saveAll(
+            candidates.mapIndexed { index, candidate ->
+                InterviewSessionEvidenceItemEntity(
+                    interviewSessionId = session.id,
+                    section = candidate.section,
+                    label = candidate.label,
+                    snippet = candidate.snippet,
+                    sourceRecordType = candidate.sourceRecordType,
+                    sourceRecordId = candidate.sourceRecordId,
+                    coverageStatus = COVERAGE_STATUS_UNASKED,
+                    coveragePriority = coveragePriority(candidate.section, index),
+                    displayOrder = index + 1,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            },
+        )
+    }
+
+    private fun syncCoverageLinks(
+        session: InterviewSessionEntity,
+        rows: List<InterviewSessionQuestionEntity>,
+        now: java.time.Instant,
+    ) {
+        if (session.interviewMode != INTERVIEW_MODE_FULL_COVERAGE || rows.isEmpty()) {
+            return
+        }
+        val evidenceItems = interviewSessionEvidenceItemRepository.findByInterviewSessionIdOrderByDisplayOrderAscIdAsc(session.id)
+        if (evidenceItems.isEmpty()) {
+            return
+        }
+        val evidenceBySourceKey = evidenceItems.associateBy { evidenceKey(it.sourceRecordType, it.sourceRecordId) }
+        val evidenceBySnippet = evidenceItems.associateBy { normalizeSnippet(it.snippet) }
+        rows.forEach { row ->
+            val resumeEvidence = decodeResumeEvidence(row.resumeEvidenceJson)
+            val matchedEvidenceIds = linkedSetOf<Long>()
+            resumeEvidence.forEach { evidence ->
+                val matchedItem = when {
+                    evidence.sourceRecordType != null && evidence.sourceRecordId != null ->
+                        evidenceBySourceKey[evidenceKey(evidence.sourceRecordType, evidence.sourceRecordId)]
+                    else -> null
+                } ?: evidenceBySnippet[normalizeSnippet(evidence.snippet)]
+                if (matchedItem != null) {
+                    matchedEvidenceIds += matchedItem.id
+                }
+            }
+            if (matchedEvidenceIds.isEmpty() && row.parentSessionQuestionId != null) {
+                interviewSessionQuestionEvidenceLinkRepository.findByIdInterviewSessionQuestionIdIn(listOf(row.parentSessionQuestionId))
+                    .map { it.id.interviewSessionEvidenceItemId }
+                    .forEach { matchedEvidenceIds += it }
+            }
+            if (matchedEvidenceIds.isEmpty()) {
+                val firstUnlinkedItem = evidenceItems.firstOrNull { item ->
+                    !interviewSessionQuestionEvidenceLinkRepository.existsById(
+                        InterviewSessionQuestionEvidenceLinkId(
+                            interviewSessionQuestionId = row.id,
+                            interviewSessionEvidenceItemId = item.id,
+                        ),
+                    ) && item.coverageStatus == COVERAGE_STATUS_UNASKED
+                }
+                if (firstUnlinkedItem != null) {
+                    matchedEvidenceIds += firstUnlinkedItem.id
+                }
+            }
+            matchedEvidenceIds.forEachIndexed { index, evidenceItemId ->
+                val linkId = InterviewSessionQuestionEvidenceLinkId(
+                    interviewSessionQuestionId = row.id,
+                    interviewSessionEvidenceItemId = evidenceItemId,
+                )
+                if (!interviewSessionQuestionEvidenceLinkRepository.existsById(linkId)) {
+                    interviewSessionQuestionEvidenceLinkRepository.save(
+                        InterviewSessionQuestionEvidenceLinkEntity(
+                            id = linkId,
+                            linkRole = if (index == 0) LINK_ROLE_PRIMARY else LINK_ROLE_SUPPORTING,
+                            createdAt = now,
+                        ),
+                    )
+                }
+                markCoverageStatus(evidenceItemId, COVERAGE_STATUS_ASKED, now)
+            }
+        }
+    }
+
+    private fun updateCoverageAfterAnswer(
+        session: InterviewSessionEntity,
+        answeredRow: InterviewSessionQuestionEntity,
+        totalScore: Int,
+        now: java.time.Instant,
+    ) {
+        if (session.interviewMode != INTERVIEW_MODE_FULL_COVERAGE) {
+            return
+        }
+        val links = interviewSessionQuestionEvidenceLinkRepository.findByIdInterviewSessionQuestionIdIn(listOf(answeredRow.id))
+        if (links.isEmpty()) {
+            return
+        }
+        val status = if (totalScore >= COVERAGE_DEFENDED_SCORE_THRESHOLD) {
+            COVERAGE_STATUS_DEFENDED
+        } else {
+            COVERAGE_STATUS_WEAK
+        }
+        links.forEach { link ->
+            markCoverageStatus(link.id.interviewSessionEvidenceItemId, status, now)
+        }
+    }
+
+    private fun maybeInsertNextCoverageQuestion(
+        userId: Long,
+        session: InterviewSessionEntity,
+        now: java.time.Instant,
+    ) {
+        if (session.interviewMode != INTERVIEW_MODE_FULL_COVERAGE || session.resumeVersionId == null) {
+            return
+        }
+        val nextItem = interviewSessionEvidenceItemRepository
+            .findFirstByInterviewSessionIdAndCoverageStatusOrderByCoveragePriorityDescDisplayOrderAscIdAsc(
+                session.id,
+                COVERAGE_STATUS_UNASKED,
+            ) ?: return
+        val existingRows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(session.id)
+        val nextOrderIndex = (existingRows.maxOfOrNull { it.orderIndex } ?: 0) + 1
+        val newRow = buildGeneratedOpeningRow(
+            userId = userId,
+            session = session,
+            resumeVersionId = session.resumeVersionId,
+            preferredEvidenceCandidates = listOf(nextItem.toEvidenceCandidate()),
+            now = now,
+        ) ?: buildDeterministicCoverageRow(
+            userId = userId,
+            session = session,
+            targetItem = nextItem,
+            orderIndex = nextOrderIndex,
+            parentSessionQuestionId = null,
+            isFollowUp = false,
+            depth = 0,
+            sourceType = SOURCE_TYPE_COVERAGE_PLANNER,
+            generationStatus = GENERATION_STATUS_COVERAGE_PLANNED,
+            generationRationale = "Generated from the next uncovered resume evidence item in full coverage mode.",
+            now = now,
+        )
+        val savedRow = interviewSessionQuestionRepository.save(newRow.copyForInsert(orderIndex = nextOrderIndex, now = now))
+        syncCoverageLinks(session, listOf(savedRow), now)
+    }
+
+    private fun buildDeterministicCoverageRow(
+        userId: Long,
+        session: InterviewSessionEntity,
+        targetItem: InterviewSessionEvidenceItemEntity,
+        orderIndex: Int,
+        parentSessionQuestionId: Long?,
+        isFollowUp: Boolean,
+        depth: Int,
+        sourceType: String,
+        generationStatus: String,
+        generationRationale: String,
+        now: java.time.Instant,
+    ): InterviewSessionQuestionEntity {
+        val categoryId = resolveGeneratedQuestionCategoryId(userId)
+        val title = when (targetItem.section) {
+            "project" -> "Walk me through ${targetItem.label ?: "this project"} in concrete detail."
+            "experience" -> "Describe the problem and solution behind ${targetItem.label ?: "this experience"}."
+            "award" -> "What specific work led to ${targetItem.label ?: "this award"}?"
+            "certification" -> "How has ${targetItem.label ?: "this certification"} affected your real work?"
+            "education" -> "How has ${targetItem.label ?: "this education experience"} influenced your engineering work?"
+            else -> "Explain the concrete example behind ${targetItem.label ?: "this resume detail"}."
+        }
+        val body =
+            "Resume evidence: ${targetItem.snippet}\nAnswer with the situation, your role, the decisions you made, the result, and what you learned."
+        val generatedQuestion = questionRepository.save(
+            QuestionEntity(
+                authorUserId = userId,
+                categoryId = categoryId,
+                title = title,
+                body = body,
+                questionType = QUESTION_TYPE_BEHAVIORAL,
+                difficultyLevel = QUESTION_DIFFICULTY_MEDIUM,
+                sourceType = QUESTION_SOURCE_TYPE_INTERVIEW_AI,
+                qualityStatus = QUESTION_QUALITY_STATUS_GENERATED,
+                visibility = QUESTION_VISIBILITY_PRIVATE,
+                expectedAnswerSeconds = DEFAULT_EXPECTED_ANSWER_SECONDS,
+                isActive = true,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+        val categoryName = categoryRepository.findById(categoryId).orElse(null)?.name
+        return InterviewSessionQuestionEntity(
+            interviewSessionId = session.id,
+            questionId = generatedQuestion.id,
+            parentSessionQuestionId = parentSessionQuestionId,
+            promptText = title,
+            bodyText = body,
+            questionSourceType = sourceType,
+            orderIndex = orderIndex,
+            isFollowUp = isFollowUp,
+            depth = depth,
+            categoryName = categoryName,
+            tagsJson = objectMapper.writeValueAsString(listOf(targetItem.section, "resume", "coverage")),
+            focusSkillNamesJson = objectMapper.writeValueAsString(emptyList<String>()),
+            resumeContextSummary = targetItem.snippet,
+            resumeEvidenceJson = objectMapper.writeValueAsString(
+                listOf(
+                    GeneratedInterviewResumeEvidence(
+                        section = targetItem.section,
+                        label = targetItem.label,
+                        snippet = targetItem.snippet,
+                        sourceRecordType = targetItem.sourceRecordType,
+                        sourceRecordId = targetItem.sourceRecordId,
+                        confidence = 1.0,
+                    ),
+                ),
+            ),
+            generationRationale = generationRationale,
+            generationStatus = generationStatus,
+            createdAt = now,
+            updatedAt = now,
+        )
+    }
+
+    private fun loadLinkedQuestionIdsByEvidenceId(evidenceItemIds: List<Long>): Map<Long, List<Long>> {
+        if (evidenceItemIds.isEmpty()) {
+            return emptyMap()
+        }
+        return interviewSessionQuestionEvidenceLinkRepository.findByIdInterviewSessionEvidenceItemIdIn(evidenceItemIds)
+            .groupBy { it.id.interviewSessionEvidenceItemId }
+            .mapValues { (_, links) -> links.map { it.id.interviewSessionQuestionId }.distinct() }
+    }
+
+    private fun markCoverageStatus(evidenceItemId: Long, nextStatus: String, now: java.time.Instant) {
+        val current = interviewSessionEvidenceItemRepository.findById(evidenceItemId).orElse(null) ?: return
+        if (current.coverageStatus == nextStatus) {
+            return
+        }
+        interviewSessionEvidenceItemRepository.save(
+            InterviewSessionEvidenceItemEntity(
+                id = current.id,
+                interviewSessionId = current.interviewSessionId,
+                section = current.section,
+                label = current.label,
+                snippet = current.snippet,
+                sourceRecordType = current.sourceRecordType,
+                sourceRecordId = current.sourceRecordId,
+                coverageStatus = nextStatus,
+                coveragePriority = current.coveragePriority,
+                displayOrder = current.displayOrder,
+                createdAt = current.createdAt,
+                updatedAt = now,
+            ),
+        )
+    }
+
+    private fun InterviewSessionEvidenceItemEntity.toEvidenceCandidate(): InterviewResumeEvidenceCandidate =
+        InterviewResumeEvidenceCandidate(
+            section = section,
+            label = label,
+            snippet = snippet,
+            sourceRecordType = sourceRecordType,
+            sourceRecordId = sourceRecordId,
+        )
+
+    private fun InterviewSessionQuestionEntity.copyForInsert(orderIndex: Int = this.orderIndex, now: java.time.Instant): InterviewSessionQuestionEntity =
+        InterviewSessionQuestionEntity(
+            id = id,
+            interviewSessionId = interviewSessionId,
+            questionId = questionId,
+            parentSessionQuestionId = parentSessionQuestionId,
+            promptText = promptText,
+            bodyText = bodyText,
+            questionSourceType = questionSourceType,
+            orderIndex = orderIndex,
+            isFollowUp = isFollowUp,
+            depth = depth,
+            categoryName = categoryName,
+            tagsJson = tagsJson,
+            focusSkillNamesJson = focusSkillNamesJson,
+            resumeContextSummary = resumeContextSummary,
+            resumeEvidenceJson = resumeEvidenceJson,
+            generationRationale = generationRationale,
+            generationStatus = generationStatus,
+            llmModel = llmModel,
+            llmPromptVersion = llmPromptVersion,
+            answerAttemptId = answerAttemptId,
+            createdAt = createdAt,
+            updatedAt = now,
+        )
+
+    private fun coveragePriority(section: String, index: Int): Int = when (section) {
+        "project" -> 500 - index
+        "experience" -> 400 - index
+        "award" -> 300 - index
+        "certification" -> 200 - index
+        "education" -> 100 - index
+        else -> 50 - index
+    }
+
+    private fun evidenceKey(sourceRecordType: String, sourceRecordId: Long): String = "$sourceRecordType:$sourceRecordId"
+
+    private fun normalizeSnippet(value: String): String = value.replace(Regex("\\s+"), " ").trim().lowercase()
+
+    private fun percent(value: Int, total: Int): Int =
+        if (total <= 0) 0 else ((value.toDouble() / total.toDouble()) * 100.0).toInt()
 
     private fun shiftRowsForInsertion(
         existingRows: List<InterviewSessionQuestionEntity>,
@@ -823,9 +1278,11 @@ class InterviewSessionService(
         const val SOURCE_TYPE_CATALOG_FOLLOW_UP = "catalog_follow_up"
         const val SOURCE_TYPE_AI_OPENING = "ai_opening"
         const val SOURCE_TYPE_AI_FOLLOW_UP = "ai_follow_up"
+        const val SOURCE_TYPE_COVERAGE_PLANNER = "coverage_planner"
         const val GENERATION_STATUS_SEEDED = "seeded"
         const val GENERATION_STATUS_CATALOG_FOLLOW_UP = "catalog_follow_up"
         const val GENERATION_STATUS_AI_GENERATED = "ai_generated"
+        const val GENERATION_STATUS_COVERAGE_PLANNED = "coverage_planned"
         const val SESSION_TYPE_RESUME_MOCK = "resume_mock"
         const val SESSION_TYPE_REVIEW_MOCK = "review_mock"
         const val SESSION_TYPE_TOPIC_MOCK = "topic_mock"
@@ -842,6 +1299,14 @@ class InterviewSessionService(
         const val QUESTION_TYPE_BEHAVIORAL = "behavioral"
         const val QUESTION_DIFFICULTY_MEDIUM = "MEDIUM"
         const val DEFAULT_EXPECTED_ANSWER_SECONDS = 180
+        const val LINK_ROLE_PRIMARY = "primary"
+        const val LINK_ROLE_SUPPORTING = "supporting"
+        const val COVERAGE_STATUS_UNASKED = "unasked"
+        const val COVERAGE_STATUS_ASKED = "asked"
+        const val COVERAGE_STATUS_DEFENDED = "defended"
+        const val COVERAGE_STATUS_WEAK = "weak"
+        const val COVERAGE_DEFENDED_SCORE_THRESHOLD = 70
+        const val FULL_COVERAGE_EVIDENCE_LIMIT = 64
         val SUPPORTED_SESSION_TYPES = setOf(SESSION_TYPE_RESUME_MOCK, SESSION_TYPE_REVIEW_MOCK, SESSION_TYPE_TOPIC_MOCK)
         val SUPPORTED_INTERVIEW_MODES = setOf(
             INTERVIEW_MODE_QUICK_SCREEN,

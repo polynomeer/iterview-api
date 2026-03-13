@@ -4,8 +4,10 @@ import com.example.interviewplatform.common.service.CurrentUserProvider
 import com.example.interviewplatform.interview.dto.CreateInterviewSessionRequest
 import com.example.interviewplatform.interview.dto.InterviewSessionAdvanceResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionAnswerResponseDto
+import com.example.interviewplatform.interview.dto.InterviewSessionCoverageResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionDetailResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionListItemDto
+import com.example.interviewplatform.interview.dto.InterviewSessionResumeMapResponseDto
 import com.example.interviewplatform.interview.dto.SubmitInterviewSessionAnswerRequest
 import com.example.interviewplatform.interview.service.InterviewSessionService
 import io.swagger.v3.oas.annotations.Operation
@@ -43,6 +45,16 @@ class InterviewSessionController(
     @Operation(summary = "Get interview session detail")
     fun getSession(@PathVariable sessionId: Long): InterviewSessionDetailResponseDto =
         interviewSessionService.getSession(currentUserProvider.currentUserId(), sessionId)
+
+    @GetMapping("/{sessionId}/coverage")
+    @Operation(summary = "Get interview session coverage")
+    fun getCoverage(@PathVariable sessionId: Long): InterviewSessionCoverageResponseDto =
+        interviewSessionService.getCoverage(currentUserProvider.currentUserId(), sessionId)
+
+    @GetMapping("/{sessionId}/resume-map")
+    @Operation(summary = "Get interview session resume question map")
+    fun getResumeMap(@PathVariable sessionId: Long): InterviewSessionResumeMapResponseDto =
+        interviewSessionService.getResumeMap(currentUserProvider.currentUserId(), sessionId)
 
     @PostMapping("/{sessionId}/answers")
     @Operation(summary = "Submit answer for interview session question")
