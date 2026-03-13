@@ -87,12 +87,20 @@ class ApiErrorHandlingIntegrationTest {
 
     @Test
     fun `unauthorized response has predictable shape`() {
-        mockMvc.perform(get("/api/me"))
+        mockMvc.perform(get("/api/me").header("X-App-Locale", "ko"))
             .andExpect(status().isUnauthorized)
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"))
             .andExpect(jsonPath("$.error.status").value(401))
             .andExpect(jsonPath("$.error.path").value("/api/me"))
+            .andExpect(jsonPath("$.error.message").value("인증이 필요합니다"))
+    }
+
+    @Test
+    fun `unauthorized response can be localized with explicit locale header`() {
+        mockMvc.perform(get("/api/me").header("X-App-Locale", "en"))
+            .andExpect(status().isUnauthorized)
+            .andExpect(jsonPath("$.error.message").value("Authentication required"))
     }
 
     @Test

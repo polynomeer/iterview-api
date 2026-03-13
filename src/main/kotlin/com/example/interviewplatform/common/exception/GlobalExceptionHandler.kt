@@ -2,6 +2,7 @@ package com.example.interviewplatform.common.exception
 
 import com.example.interviewplatform.common.ApiErrorDetail
 import com.example.interviewplatform.common.ApiErrorResponse
+import com.example.interviewplatform.common.service.AppLocaleService
 import jakarta.persistence.EntityNotFoundException
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.ConstraintViolationException
@@ -20,6 +21,7 @@ import org.slf4j.LoggerFactory
 @RestControllerAdvice
 class GlobalExceptionHandler(
     private val errorFactory: ApiErrorResponseFactory,
+    private val appLocaleService: AppLocaleService,
 ) {
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleMethodArgumentNotValid(
@@ -36,7 +38,7 @@ class GlobalExceptionHandler(
         return respond(
             status = HttpStatus.BAD_REQUEST,
             code = "VALIDATION_ERROR",
-            message = "Request validation failed",
+            message = appLocaleService.getMessage("error.request_validation_failed", request),
             path = request.requestURI,
             details = details,
         )
@@ -54,7 +56,7 @@ class GlobalExceptionHandler(
         return respond(
             status = HttpStatus.BAD_REQUEST,
             code = "VALIDATION_ERROR",
-            message = "Request validation failed",
+            message = appLocaleService.getMessage("error.request_validation_failed", request),
             path = request.requestURI,
             details = details,
         )
@@ -66,7 +68,7 @@ class GlobalExceptionHandler(
         return respond(
             status = HttpStatus.NOT_FOUND,
             code = "NOT_FOUND",
-            message = ex.message ?: "Resource not found",
+            message = ex.message ?: appLocaleService.getMessage("error.resource_not_found", request),
             path = request.requestURI,
         )
     }
@@ -77,7 +79,7 @@ class GlobalExceptionHandler(
         return respond(
             status = HttpStatus.BAD_REQUEST,
             code = "BAD_REQUEST",
-            message = ex.message ?: "Invalid request",
+            message = ex.message ?: appLocaleService.getMessage("error.invalid_request", request),
             path = request.requestURI,
         )
     }
@@ -88,7 +90,7 @@ class GlobalExceptionHandler(
         return respond(
             status = HttpStatus.UNAUTHORIZED,
             code = "UNAUTHORIZED",
-            message = ex.message ?: "Authentication required",
+            message = ex.message ?: appLocaleService.getMessage("error.authentication_required", request),
             path = request.requestURI,
         )
     }
@@ -99,7 +101,7 @@ class GlobalExceptionHandler(
         return respond(
             status = HttpStatus.FORBIDDEN,
             code = "FORBIDDEN",
-            message = ex.message ?: "Access denied",
+            message = ex.message ?: appLocaleService.getMessage("error.access_denied", request),
             path = request.requestURI,
         )
     }
@@ -117,7 +119,7 @@ class GlobalExceptionHandler(
         return respond(
             status = status,
             code = status.name,
-            message = ex.reason ?: defaultMessage(status),
+            message = ex.reason ?: defaultMessage(status, request),
             path = request.requestURI,
         )
     }
@@ -131,7 +133,7 @@ class GlobalExceptionHandler(
         return respond(
             status = HttpStatus.PAYLOAD_TOO_LARGE,
             code = "PAYLOAD_TOO_LARGE",
-            message = "Uploaded file is too large",
+            message = appLocaleService.getMessage("error.upload_too_large", request),
             path = request.requestURI,
         )
     }
@@ -142,7 +144,7 @@ class GlobalExceptionHandler(
         return respond(
             status = HttpStatus.INTERNAL_SERVER_ERROR,
             code = "INTERNAL_SERVER_ERROR",
-            message = "Unexpected server error",
+            message = appLocaleService.getMessage("error.unexpected_server_error", request),
             path = request.requestURI,
         )
     }
@@ -163,11 +165,11 @@ class GlobalExceptionHandler(
         ),
     )
 
-    private fun defaultMessage(status: HttpStatus): String = when (status) {
-        HttpStatus.NOT_FOUND -> "Resource not found"
-        HttpStatus.BAD_REQUEST -> "Bad request"
-        HttpStatus.UNAUTHORIZED -> "Authentication required"
-        HttpStatus.FORBIDDEN -> "Access denied"
+    private fun defaultMessage(status: HttpStatus, request: HttpServletRequest): String = when (status) {
+        HttpStatus.NOT_FOUND -> appLocaleService.getMessage("error.resource_not_found", request)
+        HttpStatus.BAD_REQUEST -> appLocaleService.getMessage("error.invalid_request", request)
+        HttpStatus.UNAUTHORIZED -> appLocaleService.getMessage("error.authentication_required", request)
+        HttpStatus.FORBIDDEN -> appLocaleService.getMessage("error.access_denied", request)
         else -> status.reasonPhrase
     }
 

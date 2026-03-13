@@ -1,6 +1,7 @@
 package com.example.interviewplatform.common.security
 
 import com.example.interviewplatform.common.exception.ApiErrorResponseFactory
+import com.example.interviewplatform.common.service.AppLocaleService
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Component
 class ApiAuthenticationEntryPoint(
     private val objectMapper: ObjectMapper,
     private val errorFactory: ApiErrorResponseFactory,
+    private val appLocaleService: AppLocaleService,
 ) : AuthenticationEntryPoint {
     override fun commence(
         request: HttpServletRequest,
@@ -24,7 +26,7 @@ class ApiAuthenticationEntryPoint(
         val body = errorFactory.build(
             status = HttpStatus.UNAUTHORIZED.value(),
             code = "UNAUTHORIZED",
-            message = "Authentication required",
+            message = appLocaleService.getMessage("error.authentication_required", request),
             path = request.requestURI,
         )
         objectMapper.writeValue(response.outputStream, body)
