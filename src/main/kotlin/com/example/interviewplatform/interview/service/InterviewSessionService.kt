@@ -493,34 +493,7 @@ class InterviewSessionService(
             return
         }
 
-        val shiftedRows = existingRows.filter { it.orderIndex > answeredRow.orderIndex }.map { row ->
-            InterviewSessionQuestionEntity(
-                id = row.id,
-                interviewSessionId = row.interviewSessionId,
-                questionId = row.questionId,
-                parentSessionQuestionId = row.parentSessionQuestionId,
-                promptText = row.promptText,
-                bodyText = row.bodyText,
-                questionSourceType = row.questionSourceType,
-                orderIndex = row.orderIndex + 1,
-                isFollowUp = row.isFollowUp,
-                depth = row.depth,
-                categoryName = row.categoryName,
-                tagsJson = row.tagsJson,
-                focusSkillNamesJson = row.focusSkillNamesJson,
-                resumeContextSummary = row.resumeContextSummary,
-                generationRationale = row.generationRationale,
-                generationStatus = row.generationStatus,
-                llmModel = row.llmModel,
-                llmPromptVersion = row.llmPromptVersion,
-                answerAttemptId = row.answerAttemptId,
-                createdAt = row.createdAt,
-                updatedAt = now,
-            )
-        }
-        if (shiftedRows.isNotEmpty()) {
-            interviewSessionQuestionRepository.saveAll(shiftedRows)
-        }
+        shiftRowsForInsertion(existingRows, answeredRow.orderIndex, now)
 
         val categoryName = categoryRepository.findById(childQuestion.categoryId).orElse(null)?.name
         val tagsJson = loadTagsJson(listOf(childQuestion.id))[childQuestion.id]
@@ -560,34 +533,7 @@ class InterviewSessionService(
         val parentQuestion = questionRepository.findByIdAndIsActiveTrue(parentQuestionId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Parent interview question not found: $parentQuestionId")
 
-        val shiftedRows = existingRows.filter { it.orderIndex > answeredRow.orderIndex }.map { row ->
-            InterviewSessionQuestionEntity(
-                id = row.id,
-                interviewSessionId = row.interviewSessionId,
-                questionId = row.questionId,
-                parentSessionQuestionId = row.parentSessionQuestionId,
-                promptText = row.promptText,
-                bodyText = row.bodyText,
-                questionSourceType = row.questionSourceType,
-                orderIndex = row.orderIndex + 1,
-                isFollowUp = row.isFollowUp,
-                depth = row.depth,
-                categoryName = row.categoryName,
-                tagsJson = row.tagsJson,
-                focusSkillNamesJson = row.focusSkillNamesJson,
-                resumeContextSummary = row.resumeContextSummary,
-                generationRationale = row.generationRationale,
-                generationStatus = row.generationStatus,
-                llmModel = row.llmModel,
-                llmPromptVersion = row.llmPromptVersion,
-                answerAttemptId = row.answerAttemptId,
-                createdAt = row.createdAt,
-                updatedAt = now,
-            )
-        }
-        if (shiftedRows.isNotEmpty()) {
-            interviewSessionQuestionRepository.saveAll(shiftedRows)
-        }
+        shiftRowsForInsertion(existingRows, answeredRow.orderIndex, now)
 
         val generatedQuestion = questionRepository.save(
             QuestionEntity(
@@ -629,6 +575,43 @@ class InterviewSessionService(
                 updatedAt = now,
             ),
         )
+    }
+
+    private fun shiftRowsForInsertion(
+        existingRows: List<InterviewSessionQuestionEntity>,
+        afterOrderIndex: Int,
+        now: java.time.Instant,
+    ) {
+        existingRows.asSequence()
+            .filter { it.orderIndex > afterOrderIndex }
+            .sortedByDescending { it.orderIndex }
+            .forEach { row ->
+                interviewSessionQuestionRepository.saveAndFlush(
+                    InterviewSessionQuestionEntity(
+                        id = row.id,
+                        interviewSessionId = row.interviewSessionId,
+                        questionId = row.questionId,
+                        parentSessionQuestionId = row.parentSessionQuestionId,
+                        promptText = row.promptText,
+                        bodyText = row.bodyText,
+                        questionSourceType = row.questionSourceType,
+                        orderIndex = row.orderIndex + 1,
+                        isFollowUp = row.isFollowUp,
+                        depth = row.depth,
+                        categoryName = row.categoryName,
+                        tagsJson = row.tagsJson,
+                        focusSkillNamesJson = row.focusSkillNamesJson,
+                        resumeContextSummary = row.resumeContextSummary,
+                        generationRationale = row.generationRationale,
+                        generationStatus = row.generationStatus,
+                        llmModel = row.llmModel,
+                        llmPromptVersion = row.llmPromptVersion,
+                        answerAttemptId = row.answerAttemptId,
+                        createdAt = row.createdAt,
+                        updatedAt = now,
+                    ),
+                )
+            }
     }
 
     private fun loadTagsJson(questionIds: List<Long>): Map<Long, String> {

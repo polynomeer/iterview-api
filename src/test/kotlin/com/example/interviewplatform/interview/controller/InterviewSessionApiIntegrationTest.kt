@@ -325,6 +325,59 @@ class InterviewSessionApiIntegrationTest {
     }
 
     @Test
+    fun `answering the first session question shifts later rows before inserting follow up`() {
+        val categoryId = insertCategory("Ordered Follow Up")
+        val firstQuestionId = insertQuestion("Walk through an outage you handled", categoryId)
+        val followUpQuestionId = insertQuestion("How did you decide between rollback and mitigation", categoryId)
+        val secondQuestionId = insertQuestion("Explain your alerting strategy", categoryId)
+        val thirdQuestionId = insertQuestion("Describe your postmortem process", categoryId)
+        jdbcTemplate.update(
+            """
+            INSERT INTO question_relationships (
+                parent_question_id, child_question_id, relationship_type, depth, display_order, created_at
+            ) VALUES (?, ?, 'follow_up', 1, 1, now())
+            """.trimIndent(),
+            firstQuestionId,
+            followUpQuestionId,
+        )
+
+        val sessionResponse = createTopicSession(listOf(firstQuestionId, secondQuestionId, thirdQuestionId))
+        val sessionId = sessionResponse.get("id").asLong()
+        val firstSessionQuestionId = sessionResponse.get("questions")[0].get("id").asLong()
+        val secondSessionQuestionId = sessionResponse.get("questions")[1].get("id").asLong()
+        val thirdSessionQuestionId = sessionResponse.get("questions")[2].get("id").asLong()
+
+        mockMvc.perform(
+            post("/api/interview-sessions/$sessionId/answers")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "sessionQuestionId" to firstSessionQuestionId,
+                            "answerMode" to "text",
+                            "contentText" to "We checked blast radius, rollback cost, and system saturation before deciding.\n".repeat(5),
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.nextQuestion.questionId").value(followUpQuestionId))
+            .andExpect(jsonPath("$.nextQuestion.orderIndex").value(2))
+
+        mockMvc.perform(get("/api/interview-sessions/$sessionId").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.questions[0].id").value(firstSessionQuestionId))
+            .andExpect(jsonPath("$.questions[0].orderIndex").value(1))
+            .andExpect(jsonPath("$.questions[1].questionId").value(followUpQuestionId))
+            .andExpect(jsonPath("$.questions[1].orderIndex").value(2))
+            .andExpect(jsonPath("$.questions[2].id").value(secondSessionQuestionId))
+            .andExpect(jsonPath("$.questions[2].orderIndex").value(3))
+            .andExpect(jsonPath("$.questions[3].id").value(thirdSessionQuestionId))
+            .andExpect(jsonPath("$.questions[3].orderIndex").value(4))
+    }
+
+    @Test
     fun `create session rejects unsupported type`() {
         mockMvc.perform(
             post("/api/interview-sessions")
