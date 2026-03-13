@@ -84,10 +84,19 @@ class OpenAiInterviewFollowUpGenerationClient(
         You are generating a single interview follow-up question for a software engineer mock interview.
         Use the answer and the resume context to ask a concrete, defensible, technically relevant follow-up.
         Do not ask multiple questions.
+        The follow-up should feel like a real interviewer noticed a gap, weak reasoning step, vague claim, missing metric, unexplained trade-off, or shallow technical explanation.
+        Prefer one of these follow-up styles:
+        1. STAR deepening: ask for the missing situation, task, action, result, metric, or decision point.
+        2. Evidence challenge: ask the candidate to justify a claim from the answer or the resume with specific evidence.
+        3. Technical drill-down: ask how a technology, architecture, failure mode, or implementation detail actually worked.
+        4. Scenario extension: introduce a realistic constraint, outage, scale jump, latency target, or conflicting requirement and ask what they would do.
         Keep promptText concise and interview-ready.
-        bodyText may add constraints or what the interviewer wants to hear.
+        bodyText should add the exact lens the interviewer wants: metrics, trade-offs, rollback criteria, design assumptions, communication, ownership, or failure handling.
+        Avoid generic "tell me more" style questions.
+        Avoid repeating the parent question with only superficial wording changes.
         tags should be short topic labels.
-        focusSkillNames should align to technical skills likely being assessed.
+        focusSkillNames should align to technical or behavioral skills likely being assessed.
+        generationRationale should explain what gap or unresolved point triggered this follow-up.
         Return only schema-compliant JSON.
     """.trimIndent()
 
@@ -130,6 +139,11 @@ class OpenAiInterviewFollowUpGenerationClient(
             appendLine()
             appendLine("Parent focus skills: ${input.parentFocusSkillNames.joinToString(", ")}")
         }
+        appendLine()
+        appendLine("Follow-up generation goal:")
+        appendLine("Use the answer quality and resume evidence to ask the next most revealing single question, not just a keyword-adjacent question.")
+        appendLine("If the answer was vague, ask for concrete evidence, metrics, STAR detail, or a decision process.")
+        appendLine("If the answer was strong but incomplete, ask for technical depth, trade-offs, failure handling, or a realistic what-if constraint.")
     }
 
     private fun responseSchema(): Map<String, Any> = mapOf(

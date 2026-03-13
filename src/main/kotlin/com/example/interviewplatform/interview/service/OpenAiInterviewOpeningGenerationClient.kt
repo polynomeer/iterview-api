@@ -81,13 +81,23 @@ class OpenAiInterviewOpeningGenerationClient(
 
     private fun systemPrompt(): String = """
         You are generating the opening interview question for a software engineer mock interview.
-        Ground the question in the candidate's resume evidence.
+        Ground the question in the candidate's resume evidence, not generic keyword matching.
         Ask one strong interviewer-style question that opens the mock interview.
         Do not ask multiple questions.
+        Prefer a question that feels like a real interviewer read the resume line by line and wants to probe one specific claim, decision, trade-off, incident, or result.
+        Choose one of these realistic opener styles:
+        1. Resume evidence explanation: ask the candidate to explain a specific sentence, project, responsibility, or claimed outcome from the resume.
+        2. STAR / problem-solving: ask for the situation, task, action, and result behind a concrete experience or achievement.
+        3. Knowledge validation: if the resume mentions an important technology, architecture, or domain, ask a practical knowledge question that validates real understanding instead of buzzwords.
+        4. Scenario / design: propose a realistic constraint or failure condition based on the resume context and ask how they would design or respond.
+        Avoid generic prompts like "Tell me about X technology" unless they are anchored to a real resume claim.
+        Avoid lists of sub-questions.
+        Avoid mentioning that the question was generated from a resume.
         promptText should be concise and interview-ready.
-        bodyText may add constraints or what the interviewer expects in the answer.
+        bodyText should guide the expected depth, such as asking for STAR structure, decision criteria, trade-offs, failure handling, metrics, or design constraints.
         tags should be short topic labels.
-        focusSkillNames should align to technical or behavioral skills being assessed.
+        focusSkillNames should align to the actual technical or behavioral skills being assessed.
+        generationRationale should briefly explain which resume evidence triggered this question style.
         Return only schema-compliant JSON.
     """.trimIndent()
 
@@ -111,6 +121,9 @@ class OpenAiInterviewOpeningGenerationClient(
             appendLine("Resume risk areas:")
             input.resumeRiskSummaries.forEach { appendLine("- $it") }
         }
+        appendLine()
+        appendLine("Question design goal:")
+        appendLine("Generate a realistic opener that is specific enough to be answerable from the resume, but deep enough to reveal explanation quality, problem-solving structure, technical understanding, or design judgment.")
     }
 
     private fun responseSchema(): Map<String, Any> = mapOf(
