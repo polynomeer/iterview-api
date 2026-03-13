@@ -72,6 +72,16 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `isFollowUp`
   - `depth`
   - `categoryName`
+- Resume interview sessions may now return AI-generated follow-up snapshots with:
+  - `bodyText`
+  - `tags`
+  - `focusSkillNames`
+  - `resumeContextSummary`
+  - `generationRationale`
+  - `generationStatus`
+  - `llmModel`
+  - `llmPromptVersion`
+- Frontend should not assume every follow-up maps to a global `questionId`; AI-generated follow-ups may rely on snapshot fields only.
 - The home payload is backward compatible. Newly added fields are optional and can be ignored by older clients.
 
 ## Recommended Frontend Usage

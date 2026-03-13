@@ -1220,15 +1220,28 @@ Purpose:
 
 Implemented additive fields on session questions:
 - `promptText`
+- `bodyText`
 - `sourceType`
 - `parentSessionQuestionId`
 - `isFollowUp`
 - `depth`
 - `categoryName`
+- `tags`
+- `focusSkillNames`
+- `resumeContextSummary`
+- `generationRationale`
+- `generationStatus`
+- `llmModel`
+- `llmPromptVersion`
 
 #### `POST /api/interview-sessions/{sessionId}/answers`
 Purpose:
 - submit an answer for a specific session question while preserving the standard answer scoring and retry side effects
+
+Behavior:
+- `resume_mock` sessions should try to generate the next follow-up through the interview LLM client when configured
+- if LLM generation is unavailable or fails validation, the backend may fall back to catalog follow-ups or the remaining queued questions
+- the inserted follow-up must still be persisted as an immutable session question snapshot
 
 #### `POST /api/interview-sessions/{sessionId}/next-question`
 Purpose:

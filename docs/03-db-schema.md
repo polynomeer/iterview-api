@@ -659,12 +659,19 @@ Columns:
 - `question_id`
 - `parent_session_question_id`
 - `prompt_text`
+- `body_text`
 - `question_source_type`
 - `is_follow_up`
 - `display_order`
 - `depth`
 - `category_name`
 - `tags_json`
+- `focus_skill_names_json`
+- `resume_context_summary`
+- `generation_rationale`
+- `generation_status`
+- `llm_model`
+- `llm_prompt_version`
 - `created_at`
 - `updated_at`
 
@@ -672,6 +679,9 @@ Notes:
 - `question_id` stays nullable so AI-generated follow-up prompts can still be stored even when they do not map to the global catalog
 - `parent_session_question_id` links a follow-up question back to its parent within the same session
 - `prompt_text` must be stored as a snapshot because follow-up prompts may not exist in the global `questions` table
+- `body_text` stores richer interviewer framing or constraints when the follow-up is generated outside the global catalog
+- `focus_skill_names_json` and `resume_context_summary` preserve why a follow-up was asked
+- `generation_status` should distinguish `seeded`, `catalog_follow_up`, `ai_generated`, and `fallback`
 
 ## Skill and Benchmark Extensions
 ### `skill_category_scores`

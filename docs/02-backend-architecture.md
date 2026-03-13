@@ -166,6 +166,9 @@ Do not move product rules into `common`.
 - submit session answers through the same answer scoring pipeline
 - expose interview history separately from archive
 - mark archive-visible source metadata so archived questions can still show whether they came from practice or interview
+- for `resume_mock`, generate follow-up prompts through an interview-specific LLM service boundary when configured
+- persist generation metadata on session question snapshots so seeded questions, catalog follow-ups, fallback follow-ups, and AI-generated follow-ups remain distinguishable
+- keep a deterministic non-LLM fallback path so local development and non-AI environments remain usable
 
 ### Review and Learning Loop
 - determine retry need

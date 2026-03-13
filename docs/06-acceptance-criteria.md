@@ -76,6 +76,9 @@
 - minimal session support remains additive and does not imply live or realtime interview behavior
 - archive remains question-level even for interview-originated questions
 - archive items can distinguish `practice` and `interview` origin through additive metadata
+- `resume_mock` can insert AI-generated follow-up questions without mutating prior session questions
+- generated follow-up snapshots preserve prompt text, optional body text, focus skills, resume context summary, and generation rationale
+- invalid or empty LLM follow-up output does not break the session; the service falls back safely
 
 ## Data and Schema Quality
 - every schema change uses Flyway

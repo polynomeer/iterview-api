@@ -137,12 +137,16 @@ Acceptance intent:
 
 ## Phase 5A - Interview History and Archive Source Metadata
 1. extend interview session APIs with session-history reads
-2. persist session question snapshots for follow-up questions that do not exist in the global catalog
-3. add question-level archive source metadata so archived questions can distinguish:
+2. persist enriched session question snapshots for follow-up questions that do not exist in the global catalog
+3. add an interview-specific LLM generation boundary for resume-grounded follow-up prompts
+4. validate generated follow-up payloads before inserting them into an active session
+5. persist generation metadata (`generationStatus`, rationale, model, prompt version) with each inserted follow-up
+6. keep deterministic fallback behavior when the LLM is disabled or returns unusable output
+7. add question-level archive source metadata so archived questions can distinguish:
    - `practice`
    - `interview`
-4. keep archive question-level and avoid replacing it with a session-only archive
-5. ensure follow-up interview turns can be revisited from both interview history and archive
+8. keep archive question-level and avoid replacing it with a session-only archive
+9. ensure follow-up interview turns can be revisited from both interview history and archive
 
 Acceptance intent:
 - one interview session appears once in interview history
