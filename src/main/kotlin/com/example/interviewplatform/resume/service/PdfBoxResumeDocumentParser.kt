@@ -11,12 +11,15 @@ class PdfBoxResumeDocumentParser : ResumeDocumentParser {
         Loader.loadPDF(filePath.toFile()).use { document ->
             val rawText = PDFTextStripper().getText(document)
                 .replace("\u0000", " ")
-                .replace(Regex("\\s+"), " ")
-                .trim()
+                .lines()
+                .map { it.replace(Regex("[\\t\\x0B\\f\\r ]+"), " ").trim() }
+                .filter { it.isNotBlank() }
+                .joinToString("\n")
 
             return ParsedResumeDocument(
                 rawText = rawText,
                 summaryText = rawText
+                    .replace('\n', ' ')
                     .split(Regex("(?<=[.!?])\\s+"))
                     .map(String::trim)
                     .firstOrNull { it.length >= 20 }

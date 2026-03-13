@@ -49,10 +49,10 @@ class PlaceholderResumeSignalExtractionService(
             ExtractedResumeProfile(
                 fullName = fullName,
                 headline = headline,
-                summaryText = summary,
+                summaryText = null,
                 locationText = null,
                 yearsOfExperienceText = null,
-                sourceText = listOfNotNull(fullName, headline, summary).joinToString("\n"),
+                sourceText = null,
             )
         }
     }
@@ -93,7 +93,7 @@ class PlaceholderResumeSignalExtractionService(
             return parsedSkills.map {
                 ExtractedResumeSkill(
                     skillName = it,
-                    sourceText = version.summaryText ?: version.rawText?.take(200),
+                    sourceText = null,
                     confidenceScore = 0.9,
                 )
             }
@@ -104,7 +104,7 @@ class PlaceholderResumeSignalExtractionService(
         return KNOWN_SKILLS.filter { rawText.contains(it, ignoreCase = true) || skillSectionText.contains(it, ignoreCase = true) }.map {
             ExtractedResumeSkill(
                 skillName = it,
-                sourceText = skillSectionText.takeIf { text -> text.isNotBlank() } ?: rawText.take(200),
+                sourceText = null,
                 confidenceScore = 0.7,
             )
         }
@@ -252,14 +252,19 @@ class PlaceholderResumeSignalExtractionService(
 
     private fun extractEducation(sections: ParsedResumeSections): List<ExtractedResumeEducation> =
         sections.educationLines.mapIndexedNotNull { index, line ->
-            parseDatedEntry(line)?.let { dated ->
+            val dated = parseDatedEntry(line)
+            val body = line.removePrefix("•")
+                .replace(RANGE_PATTERN, " ")
+                .trim()
+                .ifBlank { dated?.body.orEmpty() }
+            body.takeIf { it.isNotBlank() }?.let {
                 ExtractedResumeEducation(
-                    institutionName = dated.body.substringBefore("졸업").substringBefore("수료").trim(),
-                    degreeName = dated.body.takeIf { it.contains("졸업") },
-                    fieldOfStudy = dated.body.substringBefore("졸업").takeIf { it.contains("대학교") },
-                    startedOn = dated.startedOn,
-                    endedOn = dated.endedOn,
-                    description = dated.body,
+                    institutionName = inferEducationInstitutionName(it, index + 1),
+                    degreeName = inferEducationDegreeName(it),
+                    fieldOfStudy = inferFieldOfStudy(it),
+                    startedOn = dated?.startedOn,
+                    endedOn = dated?.endedOn,
+                    description = it,
                     displayOrder = index + 1,
                     sourceText = line,
                 )
@@ -267,29 +272,33 @@ class PlaceholderResumeSignalExtractionService(
         }
 
     private fun extractCertifications(sections: ParsedResumeSections): List<ExtractedResumeCertification> =
-        sections.certificationLines.mapIndexed { index, line ->
+        sections.certificationLines.mapIndexedNotNull { index, line ->
             val parts = line.removePrefix("•").split("|").map { it.trim() }
-            ExtractedResumeCertification(
-                name = parts.firstOrNull().orEmpty().substringBefore("(").trim(),
-                issuerName = parts.getOrNull(1),
-                credentialCode = CERT_CODE_PATTERN.find(line)?.value,
-                issuedOn = parseSingleDate(line),
-                expiresOn = null,
-                scoreText = SCORE_PATTERN.find(line)?.value,
-                displayOrder = index + 1,
-                sourceText = line,
-            )
+            val name = parts.firstOrNull().orEmpty().substringBefore("(").trim()
+            name.takeIf { it.isNotBlank() }?.let {
+                ExtractedResumeCertification(
+                    name = it,
+                    issuerName = parts.getOrNull(1),
+                    credentialCode = CERT_CODE_PATTERN.find(line)?.value,
+                    issuedOn = parseSingleDate(line),
+                    expiresOn = null,
+                    scoreText = SCORE_PATTERN.find(line)?.value,
+                    displayOrder = index + 1,
+                    sourceText = line,
+                )
+            }
         }
 
     private fun extractAwards(sections: ParsedResumeSections): List<ExtractedResumeAward> =
         sections.awardLines.mapIndexedNotNull { index, line ->
-            parseSingleDate(line)?.let { awardedOn ->
-                val body = line.removePrefix("•").trim().substringAfter(Regex("\\d{4}\\.\\d{1,2}").find(line)?.value ?: "").trim()
+            val awardedOn = parseSingleDate(line)
+            val body = line.removePrefix("•").trim().substringAfter(Regex("\\d{4}\\.\\d{1,2}").find(line)?.value ?: "").trim()
+            body.takeIf { it.isNotBlank() }?.let {
                 ExtractedResumeAward(
-                    title = body.substringBefore("(").trim(),
-                    issuerName = body.substringAfterLast(" ").takeIf { it.isNotBlank() && it != body },
+                    title = it.substringBefore("(").substringBefore("|").trim().ifBlank { "Award ${index + 1}" },
+                    issuerName = inferAwardIssuer(it),
                     awardedOn = awardedOn,
-                    description = body,
+                    description = it,
                     displayOrder = index + 1,
                     sourceText = line,
                 )
@@ -339,7 +348,11 @@ class PlaceholderResumeSignalExtractionService(
         val normalized = line.trim()
         val rangeMatch = RANGE_PATTERN.find(normalized)
         val (startedOn, endedOn, _) = parseRange(rangeMatch?.value)
-        val title = normalized.substringBefore(rangeMatch?.value ?: "").trim().takeIf { it.isNotBlank() }
+        val title = if (rangeMatch != null) {
+            normalized.substringBefore(rangeMatch.value).trim().takeIf { it.isNotBlank() }
+        } else {
+            normalized.takeIf { it.isNotBlank() }
+        }
         return ProjectHeader(title = title, startedOn = startedOn, endedOn = endedOn)
     }
 
@@ -458,8 +471,8 @@ private data class ParsedResumeSections(
                     line.contains("교육 및 활동") -> "education"
                     line.contains("수상이력") -> "awards"
                     line.contains("자격사항") -> "certifications"
-                    line == "💼 경력" || line.contains(" 경력") -> "career"
-                    line == "📜 프로젝트" || line.contains(" 프로젝트") -> "projects"
+                    line == "💼 경력" || line == "경력" -> "career"
+                    line == "📜 프로젝트" || line == "프로젝트" -> "projects"
                     else -> null
                 }
                 if (nextSection != null) {
@@ -474,9 +487,9 @@ private data class ParsedResumeSections(
                 summaryLines = sections["intro"].orEmpty().drop(5).take(6),
                 skillLines = sections["skills"].orEmpty(),
                 competencyLines = sections["competencies"].orEmpty(),
-                educationLines = sections["education"].orEmpty().filter { it.startsWith("•") },
-                awardLines = sections["awards"].orEmpty().filter { it.startsWith("•") },
-                certificationLines = sections["certifications"].orEmpty().filter { it.startsWith("•") },
+                educationLines = sections["education"].orEmpty().filter(::isContentLine),
+                awardLines = sections["awards"].orEmpty().filter(::isContentLine),
+                certificationLines = sections["certifications"].orEmpty().filter(::isContentLine),
                 careerEntries = groupCareerEntries(sections["career"].orEmpty()),
                 projectEntries = groupProjectEntries(sections["projects"].orEmpty()),
             )
@@ -503,7 +516,22 @@ private data class ParsedResumeSections(
                     results.last().add(line)
                 }
             }
+            if (results.isEmpty() && lines.isNotEmpty()) {
+                return listOf(lines.toMutableList())
+            }
             return results
+        }
+
+        private fun isContentLine(line: String): Boolean {
+            val normalized = line.trim()
+            if (normalized.isBlank()) {
+                return false
+            }
+            return !normalized.startsWith("📜") &&
+                !normalized.startsWith("💼") &&
+                !normalized.contains("교육 및 활동") &&
+                !normalized.contains("수상이력") &&
+                !normalized.contains("자격사항")
         }
     }
 }
@@ -540,3 +568,30 @@ private data class ProjectTagRule(
     val displayOrder: Int,
     val keywords: List<String>,
 )
+
+private fun inferEducationInstitutionName(body: String, displayOrder: Int): String {
+    val normalized = body.substringBefore("|").substringBefore(",").trim()
+    return when {
+        normalized.contains("대학교") || normalized.contains("대학") || normalized.contains("부트캠프") || normalized.contains("아카데미") -> normalized
+        else -> "Education ${displayOrder}"
+    }
+}
+
+private fun inferEducationDegreeName(body: String): String? = when {
+    body.contains("학사") -> "학사"
+    body.contains("석사") -> "석사"
+    body.contains("박사") -> "박사"
+    body.contains("졸업") -> body.substringAfterLast(" ").takeIf { it.isNotBlank() }
+    else -> null
+}
+
+private fun inferFieldOfStudy(body: String): String? = listOf("컴퓨터공학", "소프트웨어", "정보통신", "전자공학", "산업공학")
+    .firstOrNull { body.contains(it) }
+
+private fun inferAwardIssuer(body: String): String? {
+    val parts = body.split("|").map { it.trim() }.filter { it.isNotBlank() }
+    if (parts.size >= 2) {
+        return parts.last()
+    }
+    return body.substringAfterLast(" ").takeIf { it.isNotBlank() && it != body }
+}

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.hamcrest.Matchers.nullValue
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.pdmodel.PDPage
 import org.apache.pdfbox.pdmodel.PDPageContentStream
@@ -370,6 +371,81 @@ class ResumeApiIntegrationTest {
     }
 
     @Test
+    fun `resume extraction stores projects awards certifications and education while suppressing verbose raw source fields`() {
+        seedSkillCategory("BACKEND", "Backend", 1)
+        seedSkill("Spring Boot", "BACKEND")
+        seedSkill("Kotlin", "BACKEND")
+
+        val resumeId = createResume("Structured Resume")
+        val versionId = createResumeVersion(
+            resumeId = resumeId,
+            fileUrl = "https://files.example.com/structured-resume.pdf",
+            summaryText = "This summary should not be persisted into profile snapshot.",
+            rawText = """
+                함승훈
+                Mail : resume@example.com
+                GitHub : https://github.com/polynomeer
+                보유 역량
+                • Kotlin, Spring Boot 기반 백엔드 개발
+                💼 경력
+                Dreamus - Backend Engineer 2023.01 ~ 현재
+                커머스 백엔드와 결제 시스템을 개발했습니다.
+                📜 프로젝트
+                커머스 결제 고도화 프로젝트
+                기술스택 Kotlin, Spring Boot, PostgreSQL, Redis
+                결제 API와 정산 플로우를 개선했습니다.
+                교육 및 활동
+                멋쟁이사자처럼 백엔드 스쿨 수료 2022.03 ~ 2022.08
+                수상이력
+                2022.11 우수상 | 멋쟁이사자처럼 해커톤
+                자격사항
+                SQLD | 한국데이터산업진흥원 | 2023.07
+            """.trimIndent(),
+            parsedJson = "{\"skills\":[\"Kotlin\",\"Spring Boot\"]}",
+        )
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/projects").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items.length()").value(1))
+            .andExpect(jsonPath("$.items[0].title").value("커머스 결제 고도화 프로젝트"))
+            .andExpect(jsonPath("$.items[0].contentText").isNotEmpty)
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/awards").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items.length()").value(1))
+            .andExpect(jsonPath("$.items[0].title").value("우수상"))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/certifications").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items.length()").value(1))
+            .andExpect(jsonPath("$.items[0].name").value("SQLD"))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/education").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items.length()").value(1))
+            .andExpect(jsonPath("$.items[0].institutionName").isNotEmpty)
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/skills").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items.length()").value(2))
+            .andExpect(jsonPath("$.items[0].sourceText").value(nullValue()))
+            .andExpect(jsonPath("$.items[1].sourceText").value(nullValue()))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/profile").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.item.fullName").value("함승훈"))
+            .andExpect(jsonPath("$.item.summaryText").value(nullValue()))
+
+        assertCountAtLeast("resume_project_snapshots", versionId, 1)
+        assertCountAtLeast("resume_award_items", versionId, 1)
+        assertCountAtLeast("resume_certification_items", versionId, 1)
+        assertCountAtLeast("resume_education_items", versionId, 1)
+        assertNullCount("resume_skill_snapshots", versionId, "source_text")
+        assertNullCount("resume_profile_snapshots", versionId, "summary_text")
+        assertNullCount("resume_profile_snapshots", versionId, "source_text")
+    }
+
+    @Test
     fun `invalid pdf upload stores failed version status`() {
         val resumeId = createResume("Broken Resume")
         val invalidPdf = MockMultipartFile(
@@ -550,6 +626,15 @@ class ResumeApiIntegrationTest {
             resumeVersionId,
         )
         assertTrue(actual >= minimum, "Expected at least $minimum rows in $tableName for resume version $resumeVersionId but found $actual")
+    }
+
+    private fun assertNullCount(tableName: String, resumeVersionId: Long, columnName: String) {
+        val actual = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM $tableName WHERE resume_version_id = ? AND $columnName IS NOT NULL",
+            Int::class.java,
+            resumeVersionId,
+        )
+        assertEquals(0, actual, "Expected $tableName.$columnName to be null for resume version $resumeVersionId")
     }
 
     private fun assertProjectTagCountAtLeast(resumeVersionId: Long, minimum: Int) {
