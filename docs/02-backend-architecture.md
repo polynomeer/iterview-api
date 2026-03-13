@@ -164,6 +164,7 @@ Do not move product rules into `common`.
 ### Interview Sessions
 - create interview session from active resume context, topic context, or review context
 - for `resume_mock`, require or resolve one explicit `resumeVersionId` before creating the first session question
+- support an additive `interview_mode` inside the interview domain so session depth and planning rules can vary without replacing the base session model
 - persist session-level summary and status
 - persist session question snapshots for main questions and follow-up questions
 - persist opening-question generation metadata so the system can distinguish catalog-seeded openings from AI-generated resume-specific openings
@@ -175,6 +176,10 @@ Do not move product rules into `common`.
 - use the selected resume version plus the immediately preceding answer as the primary grounding input for follow-up generation
 - persist generation metadata on session question snapshots so seeded questions, catalog follow-ups, fallback follow-ups, and AI-generated follow-ups remain distinguishable
 - persist compact `resumeEvidence` snippets on session-question snapshots so question cards can explain which resume sentence, project, or credential triggered the prompt
+- for `full_coverage`, create a session-scoped inventory of resume evidence units before asking questions
+- use a coverage planner to choose the next evidence unit first, then let the LLM phrase the actual question against that evidence
+- persist question-to-evidence links so the result screen can map resume evidence items back to asked questions
+- expose a result-oriented resume map so hover and click interactions can reveal related questions for one resume sentence or structured record
 - keep a deterministic non-LLM fallback path so local development and non-AI environments remain usable
 
 ### Review and Learning Loop

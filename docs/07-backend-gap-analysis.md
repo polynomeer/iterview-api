@@ -170,6 +170,9 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
 - generate both opener and follow-up questions from resume context through an interview LLM boundary with deterministic fallback
 - persist `resumeEvidence` snippet metadata on generated session-question snapshots so the frontend can show why a question was asked
 - keep evidence linked to parsed resume records such as project, experience, award, certification, or education when possible
+- no planner-driven `full_coverage` mode yet
+- no session-scoped evidence inventory or coverage state rows yet
+- no resume-to-question result map endpoint yet
 - extend archive responses with source metadata for practice vs interview origin
 - keep answer attempts immutable and linked cleanly
 

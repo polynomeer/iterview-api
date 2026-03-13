@@ -9,6 +9,7 @@ The updated product direction is:
 - skill radar and gap analysis
 - question tree and follow-up visualization
 - AI-driven mock interview sessions with resume-based follow-up questions
+- multiple interview modes including planner-driven full resume coverage
 - curated model answers and related learning materials
 - personalized daily practice grounded in the user's role, target companies, and resume history
 
@@ -76,6 +77,9 @@ This is an additive evolution of the current backend, not a new product line.
 - generate the opening interview question from the selected resume version rather than always starting from a fixed catalog prompt
 - allow one interview session to generate a main question plus follow-up questions within the same session
 - generate follow-up questions from the user's answer, resume evidence, and current session depth
+- support interview modes such as `quick_screen`, `mock_30`, `mock_60`, `free_interview`, and `full_coverage`
+- treat `full_coverage` as a planner-guided mode that tries to cover every interviewable resume evidence unit across the selected resume version
+- for `full_coverage`, prefer evidence-planned questioning over unconstrained generation so coverage completion can be measured reliably
 - store one session-level history record for each completed or in-progress interview
 - preserve each interview question and follow-up as a question-level record that can later appear in archive and review flows
 - store every asked interview turn in archive as a question-level item while still keeping the enclosing session in interview history
@@ -108,6 +112,7 @@ This is an additive evolution of the current backend, not a new product line.
 - richer project records extracted from resume PDFs, including title, content, tags, and category classification
 - question relationship modeling for follow-up trees
 - interview-session history, interview question snapshots, and archive source metadata
+- interview modes, resume-evidence coverage planning, and resume-question map results
 - question-linked model answers and richer learning material metadata
 - richer answer analysis beyond the current score + feedback rows
 - skill radar, gap analysis, and benchmark APIs
@@ -134,6 +139,7 @@ This is an additive evolution of the current backend, not a new product line.
 - archive items should preserve whether they came from `practice` or `interview`
 - interview history remains session-level and must not replace archive
 - a resume-based interview session must remain attributable to the chosen `resumeVersionId` for its full lifetime
+- full resume coverage should be measured against structured resume evidence units, not raw character-by-character text
 - new intelligence features should reuse current progress, answer, and resume records where possible
 - model answers and learning materials are global reference content, not user-generated answer attempts
 
@@ -142,3 +148,7 @@ The updated product should help a user answer three questions every time they op
 - What should I practice today?
 - Where am I weak relative to my resume and target role?
 - Which follow-up questions am I still not ready to defend?
+
+It should also answer these interview-specific questions:
+- Which parts of my resume have not been covered in mock interviews yet?
+- When I hover one project or sentence from my resume, which interview questions were asked about it?

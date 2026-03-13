@@ -88,6 +88,9 @@
 - missing or empty `resumeEvidence` must not break session rendering or session persistence
 - generated follow-up prompts can use the immediately preceding answer as grounding input
 - invalid or empty LLM follow-up output does not break the session; the service falls back safely
+- additive interview modes can coexist on the same session domain without breaking current `resume_mock`, `review_mock`, or `topic_mock` behavior
+- `full_coverage` can report coverage against session-scoped resume evidence items
+- a full-coverage result can map resume evidence items back to related asked questions for hover and click interactions on the result screen
 
 ## Data and Schema Quality
 - every schema change uses Flyway

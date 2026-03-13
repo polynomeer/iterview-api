@@ -1208,6 +1208,7 @@ Request:
 ```json
 {
   "sessionType": "resume_mock",
+  "interviewMode": "full_coverage",
   "questionCount": 3,
   "resumeVersionId": 22,
   "seedQuestionIds": [100, 101]
@@ -1220,6 +1221,13 @@ Notes:
 - `seedQuestionIds` are optional and are used as a starting pool or fallback hint, not a replacement for server-side selection
 - for `resume_mock`, the backend now tries to generate the opening question from the selected resume version
 - if opener generation is unavailable or fails validation, the backend falls back to deterministic server-side question selection
+- planned additive `interviewMode` values:
+  - `quick_screen`
+  - `mock_30`
+  - `mock_60`
+  - `free_interview`
+  - `full_coverage`
+- `full_coverage` should create a planner-driven interview session that tries to cover all interviewable resume evidence units, not just a random subset of resume-linked questions
 - opener generation now persists one or more `resumeEvidence` snippets that explain which resume sentence, project, achievement, certification, or education record triggered the question
 
 #### `GET /api/interview-sessions/{sessionId}`
@@ -1280,6 +1288,63 @@ Behavior:
 #### `POST /api/interview-sessions/{sessionId}/next-question`
 Purpose:
 - return the next unanswered question and mark the session complete when no questions remain
+
+Planned additive behavior for `full_coverage`:
+- choose the next question based on uncovered resume evidence items first
+- avoid relying on unconstrained AI generation alone when coverage completion is the goal
+
+#### `GET /api/interview-sessions/{sessionId}/coverage`
+Planned additive purpose:
+- return session-level resume coverage progress for planner-driven interview modes such as `full_coverage`
+
+Planned additive response shape:
+```json
+{
+  "sessionId": 71,
+  "interviewMode": "full_coverage",
+  "overallCoveragePercent": 84,
+  "defendedCoveragePercent": 61,
+  "evidenceItems": [
+    {
+      "id": 9001,
+      "section": "project",
+      "label": "Payments migration",
+      "snippet": "Led phased rollout of the payments migration with rollback safeguards.",
+      "coverageStatus": "answered",
+      "linkedQuestionIds": [3001, 3004]
+    }
+  ]
+}
+```
+
+#### `GET /api/interview-sessions/{sessionId}/resume-map`
+Planned additive purpose:
+- return a result-time resume-to-question map so the frontend can show related questions when hovering or clicking one resume sentence or structured evidence record
+
+Planned additive response shape:
+```json
+{
+  "sessionId": 71,
+  "resumeVersionId": 22,
+  "evidenceItems": [
+    {
+      "section": "award",
+      "label": "Engineering Excellence Award",
+      "snippet": "Received the Engineering Excellence Award for the payments migration.",
+      "sourceRecordType": "resume_award_item",
+      "sourceRecordId": 41,
+      "coverageStatus": "defended",
+      "relatedQuestions": [
+        {
+          "sessionQuestionId": 3007,
+          "title": "What specific outcome led to that award?",
+          "sourceType": "ai_follow_up"
+        }
+      ]
+    }
+  ]
+}
+```
 
 #### `GET /api/archive`
 Current additive behavior for interview-originated records:

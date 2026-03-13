@@ -210,6 +210,51 @@ Interpretation:
 - `sourceRecordType` and `sourceRecordId` let the frontend deep-link into parsed resume sections later without changing the question payload contract
 - offsets are optional future-facing metadata for raw-text highlighting and should not be required in the first implementation
 
+Recommended additive interview-planning tables for richer interview modes such as `full_coverage`:
+
+### `interview_session_evidence_items`
+- `id`
+- `interview_session_id`
+- `section`
+- `label`
+- `snippet`
+- `source_record_type`
+- `source_record_id`
+- `coverage_status`
+- `coverage_priority`
+- `display_order`
+- `created_at`
+- `updated_at`
+
+Recommended `coverage_status` values:
+- `unasked`
+- `asked`
+- `answered`
+- `defended`
+- `weak`
+- `skipped`
+
+Interpretation:
+- this table is the session-scoped inventory of interviewable resume evidence units
+- it is created when a planner-driven interview mode such as `full_coverage` starts
+- coverage is measured against these evidence rows rather than raw resume text bytes
+
+### `interview_session_question_evidence_links`
+- `interview_session_question_id`
+- `interview_session_evidence_item_id`
+- `link_role`
+- `created_at`
+
+Recommended `link_role` values:
+- `primary`
+- `secondary`
+- `inherited`
+
+Interpretation:
+- one asked question may cover more than one resume evidence item
+- one resume evidence item may later be linked to several questions
+- this link table is the stable source for building a result-time resume map with hover and click interactions
+
 ## Current Answer and Progress Tables
 ### `daily_cards`
 - `id`
