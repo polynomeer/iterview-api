@@ -64,8 +64,14 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `GET /api/questions/{questionId}/learning-materials`
 - The skill APIs recalculate and persist score snapshots server-side; frontend clients should treat them as read APIs.
 - Interview sessions are minimal turn-based APIs. They do not imply realtime or streaming behavior.
-- Planned additive interview-history behavior should expose session-level history separately from question-level archive data.
-- Archive payloads should eventually include additive source fields so the frontend can render `Practice` and `Interview` badges without changing archive list semantics.
+- Interview history is now available from `GET /api/interview-sessions` as session-level summaries.
+- Archive payloads now include additive source fields so the frontend can render `Practice` and `Interview` badges without changing archive list semantics.
+- Session question payloads now include follow-up metadata:
+  - `sourceType`
+  - `parentSessionQuestionId`
+  - `isFollowUp`
+  - `depth`
+  - `categoryName`
 - The home payload is backward compatible. Newly added fields are optional and can be ignored by older clients.
 
 ## Recommended Frontend Usage

@@ -527,7 +527,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ReviewQueueActionResponseDto"
+  /api/archive:
+    get:
+      tags: [Archive]
+      summary: List archived questions
+      responses:
+        "200":
+          description: Archived question list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ArchivedQuestionDto"
   /api/interview-sessions:
+    get:
+      tags: [Interview Sessions]
+      summary: List interview sessions
+      responses:
+        "200":
+          description: Session history list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InterviewSessionListItemDto"
     post:
       tags: [Interview Sessions]
       summary: Create interview session
@@ -1306,6 +1331,18 @@ components:
             $ref: "#/components/schemas/InterviewSessionQuestionDto"
         summary:
           $ref: "#/components/schemas/InterviewSessionSummaryDto"
+    InterviewSessionListItemDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        sessionType: { type: string }
+        status: { type: string }
+        resumeVersionId: { type: integer, format: int64, nullable: true }
+        startedAt: { type: string, format: date-time }
+        endedAt: { type: string, format: date-time, nullable: true }
+        questionCount: { type: integer }
+        answeredCount: { type: integer }
+        averageScore: { type: number, format: double, nullable: true }
     CreateInterviewSessionRequest:
       type: object
       required: [sessionType]
@@ -1342,15 +1379,35 @@ components:
       type: object
       properties:
         id: { type: integer, format: int64 }
-        questionId: { type: integer, format: int64 }
+        questionId: { type: integer, format: int64, nullable: true }
         title: { type: string }
+        promptText: { type: string, nullable: true }
         difficulty: { type: string }
         orderIndex: { type: integer }
         status: { type: string }
+        sourceType: { type: string }
+        parentSessionQuestionId: { type: integer, format: int64, nullable: true }
+        isFollowUp: { type: boolean }
+        depth: { type: integer }
+        categoryName: { type: string, nullable: true }
         answerAttemptId:
           type: integer
           format: int64
           nullable: true
+    ArchivedQuestionDto:
+      type: object
+      properties:
+        questionId: { type: integer, format: int64 }
+        title: { type: string }
+        difficulty: { type: string }
+        archivedAt: { type: string, format: date-time }
+        bestScore: { type: number, format: double, nullable: true }
+        totalAttemptCount: { type: integer }
+        sourceType: { type: string, nullable: true }
+        sourceLabel: { type: string, nullable: true }
+        sourceSessionId: { type: integer, format: int64, nullable: true }
+        sourceSessionQuestionId: { type: integer, format: int64, nullable: true }
+        isFollowUp: { type: boolean }
     InterviewSessionSummaryDto:
       type: object
       properties:

@@ -896,7 +896,7 @@ Response:
 ```
 
 Planned additive behavior:
-- archived questions that originated inside interview sessions should return:
+- archived questions that originated inside interview sessions return:
   - `sourceType = "interview"`
   - `sourceLabel = "Interview"`
   - `sourceSessionId`
@@ -1179,16 +1179,16 @@ These should be optional and backward compatible:
 Purpose:
 - return interview history as session-level records ordered by most recent first
 
-Planned additive response:
+Response:
 ```json
 [
   {
-    "sessionId": 71,
+    "id": 71,
     "sessionType": "resume_mock",
     "status": "completed",
     "resumeVersionId": 22,
     "startedAt": "2026-03-13T03:00:00Z",
-    "completedAt": "2026-03-13T03:18:00Z",
+    "endedAt": "2026-03-13T03:18:00Z",
     "questionCount": 5,
     "answeredCount": 5,
     "averageScore": 81
@@ -1218,10 +1218,13 @@ Notes:
 Purpose:
 - return current session status, ordered questions, current question, and summary counts
 
-Planned additive fields:
-- session-level history metadata suitable for interview history screens
-- per-question source metadata for main questions vs follow-up questions
-- `parentSessionQuestionId` and `isFollowUp` on session questions
+Implemented additive fields on session questions:
+- `promptText`
+- `sourceType`
+- `parentSessionQuestionId`
+- `isFollowUp`
+- `depth`
+- `categoryName`
 
 #### `POST /api/interview-sessions/{sessionId}/answers`
 Purpose:
