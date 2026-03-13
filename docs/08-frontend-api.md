@@ -52,12 +52,12 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `GET /api/resume-versions/{versionId}/awards`
   - `GET /api/resume-versions/{versionId}/risks`
 - The current project endpoint should be treated as the stable base for resume-derived project cards.
-- Planned additive fields on project payloads are:
+- Implemented project payload fields now include:
   - `contentText`
   - `projectCategoryCode`
   - `projectCategoryName`
   - `tags`
-- Frontend should be prepared to render projects as richer cards rather than only short experience subrows once those fields are implemented.
+- Frontend should render projects as richer cards rather than only short experience subrows.
 - Question detail includes generic `learningMaterials` and additive `referenceAnswers`.
 - Dedicated question reference-content reads are:
   - `GET /api/questions/{questionId}/reference-answers`

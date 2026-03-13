@@ -852,9 +852,24 @@ components:
         organizationName: { type: string, nullable: true }
         roleName: { type: string, nullable: true }
         summaryText: { type: string }
+        contentText: { type: string, nullable: true }
+        projectCategoryCode: { type: string, nullable: true }
+        projectCategoryName: { type: string, nullable: true }
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeProjectTagDto"
         techStackText: { type: string, nullable: true }
         startedOn: { type: string, format: date, nullable: true }
         endedOn: { type: string, format: date, nullable: true }
+        displayOrder: { type: integer }
+        sourceText: { type: string, nullable: true }
+    ResumeProjectTagDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        tagName: { type: string }
+        tagType: { type: string, nullable: true }
         displayOrder: { type: integer }
         sourceText: { type: string, nullable: true }
     ResumeAchievementItemResponseDto:
