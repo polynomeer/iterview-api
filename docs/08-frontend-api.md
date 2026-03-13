@@ -93,7 +93,7 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
     - `sourceRecordId`
     - `confidence`
 - Resume interview creation should expose one explicit `resumeVersionId` selector in the frontend start flow rather than silently relying on whichever version happens to be active.
-- planned additive interview-start configuration should also expose `interviewMode` values such as `quick_screen`, `mock_30`, `mock_60`, `free_interview`, and `full_coverage`
+- implemented interview-start configuration now accepts `interviewMode` values such as `quick_screen`, `mock_30`, `mock_60`, `free_interview`, and `full_coverage`
 - The opening question for a resume-based interview may also be AI-generated from the selected resume version and should be rendered from session snapshot fields the same way as AI follow-ups.
 - Frontend should not assume every follow-up maps to a global `questionId`; AI-generated follow-ups may rely on snapshot fields only.
 - Recommended rendering fallback for session questions:
@@ -121,13 +121,14 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - use `snippet` as the visible quoted evidence text
   - never replace the question title with the evidence snippet
   - do not require deep-link behavior for the first implementation; `sourceRecordType` and `sourceRecordId` are forward-compatible metadata
-- planned additive full-coverage result support:
+- implemented full-coverage result support:
   - `GET /api/interview-sessions/{sessionId}/coverage`
   - `GET /api/interview-sessions/{sessionId}/resume-map`
   - use these to render a result-time resume viewer where one hovered or clicked resume evidence item can reveal related interview questions
 - recommended full-coverage frontend behavior:
   - explain that coverage is measured against interviewable resume evidence units, not every raw character
   - show overall coverage percent plus per-section completion
+  - handle `coverageStatus` values such as `unasked`, `asked`, `defended`, and `weak`
   - in the result view, hovering a resume snippet should show related questions
   - clicking a related question should navigate or scroll back to the relevant question card
 - The home payload is backward compatible. Newly added fields are optional and can be ignored by older clients.

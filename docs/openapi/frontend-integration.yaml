@@ -583,6 +583,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InterviewSessionDetailResponseDto"
+  /api/interview-sessions/{sessionId}/coverage:
+    get:
+      tags: [Interview Sessions]
+      summary: Get interview session coverage
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Session coverage summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewSessionCoverageResponseDto"
+  /api/interview-sessions/{sessionId}/resume-map:
+    get:
+      tags: [Interview Sessions]
+      summary: Get interview session resume map
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Session resume evidence map
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewSessionResumeMapResponseDto"
   /api/interview-sessions/{sessionId}/answers:
     post:
       tags: [Interview Sessions]
@@ -1318,6 +1344,7 @@ components:
       properties:
         id: { type: integer, format: int64 }
         sessionType: { type: string }
+        interviewMode: { type: string }
         status: { type: string }
         resumeVersionId: { type: integer, format: int64, nullable: true }
         startedAt: { type: string, format: date-time }
@@ -1337,6 +1364,7 @@ components:
       properties:
         id: { type: integer, format: int64 }
         sessionType: { type: string }
+        interviewMode: { type: string }
         status: { type: string }
         resumeVersionId: { type: integer, format: int64, nullable: true }
         startedAt: { type: string, format: date-time }
@@ -1351,6 +1379,9 @@ components:
         sessionType:
           type: string
           enum: [resume_mock, review_mock, topic_mock]
+        interviewMode:
+          type: string
+          enum: [quick_screen, mock_30, mock_60, free_interview, full_coverage]
         questionCount:
           type: integer
           minimum: 1
@@ -1412,6 +1443,56 @@ components:
           type: integer
           format: int64
           nullable: true
+    InterviewSessionCoverageEvidenceItemDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        section: { type: string }
+        label: { type: string, nullable: true }
+        snippet: { type: string }
+        coverageStatus: { type: string }
+        linkedQuestionIds:
+          type: array
+          items: { type: integer, format: int64 }
+    InterviewSessionCoverageResponseDto:
+      type: object
+      properties:
+        sessionId: { type: integer, format: int64 }
+        interviewMode: { type: string }
+        overallCoveragePercent: { type: integer }
+        defendedCoveragePercent: { type: integer }
+        evidenceItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewSessionCoverageEvidenceItemDto"
+    InterviewSessionResumeMapQuestionDto:
+      type: object
+      properties:
+        sessionQuestionId: { type: integer, format: int64 }
+        title: { type: string }
+        sourceType: { type: string }
+    InterviewSessionResumeMapEvidenceItemDto:
+      type: object
+      properties:
+        section: { type: string }
+        label: { type: string, nullable: true }
+        snippet: { type: string }
+        sourceRecordType: { type: string }
+        sourceRecordId: { type: integer, format: int64 }
+        coverageStatus: { type: string }
+        relatedQuestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewSessionResumeMapQuestionDto"
+    InterviewSessionResumeMapResponseDto:
+      type: object
+      properties:
+        sessionId: { type: integer, format: int64 }
+        resumeVersionId: { type: integer, format: int64, nullable: true }
+        evidenceItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewSessionResumeMapEvidenceItemDto"
     InterviewResumeEvidenceDto:
       type: object
       properties:

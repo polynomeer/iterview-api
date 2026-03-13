@@ -63,6 +63,8 @@ Authenticated endpoints:
 - `GET /api/interview-sessions`
 - `POST /api/interview-sessions`
 - `GET /api/interview-sessions/{sessionId}`
+- `GET /api/interview-sessions/{sessionId}/coverage`
+- `GET /api/interview-sessions/{sessionId}/resume-map`
 - `POST /api/interview-sessions/{sessionId}/answers`
 - `POST /api/interview-sessions/{sessionId}/next-question`
 ## Standard Error Response
@@ -1221,13 +1223,13 @@ Notes:
 - `seedQuestionIds` are optional and are used as a starting pool or fallback hint, not a replacement for server-side selection
 - for `resume_mock`, the backend now tries to generate the opening question from the selected resume version
 - if opener generation is unavailable or fails validation, the backend falls back to deterministic server-side question selection
-- planned additive `interviewMode` values:
+- implemented `interviewMode` values:
   - `quick_screen`
   - `mock_30`
   - `mock_60`
   - `free_interview`
   - `full_coverage`
-- `full_coverage` should create a planner-driven interview session that tries to cover all interviewable resume evidence units, not just a random subset of resume-linked questions
+- `full_coverage` creates a planner-driven interview session that tries to cover all interviewable resume evidence units, not just a random subset of resume-linked questions
 - opener generation now persists one or more `resumeEvidence` snippets that explain which resume sentence, project, achievement, certification, or education record triggered the question
 
 #### `GET /api/interview-sessions/{sessionId}`
@@ -1289,15 +1291,15 @@ Behavior:
 Purpose:
 - return the next unanswered question and mark the session complete when no questions remain
 
-Planned additive behavior for `full_coverage`:
+Current `full_coverage` behavior:
 - choose the next question based on uncovered resume evidence items first
 - avoid relying on unconstrained AI generation alone when coverage completion is the goal
 
 #### `GET /api/interview-sessions/{sessionId}/coverage`
-Planned additive purpose:
+Purpose:
 - return session-level resume coverage progress for planner-driven interview modes such as `full_coverage`
 
-Planned additive response shape:
+Current response shape:
 ```json
 {
   "sessionId": 71,
@@ -1310,18 +1312,24 @@ Planned additive response shape:
       "section": "project",
       "label": "Payments migration",
       "snippet": "Led phased rollout of the payments migration with rollback safeguards.",
-      "coverageStatus": "answered",
+      "coverageStatus": "defended",
       "linkedQuestionIds": [3001, 3004]
     }
   ]
 }
 ```
 
+Coverage status semantics:
+- `unasked`: no interview turn has been linked to this evidence item yet
+- `asked`: a question has been asked from this evidence item, but the linked answer has not yet been evaluated
+- `defended`: the latest linked answer met the current defended threshold
+- `weak`: the latest linked answer did not meet the defended threshold
+
 #### `GET /api/interview-sessions/{sessionId}/resume-map`
-Planned additive purpose:
+Purpose:
 - return a result-time resume-to-question map so the frontend can show related questions when hovering or clicking one resume sentence or structured evidence record
 
-Planned additive response shape:
+Current response shape:
 ```json
 {
   "sessionId": 71,
