@@ -22,6 +22,8 @@ class InterviewSessionQuestionEntity(
     val parentSessionQuestionId: Long? = null,
     @Column(name = "prompt_text")
     val promptText: String? = null,
+    @Column(name = "body_text")
+    val bodyText: String? = null,
     @Column(name = "question_source_type", nullable = false)
     val questionSourceType: String,
     @Column(name = "order_index", nullable = false)
@@ -34,6 +36,18 @@ class InterviewSessionQuestionEntity(
     val categoryName: String? = null,
     @Column(name = "tags_json")
     val tagsJson: String? = null,
+    @Column(name = "focus_skill_names_json")
+    val focusSkillNamesJson: String? = null,
+    @Column(name = "resume_context_summary")
+    val resumeContextSummary: String? = null,
+    @Column(name = "generation_rationale")
+    val generationRationale: String? = null,
+    @Column(name = "generation_status", nullable = false)
+    val generationStatus: String,
+    @Column(name = "llm_model")
+    val llmModel: String? = null,
+    @Column(name = "llm_prompt_version")
+    val llmPromptVersion: String? = null,
     @Column(name = "answer_attempt_id")
     val answerAttemptId: Long? = null,
     @Column(name = "created_at", nullable = false)

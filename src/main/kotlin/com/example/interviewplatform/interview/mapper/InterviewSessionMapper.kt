@@ -12,11 +12,14 @@ object InterviewSessionMapper {
         row: InterviewSessionQuestionEntity,
         question: QuestionEntity?,
         status: String,
+        tags: List<String>,
+        focusSkillNames: List<String>,
     ): InterviewSessionQuestionDto = InterviewSessionQuestionDto(
         id = row.id,
         questionId = row.questionId,
         title = row.promptText ?: question?.title ?: "Interview Question",
         promptText = row.promptText,
+        bodyText = row.bodyText,
         difficulty = question?.difficultyLevel ?: "UNKNOWN",
         orderIndex = row.orderIndex,
         status = status,
@@ -25,6 +28,13 @@ object InterviewSessionMapper {
         isFollowUp = row.isFollowUp,
         depth = row.depth,
         categoryName = row.categoryName,
+        tags = tags,
+        focusSkillNames = focusSkillNames,
+        resumeContextSummary = row.resumeContextSummary,
+        generationRationale = row.generationRationale,
+        generationStatus = row.generationStatus,
+        llmModel = row.llmModel,
+        llmPromptVersion = row.llmPromptVersion,
         answerAttemptId = row.answerAttemptId,
     )
 

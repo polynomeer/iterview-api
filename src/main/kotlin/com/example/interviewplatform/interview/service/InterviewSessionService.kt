@@ -21,12 +21,16 @@ import com.example.interviewplatform.question.entity.QuestionEntity
 import com.example.interviewplatform.question.repository.CategoryRepository
 import com.example.interviewplatform.question.repository.QuestionRelationshipRepository
 import com.example.interviewplatform.question.repository.QuestionRepository
+import com.example.interviewplatform.question.repository.QuestionSkillMappingRepository
 import com.example.interviewplatform.question.repository.QuestionTagRepository
 import com.example.interviewplatform.question.repository.TagRepository
 import com.example.interviewplatform.question.service.QuestionService
 import com.example.interviewplatform.resume.repository.ResumeRepository
+import com.example.interviewplatform.resume.repository.ResumeRiskItemRepository
 import com.example.interviewplatform.resume.repository.ResumeVersionRepository
 import com.example.interviewplatform.review.repository.ReviewQueueRepository
+import com.example.interviewplatform.skill.repository.SkillRepository
+import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -39,6 +43,7 @@ class InterviewSessionService(
     private val interviewSessionQuestionRepository: InterviewSessionQuestionRepository,
     private val questionRepository: QuestionRepository,
     private val questionRelationshipRepository: QuestionRelationshipRepository,
+    private val questionSkillMappingRepository: QuestionSkillMappingRepository,
     private val questionTagRepository: QuestionTagRepository,
     private val tagRepository: TagRepository,
     private val categoryRepository: CategoryRepository,
@@ -47,7 +52,9 @@ class InterviewSessionService(
     private val answerScoreRepository: AnswerScoreRepository,
     private val reviewQueueRepository: ReviewQueueRepository,
     private val resumeRepository: ResumeRepository,
+    private val resumeRiskItemRepository: ResumeRiskItemRepository,
     private val resumeVersionRepository: ResumeVersionRepository,
+    private val skillRepository: SkillRepository,
     private val clockService: ClockService,
     private val objectMapper: ObjectMapper,
 ) {
@@ -106,7 +113,7 @@ class InterviewSessionService(
             ),
         )
         interviewSessionQuestionRepository.saveAll(
-            buildSeedRows(session.id, questionIds, now),
+            buildSeedRows(session.id, questionIds, resumeVersionId, now),
         )
         return getSession(userId, session.id)
     }
@@ -161,19 +168,31 @@ class InterviewSessionService(
                 questionId = row.questionId,
                 parentSessionQuestionId = row.parentSessionQuestionId,
                 promptText = row.promptText,
+                bodyText = row.bodyText,
                 questionSourceType = row.questionSourceType,
                 orderIndex = row.orderIndex,
                 isFollowUp = row.isFollowUp,
                 depth = row.depth,
                 categoryName = row.categoryName,
                 tagsJson = row.tagsJson,
+                focusSkillNamesJson = row.focusSkillNamesJson,
+                resumeContextSummary = row.resumeContextSummary,
+                generationRationale = row.generationRationale,
+                generationStatus = row.generationStatus,
+                llmModel = row.llmModel,
+                llmPromptVersion = row.llmPromptVersion,
                 answerAttemptId = submission.answerAttemptId,
                 createdAt = row.createdAt,
                 updatedAt = now,
             ),
         )
 
-        maybeInsertFollowUp(sessionId = session.id, answeredRow = row, now = now)
+        maybeInsertFollowUp(
+            sessionId = session.id,
+            answeredRow = row,
+            resumeVersionId = session.resumeVersionId,
+            now = now,
+        )
         val refreshedRows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(session.id)
         val unresolvedNext = refreshedRows.firstOrNull { it.answerAttemptId == null }
         val updatedSession = if (unresolvedNext == null) {
@@ -255,6 +274,8 @@ class InterviewSessionService(
     ): InterviewSessionDetailResponseDto {
         val questionIds = rows.mapNotNull { it.questionId }.distinct()
         val questionById = questionRepository.findAllById(questionIds).associateBy { it.id }
+        val tagsByRowId = rows.associate { it.id to decodeJsonArray(it.tagsJson) }
+        val focusSkillsByRowId = rows.associate { it.id to decodeJsonArray(it.focusSkillNamesJson) }
         val currentRowId = rows.firstOrNull { it.answerAttemptId == null }?.id
         val questionDtos = rows.map { row ->
             val question = row.questionId?.let(questionById::get)
@@ -262,6 +283,8 @@ class InterviewSessionService(
                 row = row,
                 question = question,
                 status = questionStatus(row, currentRowId, session.status),
+                tags = tagsByRowId[row.id].orEmpty(),
+                focusSkillNames = focusSkillsByRowId[row.id].orEmpty(),
             )
         }
         val summary = summarize(rows)
@@ -300,12 +323,15 @@ class InterviewSessionService(
     private fun buildSeedRows(
         sessionId: Long,
         questionIds: List<Long>,
+        resumeVersionId: Long?,
         now: java.time.Instant,
     ): List<InterviewSessionQuestionEntity> {
         val questionsById = questionRepository.findAllById(questionIds).associateBy { it.id }
         val categoryNameById = categoryRepository.findAllById(questionsById.values.map { it.categoryId }.distinct())
             .associate { it.id to it.name }
         val tagsJsonByQuestionId = loadTagsJson(questionIds)
+        val focusSkillsJsonByQuestionId = loadFocusSkillsJson(questionIds)
+        val resumeContextSummaryByQuestionId = loadResumeContextSummary(questionIds, resumeVersionId)
 
         return questionIds.mapIndexedNotNull { index, questionId ->
             val question = questionsById[questionId] ?: return@mapIndexedNotNull null
@@ -314,19 +340,29 @@ class InterviewSessionService(
                 questionId = question.id,
                 parentSessionQuestionId = null,
                 promptText = question.title,
+                bodyText = question.body,
                 questionSourceType = SOURCE_TYPE_CATALOG_SEED,
                 orderIndex = index + 1,
                 isFollowUp = false,
                 depth = 0,
                 categoryName = categoryNameById[question.categoryId],
                 tagsJson = tagsJsonByQuestionId[question.id],
+                focusSkillNamesJson = focusSkillsJsonByQuestionId[question.id],
+                resumeContextSummary = resumeContextSummaryByQuestionId[question.id],
+                generationRationale = "Selected from the initial interview question pool.",
+                generationStatus = GENERATION_STATUS_SEEDED,
                 createdAt = now,
                 updatedAt = now,
             )
         }
     }
 
-    private fun maybeInsertFollowUp(sessionId: Long, answeredRow: InterviewSessionQuestionEntity, now: java.time.Instant) {
+    private fun maybeInsertFollowUp(
+        sessionId: Long,
+        answeredRow: InterviewSessionQuestionEntity,
+        resumeVersionId: Long?,
+        now: java.time.Instant,
+    ) {
         val parentQuestionId = answeredRow.questionId ?: return
         val existingRows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(sessionId)
         if (existingRows.any { it.parentSessionQuestionId == answeredRow.id }) {
@@ -348,12 +384,19 @@ class InterviewSessionService(
                 questionId = row.questionId,
                 parentSessionQuestionId = row.parentSessionQuestionId,
                 promptText = row.promptText,
+                bodyText = row.bodyText,
                 questionSourceType = row.questionSourceType,
                 orderIndex = row.orderIndex + 1,
                 isFollowUp = row.isFollowUp,
                 depth = row.depth,
                 categoryName = row.categoryName,
                 tagsJson = row.tagsJson,
+                focusSkillNamesJson = row.focusSkillNamesJson,
+                resumeContextSummary = row.resumeContextSummary,
+                generationRationale = row.generationRationale,
+                generationStatus = row.generationStatus,
+                llmModel = row.llmModel,
+                llmPromptVersion = row.llmPromptVersion,
                 answerAttemptId = row.answerAttemptId,
                 createdAt = row.createdAt,
                 updatedAt = now,
@@ -365,18 +408,25 @@ class InterviewSessionService(
 
         val categoryName = categoryRepository.findById(childQuestion.categoryId).orElse(null)?.name
         val tagsJson = loadTagsJson(listOf(childQuestion.id))[childQuestion.id]
+        val focusSkillsJson = loadFocusSkillsJson(listOf(childQuestion.id))[childQuestion.id]
+        val resumeContextSummary = loadResumeContextSummary(listOf(childQuestion.id), resumeVersionId)[childQuestion.id]
         interviewSessionQuestionRepository.save(
             InterviewSessionQuestionEntity(
                 interviewSessionId = sessionId,
                 questionId = childQuestion.id,
                 parentSessionQuestionId = answeredRow.id,
                 promptText = childQuestion.title,
+                bodyText = childQuestion.body,
                 questionSourceType = SOURCE_TYPE_CATALOG_FOLLOW_UP,
                 orderIndex = answeredRow.orderIndex + 1,
                 isFollowUp = true,
                 depth = answeredRow.depth + 1,
                 categoryName = categoryName,
                 tagsJson = tagsJson,
+                focusSkillNamesJson = focusSkillsJson,
+                resumeContextSummary = resumeContextSummary,
+                generationRationale = "Follow-up selected from the catalog relationship graph.",
+                generationStatus = GENERATION_STATUS_CATALOG_FOLLOW_UP,
                 createdAt = now,
                 updatedAt = now,
             ),
@@ -397,6 +447,48 @@ class InterviewSessionService(
                 rows.mapNotNull { edge -> tagsById[edge.id.tagId]?.name }.distinct(),
             )
         }
+    }
+
+    private fun loadFocusSkillsJson(questionIds: List<Long>): Map<Long, String> {
+        if (questionIds.isEmpty()) {
+            return emptyMap()
+        }
+        val mappings = questionSkillMappingRepository.findByQuestionIdIn(questionIds)
+        if (mappings.isEmpty()) {
+            return emptyMap()
+        }
+        val skillsById = skillRepository.findAllById(mappings.map { it.skillId }.distinct()).associateBy { it.id }
+        return mappings.groupBy { it.questionId }.mapValues { (_, rows) ->
+            objectMapper.writeValueAsString(
+                rows.sortedByDescending { it.weight }
+                    .mapNotNull { mapping -> skillsById[mapping.skillId]?.name }
+                    .distinct(),
+            )
+        }
+    }
+
+    private fun loadResumeContextSummary(
+        questionIds: List<Long>,
+        resumeVersionId: Long?,
+    ): Map<Long, String> {
+        if (questionIds.isEmpty() || resumeVersionId == null) {
+            return emptyMap()
+        }
+        val riskByQuestionId = resumeRiskItemRepository.findByResumeVersionIdOrderBySeverityDescIdAsc(resumeVersionId)
+            .mapNotNull { risk -> risk.linkedQuestionId?.let { linkedQuestionId -> linkedQuestionId to "${risk.title}: ${risk.description}" } }
+            .toMap()
+        return questionIds.mapNotNull { questionId ->
+            riskByQuestionId[questionId]?.let { questionId to it }
+        }.toMap()
+    }
+
+    private fun decodeJsonArray(value: String?): List<String> {
+        if (value.isNullOrBlank()) {
+            return emptyList()
+        }
+        return runCatching {
+            objectMapper.readValue(value, object : TypeReference<List<String>>() {})
+        }.getOrElse { emptyList() }
     }
 
     private fun questionStatus(
@@ -486,6 +578,8 @@ class InterviewSessionService(
         const val SOURCE_LABEL_INTERVIEW = "Interview"
         const val SOURCE_TYPE_CATALOG_SEED = "catalog_seed"
         const val SOURCE_TYPE_CATALOG_FOLLOW_UP = "catalog_follow_up"
+        const val GENERATION_STATUS_SEEDED = "seeded"
+        const val GENERATION_STATUS_CATALOG_FOLLOW_UP = "catalog_follow_up"
         const val SESSION_TYPE_RESUME_MOCK = "resume_mock"
         const val SESSION_TYPE_REVIEW_MOCK = "review_mock"
         const val SESSION_TYPE_TOPIC_MOCK = "topic_mock"

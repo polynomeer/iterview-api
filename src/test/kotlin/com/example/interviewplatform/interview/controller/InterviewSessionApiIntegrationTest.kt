@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.hamcrest.Matchers.startsWith
 import org.hamcrest.Matchers.nullValue
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
@@ -59,6 +60,7 @@ class InterviewSessionApiIntegrationTest {
         val questionId = insertQuestion("Explain Spring transaction boundaries", categoryId)
         val skillCategoryId = insertSkillCategory("backend_engineering", "Backend Engineering")
         val skillId = insertSkill(skillCategoryId, "Spring Boot")
+        val tagId = insertTag("transactions")
         val resumeVersionId = insertResumeVersion()
         jdbcTemplate.update(
             """
@@ -76,6 +78,14 @@ class InterviewSessionApiIntegrationTest {
             """.trimIndent(),
             questionId,
             skillId,
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO question_tags (question_id, tag_id, created_at)
+            VALUES (?, ?, now())
+            """.trimIndent(),
+            questionId,
+            tagId,
         )
 
         mockMvc.perform(
@@ -95,6 +105,10 @@ class InterviewSessionApiIntegrationTest {
             .andExpect(jsonPath("$.sessionType").value("resume_mock"))
             .andExpect(jsonPath("$.resumeVersionId").value(resumeVersionId))
             .andExpect(jsonPath("$.currentQuestion.questionId").value(questionId))
+            .andExpect(jsonPath("$.currentQuestion.bodyText").value("Explain Spring transaction boundaries body"))
+            .andExpect(jsonPath("$.currentQuestion.tags[0]").value("transactions"))
+            .andExpect(jsonPath("$.currentQuestion.focusSkillNames[0]").value(startsWith("Spring Boot")))
+            .andExpect(jsonPath("$.currentQuestion.generationStatus").value("seeded"))
             .andExpect(jsonPath("$.questions[0].status").value("current"))
     }
 
@@ -266,6 +280,8 @@ class InterviewSessionApiIntegrationTest {
             .andExpect(jsonPath("$.nextQuestion.isFollowUp").value(true))
             .andExpect(jsonPath("$.nextQuestion.parentSessionQuestionId").value(parentSessionQuestionId))
             .andExpect(jsonPath("$.nextQuestion.sourceType").value("catalog_follow_up"))
+            .andExpect(jsonPath("$.nextQuestion.bodyText").value("What metrics did you watch during mitigation body"))
+            .andExpect(jsonPath("$.nextQuestion.generationStatus").value("catalog_follow_up"))
 
         mockMvc.perform(get("/api/interview-sessions/$sessionId").header("Authorization", authHeader))
             .andExpect(status().isOk)
@@ -402,6 +418,17 @@ class InterviewSessionApiIntegrationTest {
             "$name-${System.nanoTime()}",
         )
     }
+
+    private fun insertTag(name: String): Long =
+        jdbcTemplate.queryForObject(
+            """
+            INSERT INTO tags (name, tag_type, created_at)
+            VALUES (?, 'topic', now())
+            RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            name,
+        )
 
     private fun insertResumeVersion(): Long {
         val resumeId = jdbcTemplate.queryForObject(
