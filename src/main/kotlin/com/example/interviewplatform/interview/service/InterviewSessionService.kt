@@ -10,6 +10,7 @@ import com.example.interviewplatform.interview.dto.InterviewSessionAdvanceRespon
 import com.example.interviewplatform.interview.dto.InterviewSessionAnswerResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionDetailResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionListItemDto
+import com.example.interviewplatform.interview.dto.InterviewResumeEvidenceDto
 import com.example.interviewplatform.interview.dto.InterviewSessionQuestionDto
 import com.example.interviewplatform.interview.dto.SubmitInterviewSessionAnswerRequest
 import com.example.interviewplatform.interview.entity.InterviewSessionEntity
@@ -182,6 +183,7 @@ class InterviewSessionService(
                 tagsJson = row.tagsJson,
                 focusSkillNamesJson = row.focusSkillNamesJson,
                 resumeContextSummary = row.resumeContextSummary,
+                resumeEvidenceJson = row.resumeEvidenceJson,
                 generationRationale = row.generationRationale,
                 generationStatus = row.generationStatus,
                 llmModel = row.llmModel,
@@ -284,6 +286,7 @@ class InterviewSessionService(
         val questionById = questionRepository.findAllById(questionIds).associateBy { it.id }
         val tagsByRowId = rows.associate { it.id to decodeJsonArray(it.tagsJson) }
         val focusSkillsByRowId = rows.associate { it.id to decodeJsonArray(it.focusSkillNamesJson) }
+        val resumeEvidenceByRowId = rows.associate { it.id to decodeResumeEvidence(it.resumeEvidenceJson) }
         val currentRowId = rows.firstOrNull { it.answerAttemptId == null }?.id
         val questionDtos = rows.map { row ->
             val question = row.questionId?.let(questionById::get)
@@ -293,6 +296,7 @@ class InterviewSessionService(
                 status = questionStatus(row, currentRowId, session.status),
                 tags = tagsByRowId[row.id].orEmpty(),
                 focusSkillNames = focusSkillsByRowId[row.id].orEmpty(),
+                resumeEvidence = resumeEvidenceByRowId[row.id].orEmpty(),
             )
         }
         val summary = summarize(rows)
@@ -357,6 +361,7 @@ class InterviewSessionService(
                 tagsJson = tagsJsonByQuestionId[question.id],
                 focusSkillNamesJson = focusSkillsJsonByQuestionId[question.id],
                 resumeContextSummary = resumeContextSummaryByQuestionId[question.id],
+                resumeEvidenceJson = null,
                 generationRationale = "Selected from the initial interview question pool.",
                 generationStatus = GENERATION_STATUS_SEEDED,
                 createdAt = now,
@@ -437,6 +442,7 @@ class InterviewSessionService(
             tagsJson = objectMapper.writeValueAsString(generated.tags),
             focusSkillNamesJson = objectMapper.writeValueAsString(generated.focusSkillNames),
             resumeContextSummary = generated.resumeContextSummary,
+            resumeEvidenceJson = null,
             generationRationale = generated.generationRationale,
             generationStatus = GENERATION_STATUS_AI_GENERATED,
             llmModel = generated.llmModel,
@@ -514,6 +520,7 @@ class InterviewSessionService(
                 tagsJson = tagsJson,
                 focusSkillNamesJson = focusSkillsJson,
                 resumeContextSummary = resumeContextSummary,
+                resumeEvidenceJson = null,
                 generationRationale = "Follow-up selected from the catalog relationship graph.",
                 generationStatus = GENERATION_STATUS_CATALOG_FOLLOW_UP,
                 createdAt = now,
@@ -567,6 +574,7 @@ class InterviewSessionService(
                 tagsJson = objectMapper.writeValueAsString(generated.tags),
                 focusSkillNamesJson = objectMapper.writeValueAsString(generated.focusSkillNames),
                 resumeContextSummary = generated.resumeContextSummary,
+                resumeEvidenceJson = null,
                 generationRationale = generated.generationRationale,
                 generationStatus = GENERATION_STATUS_AI_GENERATED,
                 llmModel = generated.llmModel,
@@ -602,6 +610,7 @@ class InterviewSessionService(
                         tagsJson = row.tagsJson,
                         focusSkillNamesJson = row.focusSkillNamesJson,
                         resumeContextSummary = row.resumeContextSummary,
+                        resumeEvidenceJson = row.resumeEvidenceJson,
                         generationRationale = row.generationRationale,
                         generationStatus = row.generationStatus,
                         llmModel = row.llmModel,
@@ -669,6 +678,15 @@ class InterviewSessionService(
         }
         return runCatching {
             objectMapper.readValue(value, object : TypeReference<List<String>>() {})
+        }.getOrElse { emptyList() }
+    }
+
+    private fun decodeResumeEvidence(value: String?): List<InterviewResumeEvidenceDto> {
+        if (value.isNullOrBlank()) {
+            return emptyList()
+        }
+        return runCatching {
+            objectMapper.readValue(value, object : TypeReference<List<InterviewResumeEvidenceDto>>() {})
         }.getOrElse { emptyList() }
     }
 

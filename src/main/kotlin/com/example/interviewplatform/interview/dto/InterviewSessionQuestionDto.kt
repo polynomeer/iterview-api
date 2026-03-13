@@ -17,6 +17,7 @@ data class InterviewSessionQuestionDto(
     val tags: List<String>,
     val focusSkillNames: List<String>,
     val resumeContextSummary: String?,
+    val resumeEvidence: List<InterviewResumeEvidenceDto>,
     val generationRationale: String?,
     val generationStatus: String,
     val llmModel: String?,

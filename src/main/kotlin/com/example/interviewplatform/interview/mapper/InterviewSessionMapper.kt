@@ -2,6 +2,7 @@ package com.example.interviewplatform.interview.mapper
 
 import com.example.interviewplatform.interview.dto.InterviewSessionQuestionDto
 import com.example.interviewplatform.interview.dto.InterviewSessionListItemDto
+import com.example.interviewplatform.interview.dto.InterviewResumeEvidenceDto
 import com.example.interviewplatform.interview.dto.InterviewSessionSummaryDto
 import com.example.interviewplatform.interview.entity.InterviewSessionQuestionEntity
 import com.example.interviewplatform.question.entity.QuestionEntity
@@ -14,6 +15,7 @@ object InterviewSessionMapper {
         status: String,
         tags: List<String>,
         focusSkillNames: List<String>,
+        resumeEvidence: List<InterviewResumeEvidenceDto>,
     ): InterviewSessionQuestionDto = InterviewSessionQuestionDto(
         id = row.id,
         questionId = row.questionId,
@@ -31,6 +33,7 @@ object InterviewSessionMapper {
         tags = tags,
         focusSkillNames = focusSkillNames,
         resumeContextSummary = row.resumeContextSummary,
+        resumeEvidence = resumeEvidence,
         generationRationale = row.generationRationale,
         generationStatus = row.generationStatus,
         llmModel = row.llmModel,

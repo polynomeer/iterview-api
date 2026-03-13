@@ -40,6 +40,8 @@ class InterviewSessionQuestionEntity(
     val focusSkillNamesJson: String? = null,
     @Column(name = "resume_context_summary")
     val resumeContextSummary: String? = null,
+    @Column(name = "resume_evidence_json")
+    val resumeEvidenceJson: String? = null,
     @Column(name = "generation_rationale")
     val generationRationale: String? = null,
     @Column(name = "generation_status", nullable = false)
