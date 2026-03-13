@@ -42,7 +42,7 @@ dependencies {
 }
 
 springBoot {
-    mainClass.set("com.example.interviewplatform.InterviewPlatformApplicationKt")
+    mainClass.set("com.example.interviewplatform.InterviewPlatformApplication")
 }
 
 kotlin {
