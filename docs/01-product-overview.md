@@ -148,6 +148,8 @@ This is an additive evolution of the current backend, not a new product line.
 - interview history remains session-level and must not replace archive
 - a resume-based interview session must remain attributable to the chosen `resumeVersionId` for its full lifetime
 - full resume coverage should be measured against structured resume evidence units, not raw character-by-character text
+- full-coverage results should prefer a structured resume viewer over raw PDF-coordinate highlighting for the first implementation
+- resume interview results should highlight asked or defended resume evidence blocks and let the user inspect the linked interview questions from those highlights
 - user-authored or uploaded original data must remain stored and retrievable in the original language
 - UI language, system-generated text language, and static/reference-data language should follow the effective locale for the request or user setting
 - generated interview questions, follow-ups, and analysis text should persist the locale they were generated in
@@ -163,3 +165,4 @@ The updated product should help a user answer three questions every time they op
 It should also answer these interview-specific questions:
 - Which parts of my resume have not been covered in mock interviews yet?
 - When I hover one project or sentence from my resume, which interview questions were asked about it?
+- When I click one highlighted resume block after the interview, can I jump back to the exact interview turn that covered it?

@@ -1395,6 +1395,15 @@ Current response shape:
 }
 ```
 
+Recommended result-view semantics:
+- the first implementation should use a structured resume viewer backed by parsed resume sections such as experiences and projects rather than PDF coordinate overlays
+- `sourceRecordType` and `sourceRecordId` should be treated as the stable join key between resume section APIs and the session result map
+- one resume evidence block may map to multiple related interview turns
+- hover should show a lightweight related-question preview, not necessarily a fully expanded question card
+- click should pin the related questions and navigate or scroll to the linked session question card when practical
+- clients should visually distinguish `coverageStatus` values such as `defended`, `weak`, `skipped`, and `unasked` in the result viewer
+- current resume-grounded result mapping is intentionally scoped to project and experience evidence only
+
 #### `GET /api/archive`
 Current additive behavior for interview-originated records:
 - archive remains question-level

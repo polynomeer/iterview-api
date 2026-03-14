@@ -142,8 +142,11 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - explain that coverage is measured against interviewable resume evidence units, not every raw character
   - show overall coverage percent plus per-section completion
   - handle `coverageStatus` values such as `unasked`, `asked`, `defended`, `weak`, and `skipped`
-  - in the result view, hovering a resume snippet should show related questions
-  - clicking a related question should navigate or scroll back to the relevant question card
+  - prefer a structured resume viewer based on parsed experiences and projects instead of first attempting raw PDF overlays
+  - use `sourceRecordType` + `sourceRecordId` from `resume-map` as the join key back into parsed resume sections
+  - in the result view, hovering a highlighted resume block should show related questions in a lightweight preview
+  - clicking a highlighted resume block should pin the related questions and allow navigation or scrolling back to the relevant question card
+  - treat current result highlighting scope as `project` and `experience` only
 - The home payload is backward compatible. Newly added fields are optional and can be ignored by older clients.
 - Mixed-language rendering is expected and should be handled gracefully:
   - UI chrome and localized labels may be English

@@ -92,6 +92,9 @@
 - additive interview modes can coexist on the same session domain without breaking current `resume_mock`, `review_mock`, or `topic_mock` behavior
 - `full_coverage` can report coverage against session-scoped resume evidence items
 - a full-coverage result can map resume evidence items back to related asked questions for hover and click interactions on the result screen
+- a completed full-coverage result can render a structured resume viewer where experience or project blocks are visually highlighted by `coverageStatus`
+- hovering one highlighted resume block can reveal one or more related interview turns without losing the current result context
+- clicking one related interview turn can focus or scroll to the linked session question card
 - AI-generated interview and analysis text can be produced in the selected system language while original resume evidence remains in the source language
 
 ## Data and Schema Quality

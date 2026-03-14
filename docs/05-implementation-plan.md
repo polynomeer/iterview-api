@@ -154,6 +154,7 @@ Acceptance intent:
 14. ensure follow-up interview turns can be revisited from both interview history and archive
 15. introduce additive `interviewMode` planning so `quick_screen`, timed mocks, `free_interview`, and `full_coverage` can share the same base session model
 16. for `full_coverage`, create a session-scoped evidence inventory and use a coverage planner to choose the next evidence target before asking the next question
+17. add a structured full-coverage result view contract so parsed resume experiences and projects can be highlighted and mapped back to related interview turns
 17. persist question-to-evidence links so the final result screen can map resume evidence items back to related session questions
 
 Acceptance intent:
@@ -163,6 +164,7 @@ Acceptance intent:
 - resume-selected interview sessions stay pinned to the chosen resume version for their full lifetime
 - question cards can later show a `Based on your resume` block without needing to recalculate evidence from the current resume state
 - `full_coverage` can measure completion against resume evidence units rather than loosely estimated topic breadth
+- the first result-time resume map should reuse parsed resume section APIs plus `resume-map` joins instead of requiring PDF coordinate extraction
 
 ## Phase 6 - Seed and Test Hardening
 1. extend seed/reference data for:
