@@ -47,6 +47,8 @@ class OpenAiInterviewFollowUpGenerationClientTest {
         val result = client.generate(
             InterviewFollowUpGenerationInput(
                 outputLanguage = "en",
+                answerQualitySignal = "weak",
+                preferredFollowUpStyle = "evidence_challenge",
                 parentPromptText = "Tell me about a payments migration",
                 parentBodyText = "Explain the rollout.",
                 answerText = "We migrated traffic gradually.",
@@ -106,9 +108,12 @@ class OpenAiInterviewFollowUpGenerationClientTest {
         assertEquals("interview-follow-up-v1", result.llmPromptVersion)
         assertEquals("en", result.contentLocale)
         assertTrue(transport.capturedBody.orEmpty().contains("facet=tradeoff"))
+        assertTrue(transport.capturedBody.orEmpty().contains("Answer quality signal: weak"))
+        assertTrue(transport.capturedBody.orEmpty().contains("Preferred follow-up style: evidence_challenge"))
         assertTrue(transport.capturedBody.orEmpty().contains("Preferred follow-up evidence candidates"))
         assertTrue(transport.capturedBody.orEmpty().contains("Already covered facets for this record: problem, tradeoff"))
         assertTrue(transport.capturedBody.orEmpty().contains("tradeoff=alternatives and accepted downside"))
+        assertTrue(transport.capturedBody.orEmpty().contains("weak=evidence challenge or STAR deepening"))
     }
 
     private class FakeTransport(

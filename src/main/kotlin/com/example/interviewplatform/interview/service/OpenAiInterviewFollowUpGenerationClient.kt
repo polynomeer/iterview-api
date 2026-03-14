@@ -93,6 +93,10 @@ class OpenAiInterviewFollowUpGenerationClient(
         2. Evidence challenge: ask the candidate to justify a claim from the answer or the resume with specific evidence.
         3. Technical drill-down: ask how a technology, architecture, failure mode, or implementation detail actually worked.
         4. Scenario extension: introduce a realistic constraint, outage, scale jump, latency target, or conflicting requirement and ask what they would do.
+        Respect the preferred follow-up style hint when one is provided.
+        - weak answers should usually bias toward evidence challenge or STAR deepening
+        - medium answers should usually bias toward technical drill-down
+        - strong answers should usually bias toward scenario extension or trade-off pressure-testing
         Match the question angle to the active evidence facet when possible:
         - problem: ask about original constraints, root cause, why it was difficult, or what made the issue important
         - action: ask about implementation details, execution order, ownership boundaries, or decision points
@@ -116,6 +120,8 @@ class OpenAiInterviewFollowUpGenerationClient(
     private fun userPrompt(input: InterviewFollowUpGenerationInput): String = buildString {
         appendLine("Prompt version: $promptVersion")
         appendLine("Output language: ${languageName(input.outputLanguage)} (${input.outputLanguage})")
+        appendLine("Answer quality signal: ${input.answerQualitySignal}")
+        appendLine("Preferred follow-up style: ${input.preferredFollowUpStyle}")
         appendLine("Parent question:")
         appendLine(input.parentPromptText)
         input.parentBodyText?.let {
@@ -182,6 +188,7 @@ class OpenAiInterviewFollowUpGenerationClient(
         appendLine("Follow-up generation goal:")
         appendLine("Use the answer quality and resume evidence to ask the next most revealing single question, not just a keyword-adjacent question.")
         appendLine("If preferred follow-up evidence candidates are provided, choose one of them first unless the answer clearly requires a harder challenge on the same exact claim.")
+        appendLine("Honor the preferred follow-up style when possible: weak=evidence challenge or STAR deepening, medium=technical drill-down, strong=scenario extension or trade-off pressure test.")
         appendLine("If the answer was vague, ask for concrete evidence, metrics, STAR detail, or a decision process.")
         appendLine("If the answer was strong but incomplete, ask for technical depth, trade-offs, failure handling, or a realistic what-if constraint.")
         appendLine("Map the drill-down to the chosen facet when possible: problem=context and constraints, action=implementation and choices, result=validation and impact, metric=measurement and thresholds, tradeoff=alternatives and accepted downside.")

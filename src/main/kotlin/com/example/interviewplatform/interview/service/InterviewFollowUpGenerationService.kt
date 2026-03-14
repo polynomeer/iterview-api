@@ -25,6 +25,7 @@ class InterviewFollowUpGenerationService(
         session: InterviewSessionEntity,
         answeredRow: InterviewSessionQuestionEntity,
         answerText: String,
+        answerScore: Int,
         parentTags: List<String>,
         parentFocusSkillNames: List<String>,
         parentResumeEvidenceCandidates: List<InterviewResumeEvidenceCandidate>,
@@ -37,8 +38,12 @@ class InterviewFollowUpGenerationService(
         }
         val version = resumeVersionRepository.findById(resumeVersionId).orElse(null) ?: return null
         val outputLanguage = appLocaleService.resolveLanguage()
+        val answerQualitySignal = answerQualitySignal(answerScore)
+        val preferredFollowUpStyle = preferredFollowUpStyle(answerScore)
         val input = InterviewFollowUpGenerationInput(
             outputLanguage = outputLanguage,
+            answerQualitySignal = answerQualitySignal,
+            preferredFollowUpStyle = preferredFollowUpStyle,
             parentPromptText = answeredRow.promptText ?: defaultParentPrompt(outputLanguage),
             parentBodyText = answeredRow.bodyText,
             answerText = answerText.trim(),
@@ -69,6 +74,23 @@ class InterviewFollowUpGenerationService(
         return runCatching { client.generate(input) }.getOrNull()
     }
 
+    private fun answerQualitySignal(answerScore: Int): String = when {
+        answerScore >= STRONG_ANSWER_SCORE_THRESHOLD -> "strong"
+        answerScore >= MID_ANSWER_SCORE_THRESHOLD -> "medium"
+        else -> "weak"
+    }
+
+    private fun preferredFollowUpStyle(answerScore: Int): String = when {
+        answerScore >= STRONG_ANSWER_SCORE_THRESHOLD -> "scenario_extension"
+        answerScore >= MID_ANSWER_SCORE_THRESHOLD -> "technical_drill_down"
+        else -> "evidence_challenge"
+    }
+
     private fun defaultParentPrompt(language: String): String =
         if (language.lowercase() == "en") "Interview question" else "면접 질문"
+
+    private companion object {
+        const val MID_ANSWER_SCORE_THRESHOLD = 70
+        const val STRONG_ANSWER_SCORE_THRESHOLD = 85
+    }
 }

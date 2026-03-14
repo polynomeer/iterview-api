@@ -302,6 +302,7 @@ class InterviewSessionService(
             sessionId = session.id,
             answeredRow = row,
             answerText = request.contentText,
+            answerScore = submission.scoreSummary.totalScore,
             resumeVersionId = session.resumeVersionId,
             now = now,
         )
@@ -694,6 +695,7 @@ class InterviewSessionService(
         sessionId: Long,
         answeredRow: InterviewSessionQuestionEntity,
         answerText: String,
+        answerScore: Int,
         resumeVersionId: Long?,
         now: java.time.Instant,
     ): Boolean {
@@ -716,6 +718,7 @@ class InterviewSessionService(
                 session = session,
                 answeredRow = answeredRow,
                 answerText = answerText,
+                answerScore = answerScore,
                 parentTags = decodeJsonArray(answeredRow.tagsJson),
                 parentFocusSkillNames = decodeJsonArray(answeredRow.focusSkillNamesJson),
                 parentResumeEvidenceCandidates = followUpContext.parentCandidates,

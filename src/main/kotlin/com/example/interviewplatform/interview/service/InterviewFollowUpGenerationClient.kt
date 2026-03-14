@@ -2,6 +2,8 @@ package com.example.interviewplatform.interview.service
 
 data class InterviewFollowUpGenerationInput(
     val outputLanguage: String,
+    val answerQualitySignal: String,
+    val preferredFollowUpStyle: String,
     val parentPromptText: String,
     val parentBodyText: String?,
     val answerText: String,
