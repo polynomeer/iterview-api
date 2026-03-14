@@ -1002,18 +1002,17 @@ class InterviewSessionService(
     }
 
     private fun resolveNextCoverageTarget(sessionId: Long): InterviewSessionEvidenceItemEntity? {
-        val unasked = interviewSessionEvidenceItemRepository
-            .findFirstByInterviewSessionIdAndCoverageStatusOrderByCoveragePriorityDescDisplayOrderAscIdAsc(
-                sessionId,
-                COVERAGE_STATUS_UNASKED,
-            )
-        if (unasked != null) {
-            return unasked
-        }
         val evidenceItems = interviewSessionEvidenceItemRepository.findByInterviewSessionIdOrderByDisplayOrderAscIdAsc(sessionId)
         if (evidenceItems.isEmpty()) {
             return null
         }
+        val availableFacetsByRecord = evidenceItems
+            .groupBy { evidenceKey(it.sourceRecordType, it.sourceRecordId) }
+            .mapValues { (_, items) -> items.map { it.facet }.distinct() }
+        val usedFacetsByRecord = evidenceItems
+            .filter { it.coverageStatus != COVERAGE_STATUS_UNASKED }
+            .groupBy { evidenceKey(it.sourceRecordType, it.sourceRecordId) }
+            .mapValues { (_, items) -> items.map { it.facet }.distinct() }
         val linkCountsByEvidenceId = interviewSessionQuestionEvidenceLinkRepository
             .findByIdInterviewSessionEvidenceItemIdIn(evidenceItems.map { it.id })
             .groupingBy { it.id.interviewSessionEvidenceItemId }
@@ -1030,7 +1029,15 @@ class InterviewSessionService(
         }
         return evidenceItems
             .sortedWith(
-                compareByDescending<InterviewSessionEvidenceItemEntity> { extendedCoveragePriority(it.coverageStatus) }
+                compareBy<InterviewSessionEvidenceItemEntity> { if (it.coverageStatus == COVERAGE_STATUS_UNASKED) 0 else 1 }
+                    .thenBy {
+                        facetPathPriority(
+                            facet = it.facet,
+                            usedFacets = usedFacetsByRecord[evidenceKey(it.sourceRecordType, it.sourceRecordId)].orEmpty(),
+                            availableFacets = availableFacetsByRecord[evidenceKey(it.sourceRecordType, it.sourceRecordId)].orEmpty(),
+                        )
+                    }
+                    .thenByDescending { extendedCoveragePriority(it.coverageStatus) }
                     .thenBy { facetLinkCountsByRecord[it.id] ?: 0 }
                     .thenBy { linkCountsByEvidenceId[it.id] ?: 0 }
                     .thenByDescending { it.coveragePriority }
@@ -1151,10 +1158,18 @@ class InterviewSessionService(
         val sameRecordCandidates = allCandidates
             .filter { evidenceKey(it.sourceRecordType, it.sourceRecordId) == preferredRecordKey }
             .distinctBy { Triple(it.sourceRecordType, it.sourceRecordId, normalizeSnippet(it.snippet)) }
+        val availableFacets = sameRecordCandidates.map { it.facet }.distinct()
 
         val preferredCandidates = sameRecordCandidates
             .sortedWith(
                 compareBy<InterviewResumeEvidenceCandidate>(
+                    {
+                        facetPathPriority(
+                            facet = it.facet,
+                            usedFacets = usedFacetsForPreferredRecord,
+                            availableFacets = availableFacets,
+                        )
+                    },
                     { if (it.facet in usedFacetsForPreferredRecord) 1 else 0 },
                     { if (normalizeSnippet(it.snippet) in parentSnippetKeys) 1 else 0 },
                     { usedFacetCounts[it.facet] ?: 0 },
@@ -1330,6 +1345,30 @@ class InterviewSessionService(
         } else {
             GENERATION_STATUS_COVERAGE_EXTENDED
         }
+
+    private fun facetPathPriority(
+        facet: String,
+        usedFacets: List<String>,
+        availableFacets: List<String>,
+    ): Int {
+        val normalizedFacet = facet.ifBlank { "general" }
+        val unresolvedProgression = FACET_PROGRESSION.filter { candidate ->
+            candidate in availableFacets && candidate !in usedFacets
+        }
+        if (unresolvedProgression.isNotEmpty()) {
+            val unresolvedIndex = unresolvedProgression.indexOf(normalizedFacet)
+            if (unresolvedIndex >= 0) {
+                return unresolvedIndex
+            }
+        }
+        val remainingAvailable = availableFacets.distinct()
+        val progressionIndex = FACET_PROGRESSION.indexOf(normalizedFacet).takeIf { it >= 0 } ?: FACET_PROGRESSION.size
+        return when {
+            normalizedFacet !in remainingAvailable -> 200 + progressionIndex
+            normalizedFacet !in usedFacets -> 100 + progressionIndex
+            else -> 300 + progressionIndex
+        }
+    }
 
     private fun extendedCoveragePriority(status: String): Int = when (status) {
         COVERAGE_STATUS_WEAK -> 4
@@ -1619,6 +1658,7 @@ class InterviewSessionService(
         const val COVERAGE_DEFENDED_SCORE_THRESHOLD = 70
         const val MAX_PREFERRED_FOLLOW_UP_EVIDENCE_CANDIDATES = 4
         const val FULL_COVERAGE_EVIDENCE_LIMIT = 64
+        val FACET_PROGRESSION = listOf("problem", "action", "result", "metric", "tradeoff", "general")
         val SUPPORTED_SESSION_TYPES = setOf(SESSION_TYPE_RESUME_MOCK, SESSION_TYPE_REVIEW_MOCK, SESSION_TYPE_TOPIC_MOCK)
         val SUPPORTED_INTERVIEW_MODES = setOf(
             INTERVIEW_MODE_QUICK_SCREEN,

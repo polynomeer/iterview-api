@@ -372,6 +372,118 @@ class InterviewSessionApiIntegrationTest {
     }
 
     @Test
+    fun `full coverage prefers next facet sequence within the same record`() {
+        val resumeVersionId = insertResumeVersion()
+        insertResumeProject(resumeVersionId)
+        insertResumeExperience(resumeVersionId)
+
+        val sessionResponse = mockMvc.perform(
+            post("/api/interview-sessions")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "sessionType" to "resume_mock",
+                            "interviewMode" to "full_coverage",
+                            "questionCount" to 1,
+                            "resumeVersionId" to resumeVersionId,
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val sessionId = sessionResponse.get("id").asLong()
+        val firstSessionQuestionId = sessionResponse.get("currentQuestion").get("id").asLong()
+        val firstQuestionId = sessionResponse.get("currentQuestion").get("questionId").asLong()
+        val firstAnswerAttemptId = insertAnswerAttempt(firstQuestionId)
+
+        jdbcTemplate.update(
+            """
+            UPDATE interview_session_questions
+            SET answer_attempt_id = ?, updated_at = now()
+            WHERE id = ?
+            """.trimIndent(),
+            firstAnswerAttemptId,
+            firstSessionQuestionId,
+        )
+        jdbcTemplate.update(
+            """
+            UPDATE interview_session_evidence_items
+            SET source_record_type = 'resume_project_snapshot',
+                source_record_id = 999,
+                label = 'Facet Sequence Project',
+                snippet = CASE
+                    WHEN display_order = 1 THEN 'Problem facet snippet'
+                    WHEN display_order = 2 THEN 'Action facet snippet'
+                    WHEN display_order = 3 THEN 'Result facet snippet'
+                    ELSE snippet
+                END,
+                facet = CASE
+                    WHEN display_order = 1 THEN 'problem'
+                    WHEN display_order = 2 THEN 'action'
+                    WHEN display_order = 3 THEN 'result'
+                    ELSE facet
+                END,
+                coverage_status = CASE
+                    WHEN display_order = 1 THEN 'defended'
+                    WHEN display_order IN (2, 3) THEN 'unasked'
+                    ELSE 'defended'
+                END,
+                updated_at = now()
+            WHERE interview_session_id = ?
+            """.trimIndent(),
+            sessionId,
+        )
+
+        val secondAdvance = mockMvc.perform(post("/api/interview-sessions/$sessionId/next-question").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.currentQuestion.sourceType").value("coverage_planner"))
+            .andExpect(jsonPath("$.currentQuestion.bodyText").value(startsWith("이력서 근거: Action facet snippet")))
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val secondSessionQuestionId = secondAdvance.get("currentQuestion").get("id").asLong()
+        val secondQuestionId = secondAdvance.get("currentQuestion").get("questionId").asLong()
+        val secondAnswerAttemptId = insertAnswerAttempt(secondQuestionId)
+
+        jdbcTemplate.update(
+            """
+            UPDATE interview_session_questions
+            SET answer_attempt_id = ?, updated_at = now()
+            WHERE id = ?
+            """.trimIndent(),
+            secondAnswerAttemptId,
+            secondSessionQuestionId,
+        )
+        jdbcTemplate.update(
+            """
+            UPDATE interview_session_evidence_items
+            SET coverage_status = CASE
+                WHEN display_order IN (1, 2) THEN 'defended'
+                WHEN display_order = 3 THEN 'unasked'
+                ELSE 'defended'
+            END,
+                updated_at = now()
+            WHERE interview_session_id = ?
+            """.trimIndent(),
+            sessionId,
+        )
+
+        mockMvc.perform(post("/api/interview-sessions/$sessionId/next-question").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.currentQuestion.sourceType").value("coverage_planner"))
+            .andExpect(jsonPath("$.currentQuestion.bodyText").value(startsWith("이력서 근거: Result facet snippet")))
+    }
+
+    @Test
     fun `next question rejects advancing while current question is unanswered`() {
         val categoryId = insertCategory("Advance Guard")
         val questionId = insertQuestion("Explain how you debug latency spikes", categoryId)
