@@ -22,6 +22,8 @@ class InterviewOpeningGenerationService(
     fun generateResumeOpening(
         resumeVersionId: Long,
         preferredEvidenceCandidates: List<InterviewResumeEvidenceCandidate> = emptyList(),
+        preferredEvidenceRecoveryStatus: String? = null,
+        preferredOpeningStyle: String? = null,
     ): GeneratedInterviewOpening? {
         if (!client.isEnabled()) {
             return null
@@ -49,6 +51,8 @@ class InterviewOpeningGenerationService(
                 .take(5),
             resumeEvidenceCandidates = interviewResumeEvidenceAssembler.loadCandidates(resumeVersionId),
             preferredResumeEvidenceCandidates = preferredEvidenceCandidates,
+            preferredEvidenceRecoveryStatus = preferredEvidenceRecoveryStatus,
+            preferredOpeningStyle = preferredOpeningStyle,
         )
         return runCatching { client.generate(input) }.getOrNull()
     }

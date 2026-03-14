@@ -608,6 +608,7 @@ class InterviewSessionService(
                 session = session,
                 resumeVersionId = resumeVersionId,
                 preferredEvidenceCandidates = emptyList(),
+                preferredEvidenceRecoveryStatus = null,
                 now = now,
             )
             if (openingRow != null) {
@@ -632,11 +633,14 @@ class InterviewSessionService(
         session: InterviewSessionEntity,
         resumeVersionId: Long,
         preferredEvidenceCandidates: List<InterviewResumeEvidenceCandidate>,
+        preferredEvidenceRecoveryStatus: String?,
         now: java.time.Instant,
     ): InterviewSessionQuestionEntity? {
         val generated = interviewOpeningGenerationService.generateResumeOpening(
             resumeVersionId = resumeVersionId,
             preferredEvidenceCandidates = preferredEvidenceCandidates,
+            preferredEvidenceRecoveryStatus = preferredEvidenceRecoveryStatus,
+            preferredOpeningStyle = preferredOpeningStyle(preferredEvidenceRecoveryStatus),
         ) ?: return null
         val categoryId = resolveGeneratedQuestionCategoryId(userId)
         val generatedQuestion = questionRepository.save(
@@ -697,6 +701,7 @@ class InterviewSessionService(
             session = session,
             resumeVersionId = resumeVersionId,
             preferredEvidenceCandidates = listOf(preferredEvidenceCandidate),
+            preferredEvidenceRecoveryStatus = targetItem.coverageStatus,
             now = now,
         ) ?: buildDeterministicCoverageRow(
             userId = userId,
@@ -1010,6 +1015,7 @@ class InterviewSessionService(
             session = session,
             resumeVersionId = session.resumeVersionId,
             preferredEvidenceCandidates = listOf(nextItem.toEvidenceCandidate()),
+            preferredEvidenceRecoveryStatus = nextItem.coverageStatus,
             now = now,
         ) ?: buildDeterministicCoverageRow(
             userId = userId,
@@ -1375,43 +1381,75 @@ class InterviewSessionService(
 
     private fun deterministicCoverageTitle(targetItem: InterviewSessionEvidenceItemEntity, language: String): String =
         when (language.lowercase()) {
-            "en" -> deterministicCoverageTitleEn(targetItem)
-            else -> deterministicCoverageTitleKo(targetItem)
+            "en" -> deterministicCoverageTitleEn(targetItem, targetItem.coverageStatus)
+            else -> deterministicCoverageTitleKo(targetItem, targetItem.coverageStatus)
         }
 
     private fun deterministicCoverageBody(targetItem: InterviewSessionEvidenceItemEntity, language: String): String =
         when (language.lowercase()) {
-            "en" -> "Resume evidence: ${targetItem.snippet}\n${deterministicCoverageBodyEn(targetItem)}"
-            else -> "이력서 근거: ${targetItem.snippet}\n${deterministicCoverageBodyKo(targetItem)}"
+            "en" -> "Resume evidence: ${targetItem.snippet}\n${deterministicCoverageBodyEn(targetItem, targetItem.coverageStatus)}"
+            else -> "이력서 근거: ${targetItem.snippet}\n${deterministicCoverageBodyKo(targetItem, targetItem.coverageStatus)}"
         }
 
-    private fun deterministicCoverageTitleEn(targetItem: InterviewSessionEvidenceItemEntity): String = when (targetItem.facet) {
-        "problem" -> "What concrete problem or constraint led you to take on ${targetItem.label ?: "this work"}?"
-        "action" -> "Walk me through the key implementation decisions you made in ${targetItem.label ?: "this work"}."
-        "result" -> "What outcome did ${targetItem.label ?: "this work"} actually produce, and how did you validate it?"
-        "metric" -> "Which metrics proved that ${targetItem.label ?: "this work"} was working as intended?"
-        "tradeoff" -> "What trade-offs did you weigh while driving ${targetItem.label ?: "this work"}?"
-        else -> when (targetItem.section) {
-            "project" -> "Walk me through ${targetItem.label ?: "this project"} in concrete detail."
-            "experience" -> "Describe the problem and solution behind ${targetItem.label ?: "this experience"}."
-            else -> "Explain the concrete example behind ${targetItem.label ?: "this resume detail"}."
+    private fun deterministicCoverageTitleEn(targetItem: InterviewSessionEvidenceItemEntity, coverageStatus: String): String =
+        when {
+            coverageStatus == COVERAGE_STATUS_WEAK ->
+                "Your earlier answer did not fully defend ${targetItem.label ?: "this evidence"}. Rebuild the case with concrete detail."
+            coverageStatus == COVERAGE_STATUS_SKIPPED ->
+                "Let's come back to ${targetItem.label ?: "this evidence"} that we skipped earlier. Walk me through it clearly."
+            else -> when (targetItem.facet) {
+                "problem" -> "What concrete problem or constraint led you to take on ${targetItem.label ?: "this work"}?"
+                "action" -> "Walk me through the key implementation decisions you made in ${targetItem.label ?: "this work"}."
+                "result" -> "What outcome did ${targetItem.label ?: "this work"} actually produce, and how did you validate it?"
+                "metric" -> "Which metrics proved that ${targetItem.label ?: "this work"} was working as intended?"
+                "tradeoff" -> "What trade-offs did you weigh while driving ${targetItem.label ?: "this work"}?"
+                else -> when (targetItem.section) {
+                    "project" -> "Walk me through ${targetItem.label ?: "this project"} in concrete detail."
+                    "experience" -> "Describe the problem and solution behind ${targetItem.label ?: "this experience"}."
+                    else -> "Explain the concrete example behind ${targetItem.label ?: "this resume detail"}."
+                }
+            }
         }
-    }
 
-    private fun deterministicCoverageTitleKo(targetItem: InterviewSessionEvidenceItemEntity): String = when (targetItem.facet) {
-        "problem" -> "${targetItem.label ?: "이 경험"}을 시작하게 된 구체적인 문제와 제약이 무엇이었는지 설명해 주세요."
-        "action" -> "${targetItem.label ?: "이 경험"}에서 어떤 구현과 의사결정을 직접 했는지 구체적으로 설명해 주세요."
-        "result" -> "${targetItem.label ?: "이 경험"}이 실제로 어떤 결과를 냈고, 그 결과를 어떻게 검증했는지 설명해 주세요."
-        "metric" -> "${targetItem.label ?: "이 경험"}의 효과를 어떤 지표로 판단했고 기준을 어떻게 잡았는지 설명해 주세요."
-        "tradeoff" -> "${targetItem.label ?: "이 경험"}을 진행하면서 어떤 대안과 트레이드오프를 비교했는지 설명해 주세요."
-        else -> when (targetItem.section) {
-            "project" -> "${targetItem.label ?: "이 프로젝트"}를 어떤 문제와 맥락에서 진행했는지 구체적으로 설명해 주세요."
-            "experience" -> "${targetItem.label ?: "이 경험"}에서 해결하려던 문제와 실제 해결 과정을 설명해 주세요."
-            else -> "${targetItem.label ?: "이 이력서 내용"}에 담긴 구체적인 사례를 설명해 주세요."
+    private fun deterministicCoverageTitleKo(targetItem: InterviewSessionEvidenceItemEntity, coverageStatus: String): String =
+        when {
+            coverageStatus == COVERAGE_STATUS_WEAK ->
+                "앞선 답변만으로는 ${targetItem.label ?: "이 근거"}가 충분히 방어되지 않았습니다. 이번에는 더 구체적으로 설명해 주세요."
+            coverageStatus == COVERAGE_STATUS_SKIPPED ->
+                "앞에서 건너뛴 ${targetItem.label ?: "이 근거"}로 다시 돌아가 보겠습니다. 이번에는 명확하게 설명해 주세요."
+            else -> when (targetItem.facet) {
+                "problem" -> "${targetItem.label ?: "이 경험"}을 시작하게 된 구체적인 문제와 제약이 무엇이었는지 설명해 주세요."
+                "action" -> "${targetItem.label ?: "이 경험"}에서 어떤 구현과 의사결정을 직접 했는지 구체적으로 설명해 주세요."
+                "result" -> "${targetItem.label ?: "이 경험"}이 실제로 어떤 결과를 냈고, 그 결과를 어떻게 검증했는지 설명해 주세요."
+                "metric" -> "${targetItem.label ?: "이 경험"}의 효과를 어떤 지표로 판단했고 기준을 어떻게 잡았는지 설명해 주세요."
+                "tradeoff" -> "${targetItem.label ?: "이 경험"}을 진행하면서 어떤 대안과 트레이드오프를 비교했는지 설명해 주세요."
+                else -> when (targetItem.section) {
+                    "project" -> "${targetItem.label ?: "이 프로젝트"}를 어떤 문제와 맥락에서 진행했는지 구체적으로 설명해 주세요."
+                    "experience" -> "${targetItem.label ?: "이 경험"}에서 해결하려던 문제와 실제 해결 과정을 설명해 주세요."
+                    else -> "${targetItem.label ?: "이 이력서 내용"}에 담긴 구체적인 사례를 설명해 주세요."
+                }
+            }
         }
-    }
 
-    private fun deterministicCoverageBodyEn(targetItem: InterviewSessionEvidenceItemEntity): String = when (targetItem.facet) {
+    private fun deterministicCoverageBodyEn(targetItem: InterviewSessionEvidenceItemEntity, coverageStatus: String): String =
+        when {
+            coverageStatus == COVERAGE_STATUS_WEAK ->
+                "This is a re-validation pass. Be explicit about the evidence, the decision path, and the proof that your claim is true. Do not stay at a high level. ${deterministicCoverageFacetBodyEn(targetItem)}"
+            coverageStatus == COVERAGE_STATUS_SKIPPED ->
+                "We skipped this evidence earlier. Answer it directly this time with the context, your role, the decision path, and the outcome. ${deterministicCoverageFacetBodyEn(targetItem)}"
+            else -> deterministicCoverageFacetBodyEn(targetItem)
+        }
+
+    private fun deterministicCoverageBodyKo(targetItem: InterviewSessionEvidenceItemEntity, coverageStatus: String): String =
+        when {
+            coverageStatus == COVERAGE_STATUS_WEAK ->
+                "이번에는 고수준 요약이 아니라 근거, 의사결정 경로, 수치나 검증 방식까지 명확히 제시해 주세요. 주장만 하지 말고 어떻게 입증할 수 있는지도 설명해 주세요. ${deterministicCoverageFacetBodyKo(targetItem)}"
+            coverageStatus == COVERAGE_STATUS_SKIPPED ->
+                "앞에서는 이 근거를 건너뛰었으니 이번에는 상황, 맡은 역할, 판단 근거, 결과까지 빠짐없이 직접 설명해 주세요. ${deterministicCoverageFacetBodyKo(targetItem)}"
+            else -> deterministicCoverageFacetBodyKo(targetItem)
+        }
+
+    private fun deterministicCoverageFacetBodyEn(targetItem: InterviewSessionEvidenceItemEntity): String = when (targetItem.facet) {
         "problem" -> "Focus on the original context, why it mattered, the constraints you had to respect, and what made it difficult."
         "action" -> "Focus on your role, the implementation steps, key decisions, and why you chose that approach over other options."
         "result" -> "Focus on the measurable outcome, how you verified the result, what changed after launch, and what you learned."
@@ -1420,7 +1458,7 @@ class InterviewSessionService(
         else -> "Answer with the situation, your role, the decisions you made, the result, and what you learned."
     }
 
-    private fun deterministicCoverageBodyKo(targetItem: InterviewSessionEvidenceItemEntity): String = when (targetItem.facet) {
+    private fun deterministicCoverageFacetBodyKo(targetItem: InterviewSessionEvidenceItemEntity): String = when (targetItem.facet) {
         "problem" -> "당시 상황, 왜 중요한 문제였는지, 어떤 제약이 있었는지, 왜 어려웠는지까지 설명해 주세요."
         "action" -> "맡았던 역할, 실제 구현 단계, 핵심 의사결정, 다른 선택지 대신 그 방법을 택한 이유까지 설명해 주세요."
         "result" -> "실제 결과가 무엇이었는지, 어떤 방식으로 검증했는지, 배포 이후 무엇이 달라졌는지, 배운 점까지 설명해 주세요."
@@ -1440,12 +1478,27 @@ class InterviewSessionService(
                 "풀 커버리지 모드에서 아직 질문하지 않은 다음 이력서 근거를 바탕으로 생성했습니다."
             }
         } else {
-            if (language.lowercase() == "en") {
-                "Generated as an additional deep-dive question after full coverage was reached."
-            } else {
-                "풀 커버리지 100% 이후에도 심화 검증을 위해 추가 생성한 질문입니다."
+            when {
+                targetCoverageStatus == COVERAGE_STATUS_WEAK && language.lowercase() == "en" ->
+                    "Generated to re-validate a weak resume facet that was not defended strongly enough earlier."
+                targetCoverageStatus == COVERAGE_STATUS_WEAK ->
+                    "이전에 충분히 방어되지 않은 약한 이력서 facet를 다시 검증하기 위해 생성한 질문입니다."
+                targetCoverageStatus == COVERAGE_STATUS_SKIPPED && language.lowercase() == "en" ->
+                    "Generated to revisit a skipped resume facet after the main coverage pass."
+                targetCoverageStatus == COVERAGE_STATUS_SKIPPED ->
+                    "주요 커버리지 이후에 건너뛴 이력서 facet를 회수하기 위해 생성한 질문입니다."
+                language.lowercase() == "en" ->
+                    "Generated as an additional deep-dive question after full coverage was reached."
+                else ->
+                    "풀 커버리지 100% 이후에도 심화 검증을 위해 추가 생성한 질문입니다."
             }
         }
+
+    private fun preferredOpeningStyle(coverageStatus: String?): String? = when (coverageStatus) {
+        COVERAGE_STATUS_WEAK -> "evidence_challenge"
+        COVERAGE_STATUS_SKIPPED -> "recovery_probe"
+        else -> null
+    }
 
     private fun deterministicCoverageGenerationStatus(targetCoverageStatus: String): String =
         if (targetCoverageStatus == COVERAGE_STATUS_UNASKED) {

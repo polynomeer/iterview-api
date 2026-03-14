@@ -88,6 +88,8 @@ class OpenAiInterviewOpeningGenerationClient(
         Do not ask multiple questions.
         Prefer a question that feels like a real interviewer read the resume line by line and wants to probe one specific claim, decision, trade-off, incident, or result.
         If evidence candidates include different facets such as problem, action, result, metric, or tradeoff, use that facet signal to avoid overly general questions.
+        If the preferred evidence recovery status says the previous defense was weak, treat this as a re-validation pass and ask for harder proof, concrete evidence, metrics, or explicit decision reasoning.
+        If the preferred evidence recovery status says the evidence was skipped, treat this as a recovery pass and ask directly for the missing explanation instead of opening a broad new topic.
         Choose one of these realistic opener styles:
         1. Resume evidence explanation: ask the candidate to explain a specific sentence, project, responsibility, or claimed outcome from the resume.
         2. STAR / problem-solving: ask for the situation, task, action, and result behind a concrete experience or achievement.
@@ -151,10 +153,20 @@ class OpenAiInterviewOpeningGenerationClient(
             }
             appendLine("When possible, anchor the opener to one of the preferred evidence items above.")
         }
+        input.preferredEvidenceRecoveryStatus?.takeIf { it.isNotBlank() }?.let {
+            appendLine()
+            appendLine("Preferred evidence recovery status: $it")
+        }
+        input.preferredOpeningStyle?.takeIf { it.isNotBlank() }?.let {
+            appendLine("Preferred opening style: $it")
+            appendLine("Honor this style when possible. For weak evidence prefer evidence challenge / re-validation. For skipped evidence prefer a direct recovery probe.")
+        }
         appendLine()
         appendLine("Question design goal:")
         appendLine("Generate a realistic opener that is specific enough to be answerable from the resume, but deep enough to reveal explanation quality, problem-solving structure, technical understanding, or design judgment.")
         appendLine("Match the question angle to the evidence facet when possible: problem=context and constraints, action=implementation and decisions, result=validation and impact, metric=measurement and thresholds, tradeoff=alternatives and why.")
+        appendLine("If the preferred evidence recovery status is weak, ask for proof and concrete defense rather than another broad summary.")
+        appendLine("If the preferred evidence recovery status is skipped, recover the missing explanation directly before moving on.")
         appendLine("Prefer one narrow, defendable slice of the project or experience rather than asking for a whole-project summary every time.")
     }
 

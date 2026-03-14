@@ -8,6 +8,8 @@ data class InterviewOpeningGenerationInput(
     val resumeRiskSummaries: List<String>,
     val resumeEvidenceCandidates: List<InterviewResumeEvidenceCandidate>,
     val preferredResumeEvidenceCandidates: List<InterviewResumeEvidenceCandidate> = emptyList(),
+    val preferredEvidenceRecoveryStatus: String? = null,
+    val preferredOpeningStyle: String? = null,
 )
 
 data class GeneratedInterviewOpening(

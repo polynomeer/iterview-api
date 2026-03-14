@@ -586,6 +586,7 @@ class InterviewSessionApiIntegrationTest {
             .andExpect(jsonPath("$.currentQuestion.generationStatus").value("coverage_extended"))
             .andExpect(jsonPath("$.currentQuestion.bodyText").value(startsWith("이력서 근거: Weak metric facet snippet")))
             .andExpect(jsonPath("$.currentQuestion.bodyText").value(org.hamcrest.Matchers.containsString("어떤 지표를 봤는지")))
+            .andExpect(jsonPath("$.currentQuestion.generationRationale").value(org.hamcrest.Matchers.containsString("약한 이력서 facet")))
     }
 
     @Test
