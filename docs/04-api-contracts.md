@@ -1310,6 +1310,9 @@ Purpose:
 Current `full_coverage` behavior:
 - choose the next question based on uncovered resume evidence items first
 - avoid relying on unconstrained AI generation alone when coverage completion is the goal
+- reaching `overallCoveragePercent = 100` does not automatically end the session
+- after all evidence items have been covered, the backend may continue generating additional deep-dive questions against previously covered evidence until the user ends the interview or the session is otherwise completed
+- deterministic extra questions generated after 100% coverage may expose `generationStatus = coverage_extended`
 
 Advance semantics:
 - if the current question is still unanswered, the backend returns `409 CONFLICT`

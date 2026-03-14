@@ -960,11 +960,7 @@ class InterviewSessionService(
         if (session.interviewMode != INTERVIEW_MODE_FULL_COVERAGE || session.resumeVersionId == null) {
             return
         }
-        val nextItem = interviewSessionEvidenceItemRepository
-            .findFirstByInterviewSessionIdAndCoverageStatusOrderByCoveragePriorityDescDisplayOrderAscIdAsc(
-                session.id,
-                COVERAGE_STATUS_UNASKED,
-            ) ?: return
+        val nextItem = resolveNextCoverageTarget(session.id) ?: return
         val existingRows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(session.id)
         val nextOrderIndex = (existingRows.maxOfOrNull { it.orderIndex } ?: 0) + 1
         val newRow = buildGeneratedOpeningRow(
@@ -982,12 +978,40 @@ class InterviewSessionService(
             isFollowUp = false,
             depth = 0,
             sourceType = SOURCE_TYPE_COVERAGE_PLANNER,
-            generationStatus = GENERATION_STATUS_COVERAGE_PLANNED,
-            generationRationale = deterministicCoverageRationale(appLocaleService.resolveLanguage()),
+            generationStatus = deterministicCoverageGenerationStatus(nextItem.coverageStatus),
+            generationRationale = deterministicCoverageRationale(appLocaleService.resolveLanguage(), nextItem.coverageStatus),
             now = now,
         )
         val savedRow = interviewSessionQuestionRepository.save(newRow.copyForInsert(orderIndex = nextOrderIndex, now = now))
         syncCoverageLinks(session, listOf(savedRow), now)
+    }
+
+    private fun resolveNextCoverageTarget(sessionId: Long): InterviewSessionEvidenceItemEntity? {
+        val unasked = interviewSessionEvidenceItemRepository
+            .findFirstByInterviewSessionIdAndCoverageStatusOrderByCoveragePriorityDescDisplayOrderAscIdAsc(
+                sessionId,
+                COVERAGE_STATUS_UNASKED,
+            )
+        if (unasked != null) {
+            return unasked
+        }
+        val evidenceItems = interviewSessionEvidenceItemRepository.findByInterviewSessionIdOrderByDisplayOrderAscIdAsc(sessionId)
+        if (evidenceItems.isEmpty()) {
+            return null
+        }
+        val linkCountsByEvidenceId = interviewSessionQuestionEvidenceLinkRepository
+            .findByIdInterviewSessionEvidenceItemIdIn(evidenceItems.map { it.id })
+            .groupingBy { it.id.interviewSessionEvidenceItemId }
+            .eachCount()
+        return evidenceItems
+            .sortedWith(
+                compareByDescending<InterviewSessionEvidenceItemEntity> { extendedCoveragePriority(it.coverageStatus) }
+                    .thenBy { linkCountsByEvidenceId[it.id] ?: 0 }
+                    .thenByDescending { it.coveragePriority }
+                    .thenBy { it.displayOrder }
+                    .thenBy { it.id },
+            )
+            .firstOrNull()
     }
 
     private fun buildDeterministicCoverageRow(
@@ -1163,11 +1187,37 @@ class InterviewSessionService(
         }
 
     private fun deterministicCoverageRationale(language: String): String =
-        if (language.lowercase() == "en") {
-            "Generated from the next uncovered resume evidence item in full coverage mode."
+        deterministicCoverageRationale(language, COVERAGE_STATUS_UNASKED)
+
+    private fun deterministicCoverageRationale(language: String, targetCoverageStatus: String): String =
+        if (targetCoverageStatus == COVERAGE_STATUS_UNASKED) {
+            if (language.lowercase() == "en") {
+                "Generated from the next uncovered resume evidence item in full coverage mode."
+            } else {
+                "풀 커버리지 모드에서 아직 질문하지 않은 다음 이력서 근거를 바탕으로 생성했습니다."
+            }
         } else {
-            "풀 커버리지 모드에서 아직 질문하지 않은 다음 이력서 근거를 바탕으로 생성했습니다."
+            if (language.lowercase() == "en") {
+                "Generated as an additional deep-dive question after full coverage was reached."
+            } else {
+                "풀 커버리지 100% 이후에도 심화 검증을 위해 추가 생성한 질문입니다."
+            }
         }
+
+    private fun deterministicCoverageGenerationStatus(targetCoverageStatus: String): String =
+        if (targetCoverageStatus == COVERAGE_STATUS_UNASKED) {
+            GENERATION_STATUS_COVERAGE_PLANNED
+        } else {
+            GENERATION_STATUS_COVERAGE_EXTENDED
+        }
+
+    private fun extendedCoveragePriority(status: String): Int = when (status) {
+        COVERAGE_STATUS_WEAK -> 4
+        COVERAGE_STATUS_SKIPPED -> 3
+        COVERAGE_STATUS_ASKED -> 2
+        COVERAGE_STATUS_DEFENDED -> 1
+        else -> 0
+    }
 
     private fun evidenceKey(sourceRecordType: String, sourceRecordId: Long): String = "$sourceRecordType:$sourceRecordId"
 
@@ -1416,6 +1466,7 @@ class InterviewSessionService(
         const val GENERATION_STATUS_CATALOG_FOLLOW_UP = "catalog_follow_up"
         const val GENERATION_STATUS_AI_GENERATED = "ai_generated"
         const val GENERATION_STATUS_COVERAGE_PLANNED = "coverage_planned"
+        const val GENERATION_STATUS_COVERAGE_EXTENDED = "coverage_extended"
         const val SESSION_TYPE_RESUME_MOCK = "resume_mock"
         const val SESSION_TYPE_REVIEW_MOCK = "review_mock"
         const val SESSION_TYPE_TOPIC_MOCK = "topic_mock"

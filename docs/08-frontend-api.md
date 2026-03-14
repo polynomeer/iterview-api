@@ -142,6 +142,8 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - explain that coverage is measured against interviewable resume evidence units, not every raw character
   - show overall coverage percent plus per-section completion
   - handle `coverageStatus` values such as `unasked`, `asked`, `defended`, `weak`, and `skipped`
+  - do not assume the session ends immediately when coverage reaches 100%; the backend may continue with extra deep-dive questions
+  - extra deep-dive turns generated after coverage completion may carry `generationStatus = coverage_extended`
   - prefer a structured resume viewer based on parsed experiences and projects instead of first attempting raw PDF overlays
   - use `sourceRecordType` + `sourceRecordId` from `resume-map` as the join key back into parsed resume sections
   - use `displayOrder` from `coverage` or `resume-map` to keep highlighted resume blocks aligned with parsed resume section ordering
