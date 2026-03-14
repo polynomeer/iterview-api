@@ -1602,6 +1602,18 @@ components:
         skippedQuestions: { type: integer }
         remainingQuestions: { type: integer }
         averageScore: { type: number, format: double, nullable: true }
+        weakFacetSummaries:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewSessionCoverageFacetSummaryDto"
+        skippedFacetSummaries:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewSessionCoverageFacetSummaryDto"
+        facetSummaries:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewSessionCoverageFacetSummaryDto"
     SkipInterviewSessionQuestionRequest:
       type: object
       required: [sessionQuestionId]

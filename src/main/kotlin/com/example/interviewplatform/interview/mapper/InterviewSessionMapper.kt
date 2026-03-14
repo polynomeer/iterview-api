@@ -3,6 +3,7 @@ package com.example.interviewplatform.interview.mapper
 import com.example.interviewplatform.interview.dto.InterviewSessionQuestionDto
 import com.example.interviewplatform.interview.dto.InterviewSessionListItemDto
 import com.example.interviewplatform.interview.dto.InterviewResumeEvidenceDto
+import com.example.interviewplatform.interview.dto.InterviewSessionCoverageFacetSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewSessionSummaryDto
 import com.example.interviewplatform.interview.entity.InterviewSessionQuestionEntity
 import com.example.interviewplatform.question.entity.QuestionEntity
@@ -48,12 +49,18 @@ object InterviewSessionMapper {
         skippedQuestions: Int,
         remainingQuestions: Int,
         averageScore: Double?,
+        weakFacetSummaries: List<InterviewSessionCoverageFacetSummaryDto> = emptyList(),
+        skippedFacetSummaries: List<InterviewSessionCoverageFacetSummaryDto> = emptyList(),
+        facetSummaries: List<InterviewSessionCoverageFacetSummaryDto> = emptyList(),
     ): InterviewSessionSummaryDto = InterviewSessionSummaryDto(
         totalQuestions = totalQuestions,
         answeredQuestions = answeredQuestions,
         skippedQuestions = skippedQuestions,
         remainingQuestions = remainingQuestions.coerceAtLeast(0),
         averageScore = averageScore,
+        weakFacetSummaries = weakFacetSummaries,
+        skippedFacetSummaries = skippedFacetSummaries,
+        facetSummaries = facetSummaries,
     )
 
     fun toListItemDto(

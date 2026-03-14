@@ -203,6 +203,9 @@ class InterviewSessionApiIntegrationTest {
                 ),
         )
             .andExpect(status().isOk)
+            .andExpect(jsonPath("$.summary.facetSummaries").isArray)
+            .andExpect(jsonPath("$.summary.weakFacetSummaries").isArray)
+            .andExpect(jsonPath("$.summary.skippedFacetSummaries").isArray)
 
         mockMvc.perform(get("/api/interview-sessions/$sessionId/coverage").header("Authorization", authHeader))
             .andExpect(status().isOk)
@@ -224,6 +227,12 @@ class InterviewSessionApiIntegrationTest {
             .andExpect(jsonPath("$.evidenceItems[0].relatedQuestions[0].orderIndex").value(1))
             .andExpect(jsonPath("$.evidenceItems[0].relatedQuestions[0].status").value("answered"))
             .andExpect(jsonPath("$.evidenceItems[0].relatedQuestions[0].isFollowUp").value(false))
+
+        mockMvc.perform(get("/api/interview-sessions/$sessionId").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.summary.facetSummaries[0].sourceRecordType").isString)
+            .andExpect(jsonPath("$.summary.weakFacetSummaries").isArray)
+            .andExpect(jsonPath("$.summary.skippedFacetSummaries").isArray)
     }
 
     @Test

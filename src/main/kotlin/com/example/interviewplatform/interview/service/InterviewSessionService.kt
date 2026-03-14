@@ -490,7 +490,16 @@ class InterviewSessionService(
                 resumeEvidence = resumeEvidenceByRowId[row.id].orEmpty(),
             )
         }
-        val summary = summarize(rows)
+        val summary = summarize(
+            rows = rows,
+            facetSummaries = if (session.interviewMode == INTERVIEW_MODE_FULL_COVERAGE) {
+                buildFacetSummaries(
+                    interviewSessionEvidenceItemRepository.findByInterviewSessionIdOrderByDisplayOrderAscIdAsc(session.id),
+                )
+            } else {
+                emptyList()
+            },
+        )
         return InterviewSessionDetailResponseDto(
             id = session.id,
             sessionType = session.sessionType,
@@ -505,13 +514,19 @@ class InterviewSessionService(
         )
     }
 
-    private fun summarize(rows: List<InterviewSessionQuestionEntity>) =
+    private fun summarize(
+        rows: List<InterviewSessionQuestionEntity>,
+        facetSummaries: List<InterviewSessionCoverageFacetSummaryDto> = emptyList(),
+    ) =
         InterviewSessionMapper.toSummaryDto(
             totalQuestions = rows.size,
             answeredQuestions = rows.count { it.answerAttemptId != null },
             skippedQuestions = rows.count { it.skippedAt != null },
             remainingQuestions = rows.count { it.answerAttemptId == null && it.skippedAt == null },
             averageScore = averageScore(rows),
+            weakFacetSummaries = facetSummaries.filter { it.weakFacets.isNotEmpty() },
+            skippedFacetSummaries = facetSummaries.filter { it.skippedFacets.isNotEmpty() },
+            facetSummaries = facetSummaries,
         )
 
     private fun averageScore(rows: List<InterviewSessionQuestionEntity>): Double? {

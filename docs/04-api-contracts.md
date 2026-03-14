@@ -1251,6 +1251,7 @@ Notes:
 #### `GET /api/interview-sessions/{sessionId}`
 Purpose:
 - return current session status, ordered questions, current question, and summary counts
+- for `full_coverage`, session `summary` should also include additive `facetSummaries`, `weakFacetSummaries`, and `skippedFacetSummaries` so in-session UI can surface weak or skipped resume facets without calling the result endpoints first
 
 Implemented additive fields on session questions:
 - `promptText`

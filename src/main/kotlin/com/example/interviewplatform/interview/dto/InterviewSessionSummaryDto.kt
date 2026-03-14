@@ -6,4 +6,7 @@ data class InterviewSessionSummaryDto(
     val skippedQuestions: Int,
     val remainingQuestions: Int,
     val averageScore: Double?,
+    val weakFacetSummaries: List<InterviewSessionCoverageFacetSummaryDto>,
+    val skippedFacetSummaries: List<InterviewSessionCoverageFacetSummaryDto>,
+    val facetSummaries: List<InterviewSessionCoverageFacetSummaryDto>,
 )

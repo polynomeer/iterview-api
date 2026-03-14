@@ -134,6 +134,7 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - if the current question is still unanswered, prompt the user to submit an answer or skip the question first
   - use `POST /api/interview-sessions/{sessionId}/skip-question` when the user wants to bypass the current prompt
   - after answer or skip, `next-question` may resolve the next queued question or lazily generate the next `full_coverage` question
+  - for `full_coverage`, `summary.weakFacetSummaries` and `summary.skippedFacetSummaries` are additive helpers for in-session side panels or progress callouts
 - implemented full-coverage result support:
   - `GET /api/interview-sessions/{sessionId}/coverage`
   - `GET /api/interview-sessions/{sessionId}/resume-map`
