@@ -1319,6 +1319,7 @@ Current `full_coverage` behavior:
 - reaching `overallCoveragePercent = 100` does not automatically end the session
 - after all evidence items have been covered, the backend may continue generating additional deep-dive questions against previously covered evidence until the user ends the interview or the session is otherwise completed
 - deterministic extra questions generated after 100% coverage may expose `generationStatus = coverage_extended`
+- `GET /api/interview-sessions/{sessionId}/coverage` and `/resume-map` should expose additive record-level facet summaries so the result screen can highlight which project or experience still has weak, skipped, defended, or unasked facets without recomputing from raw evidence items
 
 Advance semantics:
 - if the current question is still unanswered, the backend returns `409 CONFLICT`

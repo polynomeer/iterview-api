@@ -148,6 +148,9 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - prefer a structured resume viewer based on parsed experiences and projects instead of first attempting raw PDF overlays
   - use `sourceRecordType` + `sourceRecordId` from `resume-map` as the join key back into parsed resume sections
   - use `displayOrder` from `coverage` or `resume-map` to keep highlighted resume blocks aligned with parsed resume section ordering
+  - `facetSummaries` are additive record-level summaries grouped by `sourceRecordType` + `sourceRecordId`
+  - `weakFacetSummaries` can drive "needs more defense" panels without recomputing weak facets from raw evidence items
+  - `skippedFacetSummaries` can drive separate skipped-area panels or badges in the result view
   - `facet` is additive metadata and can be used for debug labels or richer question grouping, but should not be required for the basic UI
   - in the result view, hovering a highlighted resume block should show related questions in a lightweight preview
   - clicking a highlighted resume block should pin the related questions and allow navigation or scrolling back to the relevant question card

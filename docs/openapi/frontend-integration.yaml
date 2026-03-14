@@ -1486,10 +1486,41 @@ components:
         interviewMode: { type: string }
         overallCoveragePercent: { type: integer }
         defendedCoveragePercent: { type: integer }
+        weakFacetSummaries:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewSessionCoverageFacetSummaryDto"
+        skippedFacetSummaries:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewSessionCoverageFacetSummaryDto"
+        facetSummaries:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewSessionCoverageFacetSummaryDto"
         evidenceItems:
           type: array
           items:
             $ref: "#/components/schemas/InterviewSessionCoverageEvidenceItemDto"
+    InterviewSessionCoverageFacetSummaryDto:
+      type: object
+      properties:
+        section: { type: string }
+        label: { type: string, nullable: true }
+        sourceRecordType: { type: string }
+        sourceRecordId: { type: integer, format: int64 }
+        defendedFacets:
+          type: array
+          items: { type: string }
+        weakFacets:
+          type: array
+          items: { type: string }
+        skippedFacets:
+          type: array
+          items: { type: string }
+        unaskedFacets:
+          type: array
+          items: { type: string }
     InterviewSessionResumeMapQuestionDto:
       type: object
       properties:
@@ -1521,6 +1552,18 @@ components:
       properties:
         sessionId: { type: integer, format: int64 }
         resumeVersionId: { type: integer, format: int64, nullable: true }
+        weakFacetSummaries:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewSessionCoverageFacetSummaryDto"
+        skippedFacetSummaries:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewSessionCoverageFacetSummaryDto"
+        facetSummaries:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewSessionCoverageFacetSummaryDto"
         evidenceItems:
           type: array
           items:

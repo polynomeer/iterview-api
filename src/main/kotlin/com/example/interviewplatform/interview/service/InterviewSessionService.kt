@@ -10,6 +10,7 @@ import com.example.interviewplatform.interview.dto.CreateInterviewSessionRequest
 import com.example.interviewplatform.interview.dto.InterviewSessionAdvanceResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionAnswerResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionCoverageEvidenceItemDto
+import com.example.interviewplatform.interview.dto.InterviewSessionCoverageFacetSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewSessionCoverageResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionDetailResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionListItemDto
@@ -158,6 +159,7 @@ class InterviewSessionService(
         val session = requireSession(userId, sessionId)
         val evidenceItems = interviewSessionEvidenceItemRepository.findByInterviewSessionIdOrderByDisplayOrderAscIdAsc(session.id)
         val linkedQuestionIdsByEvidenceId = loadLinkedQuestionIdsByEvidenceId(evidenceItems.map { it.id })
+        val facetSummaries = buildFacetSummaries(evidenceItems)
         val total = evidenceItems.size
         val covered = evidenceItems.count { it.coverageStatus != COVERAGE_STATUS_UNASKED }
         val defended = evidenceItems.count { it.coverageStatus == COVERAGE_STATUS_DEFENDED }
@@ -166,6 +168,9 @@ class InterviewSessionService(
             interviewMode = session.interviewMode,
             overallCoveragePercent = percent(covered, total),
             defendedCoveragePercent = percent(defended, total),
+            weakFacetSummaries = facetSummaries.filter { it.weakFacets.isNotEmpty() },
+            skippedFacetSummaries = facetSummaries.filter { it.skippedFacets.isNotEmpty() },
+            facetSummaries = facetSummaries,
             evidenceItems = evidenceItems.map { item ->
                 InterviewSessionCoverageEvidenceItemDto(
                     id = item.id,
@@ -187,6 +192,7 @@ class InterviewSessionService(
     fun getResumeMap(userId: Long, sessionId: Long): InterviewSessionResumeMapResponseDto {
         val session = requireSession(userId, sessionId)
         val evidenceItems = interviewSessionEvidenceItemRepository.findByInterviewSessionIdOrderByDisplayOrderAscIdAsc(session.id)
+        val facetSummaries = buildFacetSummaries(evidenceItems)
         val links = interviewSessionQuestionEvidenceLinkRepository.findByIdInterviewSessionEvidenceItemIdIn(evidenceItems.map { it.id })
         val orderedRows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(session.id)
         val rowsById = orderedRows.associateBy { it.id }
@@ -208,6 +214,9 @@ class InterviewSessionService(
         return InterviewSessionResumeMapResponseDto(
             sessionId = session.id,
             resumeVersionId = session.resumeVersionId,
+            weakFacetSummaries = facetSummaries.filter { it.weakFacets.isNotEmpty() },
+            skippedFacetSummaries = facetSummaries.filter { it.skippedFacets.isNotEmpty() },
+            facetSummaries = facetSummaries,
             evidenceItems = evidenceItems.map { item ->
                 InterviewSessionResumeMapEvidenceItemDto(
                     section = item.section,
@@ -1129,6 +1138,31 @@ class InterviewSessionService(
             .mapValues { (_, links) -> links.map { it.id.interviewSessionQuestionId }.distinct() }
     }
 
+    private fun buildFacetSummaries(
+        evidenceItems: List<InterviewSessionEvidenceItemEntity>,
+    ): List<InterviewSessionCoverageFacetSummaryDto> = evidenceItems
+        .groupBy { evidenceKey(it.sourceRecordType, it.sourceRecordId) }
+        .values
+        .map { groupedItems ->
+            val orderedItems = groupedItems.sortedBy { it.displayOrder }
+            InterviewSessionCoverageFacetSummaryDto(
+                section = orderedItems.first().section,
+                label = orderedItems.first().label,
+                sourceRecordType = orderedItems.first().sourceRecordType,
+                sourceRecordId = orderedItems.first().sourceRecordId,
+                defendedFacets = orderedItems.filter { it.coverageStatus == COVERAGE_STATUS_DEFENDED }.map { it.facet }.distinct(),
+                weakFacets = orderedItems.filter { it.coverageStatus == COVERAGE_STATUS_WEAK }.map { it.facet }.distinct(),
+                skippedFacets = orderedItems.filter { it.coverageStatus == COVERAGE_STATUS_SKIPPED }.map { it.facet }.distinct(),
+                unaskedFacets = orderedItems.filter { it.coverageStatus == COVERAGE_STATUS_UNASKED }.map { it.facet }.distinct(),
+            )
+        }
+        .sortedWith(
+            compareBy<InterviewSessionCoverageFacetSummaryDto> { sectionOrder(it.section) }
+                .thenBy { it.label ?: "" }
+                .thenBy { it.sourceRecordType }
+                .thenBy { it.sourceRecordId },
+        )
+
     private fun buildFollowUpResumeEvidenceContext(
         existingRows: List<InterviewSessionQuestionEntity>,
         answeredRow: InterviewSessionQuestionEntity,
@@ -1298,6 +1332,12 @@ class InterviewSessionService(
         "certification" -> 200 - index
         "education" -> 100 - index
         else -> 50 - index
+    }
+
+    private fun sectionOrder(section: String): Int = when (section) {
+        "project" -> 1
+        "experience" -> 2
+        else -> 9
     }
 
     private fun deterministicCoverageTitle(targetItem: InterviewSessionEvidenceItemEntity, language: String): String =
