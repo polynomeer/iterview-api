@@ -93,6 +93,12 @@ class OpenAiInterviewFollowUpGenerationClient(
         2. Evidence challenge: ask the candidate to justify a claim from the answer or the resume with specific evidence.
         3. Technical drill-down: ask how a technology, architecture, failure mode, or implementation detail actually worked.
         4. Scenario extension: introduce a realistic constraint, outage, scale jump, latency target, or conflicting requirement and ask what they would do.
+        Match the question angle to the active evidence facet when possible:
+        - problem: ask about original constraints, root cause, why it was difficult, or what made the issue important
+        - action: ask about implementation details, execution order, ownership boundaries, or decision points
+        - result: ask how the result was validated, what changed afterward, or whether the outcome held up in production
+        - metric: ask for baselines, targets, instrumentation, thresholds, and metric reliability
+        - tradeoff: ask what alternatives were rejected, what downside was accepted, and whether they would choose differently now
         Keep promptText concise and interview-ready.
         bodyText should add the exact lens the interviewer wants: metrics, trade-offs, rollback criteria, design assumptions, communication, ownership, or failure handling.
         Avoid generic "tell me more" style questions.
@@ -178,6 +184,7 @@ class OpenAiInterviewFollowUpGenerationClient(
         appendLine("If preferred follow-up evidence candidates are provided, choose one of them first unless the answer clearly requires a harder challenge on the same exact claim.")
         appendLine("If the answer was vague, ask for concrete evidence, metrics, STAR detail, or a decision process.")
         appendLine("If the answer was strong but incomplete, ask for technical depth, trade-offs, failure handling, or a realistic what-if constraint.")
+        appendLine("Map the drill-down to the chosen facet when possible: problem=context and constraints, action=implementation and choices, result=validation and impact, metric=measurement and thresholds, tradeoff=alternatives and accepted downside.")
         appendLine("Avoid reusing an already-covered facet when another unresolved facet from the same record is available.")
         appendLine("Prefer drilling into one concrete claim or sentence from the same project rather than asking for another broad project overview.")
     }

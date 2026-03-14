@@ -93,6 +93,12 @@ class OpenAiInterviewOpeningGenerationClient(
         2. STAR / problem-solving: ask for the situation, task, action, and result behind a concrete experience or achievement.
         3. Knowledge validation: if the resume mentions an important technology, architecture, or domain, ask a practical knowledge question that validates real understanding instead of buzzwords.
         4. Scenario / design: propose a realistic constraint or failure condition based on the resume context and ask how they would design or respond.
+        Map the question style to the active evidence facet when possible:
+        - problem: probe the original pain point, business context, constraints, and why it was hard
+        - action: probe implementation steps, ownership, technical decisions, and why that path was chosen
+        - result: probe measurable outcome, validation, rollout impact, and what changed after delivery
+        - metric: probe baseline, target, instrumentation, and why the metric was trustworthy
+        - tradeoff: probe alternatives, decision criteria, downside accepted, and what they would change now
         Avoid generic prompts like "Tell me about X technology" unless they are anchored to a real resume claim.
         Avoid lists of sub-questions.
         Avoid mentioning that the question was generated from a resume.
@@ -148,6 +154,7 @@ class OpenAiInterviewOpeningGenerationClient(
         appendLine()
         appendLine("Question design goal:")
         appendLine("Generate a realistic opener that is specific enough to be answerable from the resume, but deep enough to reveal explanation quality, problem-solving structure, technical understanding, or design judgment.")
+        appendLine("Match the question angle to the evidence facet when possible: problem=context and constraints, action=implementation and decisions, result=validation and impact, metric=measurement and thresholds, tradeoff=alternatives and why.")
         appendLine("Prefer one narrow, defendable slice of the project or experience rather than asking for a whole-project summary every time.")
     }
 

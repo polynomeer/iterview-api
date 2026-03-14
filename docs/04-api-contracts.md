@@ -1314,6 +1314,7 @@ Current `full_coverage` behavior:
 - follow-up generation should prefer drilling into a narrower unresolved claim, metric, trade-off, or STAR facet from the same project instead of repeating broad overview questions
 - follow-up generation should use session memory so that, within the same project or experience record, already-covered facets are deprioritized in favor of unresolved facets and different supporting snippets
 - when multiple unresolved facets exist for the same record, the planner should prefer a practical interview path such as `problem -> action -> result -> metric -> tradeoff` before falling back to less structured ordering
+- deterministic coverage questions and AI-generated prompts should also vary their interviewer angle by facet, for example context/constraints for `problem`, implementation/ownership for `action`, validation/impact for `result`, measurement/trustworthiness for `metric`, and alternatives/downside for `tradeoff`
 - reaching `overallCoveragePercent = 100` does not automatically end the session
 - after all evidence items have been covered, the backend may continue generating additional deep-dive questions against previously covered evidence until the user ends the interview or the session is otherwise completed
 - deterministic extra questions generated after 100% coverage may expose `generationStatus = coverage_extended`

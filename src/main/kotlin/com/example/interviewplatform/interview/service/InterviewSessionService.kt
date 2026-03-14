@@ -1299,27 +1299,59 @@ class InterviewSessionService(
 
     private fun deterministicCoverageTitle(targetItem: InterviewSessionEvidenceItemEntity, language: String): String =
         when (language.lowercase()) {
-            "en" -> when (targetItem.section) {
-                "project" -> "Walk me through ${targetItem.label ?: "this project"} in concrete detail."
-                "experience" -> "Describe the problem and solution behind ${targetItem.label ?: "this experience"}."
-                else -> "Explain the concrete example behind ${targetItem.label ?: "this resume detail"}."
-            }
-
-            else -> when (targetItem.section) {
-                "project" -> "${targetItem.label ?: "이 프로젝트"}를 어떤 문제와 맥락에서 진행했는지 구체적으로 설명해 주세요."
-                "experience" -> "${targetItem.label ?: "이 경험"}에서 해결하려던 문제와 실제 해결 과정을 설명해 주세요."
-                else -> "${targetItem.label ?: "이 이력서 내용"}에 담긴 구체적인 사례를 설명해 주세요."
-            }
+            "en" -> deterministicCoverageTitleEn(targetItem)
+            else -> deterministicCoverageTitleKo(targetItem)
         }
 
     private fun deterministicCoverageBody(targetItem: InterviewSessionEvidenceItemEntity, language: String): String =
         when (language.lowercase()) {
-            "en" ->
-                "Resume evidence: ${targetItem.snippet}\nAnswer with the situation, your role, the decisions you made, the result, and what you learned."
-
-            else ->
-                "이력서 근거: ${targetItem.snippet}\n상황, 맡았던 역할, 내린 의사결정, 결과, 그리고 배운 점까지 포함해 설명해 주세요."
+            "en" -> "Resume evidence: ${targetItem.snippet}\n${deterministicCoverageBodyEn(targetItem)}"
+            else -> "이력서 근거: ${targetItem.snippet}\n${deterministicCoverageBodyKo(targetItem)}"
         }
+
+    private fun deterministicCoverageTitleEn(targetItem: InterviewSessionEvidenceItemEntity): String = when (targetItem.facet) {
+        "problem" -> "What concrete problem or constraint led you to take on ${targetItem.label ?: "this work"}?"
+        "action" -> "Walk me through the key implementation decisions you made in ${targetItem.label ?: "this work"}."
+        "result" -> "What outcome did ${targetItem.label ?: "this work"} actually produce, and how did you validate it?"
+        "metric" -> "Which metrics proved that ${targetItem.label ?: "this work"} was working as intended?"
+        "tradeoff" -> "What trade-offs did you weigh while driving ${targetItem.label ?: "this work"}?"
+        else -> when (targetItem.section) {
+            "project" -> "Walk me through ${targetItem.label ?: "this project"} in concrete detail."
+            "experience" -> "Describe the problem and solution behind ${targetItem.label ?: "this experience"}."
+            else -> "Explain the concrete example behind ${targetItem.label ?: "this resume detail"}."
+        }
+    }
+
+    private fun deterministicCoverageTitleKo(targetItem: InterviewSessionEvidenceItemEntity): String = when (targetItem.facet) {
+        "problem" -> "${targetItem.label ?: "이 경험"}을 시작하게 된 구체적인 문제와 제약이 무엇이었는지 설명해 주세요."
+        "action" -> "${targetItem.label ?: "이 경험"}에서 어떤 구현과 의사결정을 직접 했는지 구체적으로 설명해 주세요."
+        "result" -> "${targetItem.label ?: "이 경험"}이 실제로 어떤 결과를 냈고, 그 결과를 어떻게 검증했는지 설명해 주세요."
+        "metric" -> "${targetItem.label ?: "이 경험"}의 효과를 어떤 지표로 판단했고 기준을 어떻게 잡았는지 설명해 주세요."
+        "tradeoff" -> "${targetItem.label ?: "이 경험"}을 진행하면서 어떤 대안과 트레이드오프를 비교했는지 설명해 주세요."
+        else -> when (targetItem.section) {
+            "project" -> "${targetItem.label ?: "이 프로젝트"}를 어떤 문제와 맥락에서 진행했는지 구체적으로 설명해 주세요."
+            "experience" -> "${targetItem.label ?: "이 경험"}에서 해결하려던 문제와 실제 해결 과정을 설명해 주세요."
+            else -> "${targetItem.label ?: "이 이력서 내용"}에 담긴 구체적인 사례를 설명해 주세요."
+        }
+    }
+
+    private fun deterministicCoverageBodyEn(targetItem: InterviewSessionEvidenceItemEntity): String = when (targetItem.facet) {
+        "problem" -> "Focus on the original context, why it mattered, the constraints you had to respect, and what made it difficult."
+        "action" -> "Focus on your role, the implementation steps, key decisions, and why you chose that approach over other options."
+        "result" -> "Focus on the measurable outcome, how you verified the result, what changed after launch, and what you learned."
+        "metric" -> "Focus on the metric definition, baseline, target, instrumentation, and how you knew the numbers were trustworthy."
+        "tradeoff" -> "Focus on the alternatives you considered, the decision criteria, the downside you accepted, and what you would change now."
+        else -> "Answer with the situation, your role, the decisions you made, the result, and what you learned."
+    }
+
+    private fun deterministicCoverageBodyKo(targetItem: InterviewSessionEvidenceItemEntity): String = when (targetItem.facet) {
+        "problem" -> "당시 상황, 왜 중요한 문제였는지, 어떤 제약이 있었는지, 왜 어려웠는지까지 설명해 주세요."
+        "action" -> "맡았던 역할, 실제 구현 단계, 핵심 의사결정, 다른 선택지 대신 그 방법을 택한 이유까지 설명해 주세요."
+        "result" -> "실제 결과가 무엇이었는지, 어떤 방식으로 검증했는지, 배포 이후 무엇이 달라졌는지, 배운 점까지 설명해 주세요."
+        "metric" -> "어떤 지표를 봤는지, 기준선과 목표를 어떻게 잡았는지, 측정 방식이 왜 신뢰할 수 있었는지까지 설명해 주세요."
+        "tradeoff" -> "비교한 대안, 판단 기준, 감수한 단점, 지금 다시 한다면 무엇을 바꿀지까지 설명해 주세요."
+        else -> "상황, 맡았던 역할, 내린 의사결정, 결과, 그리고 배운 점까지 포함해 설명해 주세요."
+    }
 
     private fun deterministicCoverageRationale(language: String): String =
         deterministicCoverageRationale(language, COVERAGE_STATUS_UNASKED)

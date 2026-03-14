@@ -445,6 +445,7 @@ class InterviewSessionApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.currentQuestion.sourceType").value("coverage_planner"))
             .andExpect(jsonPath("$.currentQuestion.bodyText").value(startsWith("이력서 근거: Action facet snippet")))
+            .andExpect(jsonPath("$.currentQuestion.bodyText").value(org.hamcrest.Matchers.containsString("실제 구현 단계")))
             .andReturn()
             .response
             .contentAsString
@@ -481,6 +482,7 @@ class InterviewSessionApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.currentQuestion.sourceType").value("coverage_planner"))
             .andExpect(jsonPath("$.currentQuestion.bodyText").value(startsWith("이력서 근거: Result facet snippet")))
+            .andExpect(jsonPath("$.currentQuestion.bodyText").value(org.hamcrest.Matchers.containsString("어떤 방식으로 검증했는지")))
     }
 
     @Test

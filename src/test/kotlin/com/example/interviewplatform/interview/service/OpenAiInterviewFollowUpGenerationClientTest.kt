@@ -108,6 +108,7 @@ class OpenAiInterviewFollowUpGenerationClientTest {
         assertTrue(transport.capturedBody.orEmpty().contains("facet=tradeoff"))
         assertTrue(transport.capturedBody.orEmpty().contains("Preferred follow-up evidence candidates"))
         assertTrue(transport.capturedBody.orEmpty().contains("Already covered facets for this record: problem, tradeoff"))
+        assertTrue(transport.capturedBody.orEmpty().contains("tradeoff=alternatives and accepted downside"))
     }
 
     private class FakeTransport(
