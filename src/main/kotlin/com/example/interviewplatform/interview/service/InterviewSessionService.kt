@@ -1033,6 +1033,15 @@ class InterviewSessionService(
         if (evidenceItems.isEmpty()) {
             return null
         }
+        val candidateItems = when {
+            evidenceItems.any { it.coverageStatus == COVERAGE_STATUS_UNASKED } ->
+                evidenceItems.filter { it.coverageStatus == COVERAGE_STATUS_UNASKED }
+            evidenceItems.any { it.coverageStatus == COVERAGE_STATUS_WEAK } ->
+                evidenceItems.filter { it.coverageStatus == COVERAGE_STATUS_WEAK }
+            evidenceItems.any { it.coverageStatus == COVERAGE_STATUS_SKIPPED } ->
+                evidenceItems.filter { it.coverageStatus == COVERAGE_STATUS_SKIPPED }
+            else -> evidenceItems
+        }
         val availableFacetsByRecord = evidenceItems
             .groupBy { evidenceKey(it.sourceRecordType, it.sourceRecordId) }
             .mapValues { (_, items) -> items.map { it.facet }.distinct() }
@@ -1044,6 +1053,13 @@ class InterviewSessionService(
             .findByIdInterviewSessionEvidenceItemIdIn(evidenceItems.map { it.id })
             .groupingBy { it.id.interviewSessionEvidenceItemId }
             .eachCount()
+        val unresolvedRecoveryCountByRecord = evidenceItems
+            .groupBy { evidenceKey(it.sourceRecordType, it.sourceRecordId) }
+            .mapValues { (_, items) ->
+                items.count { item ->
+                    item.coverageStatus == COVERAGE_STATUS_WEAK || item.coverageStatus == COVERAGE_STATUS_SKIPPED
+                }
+            }
         val facetLinkCountsByRecord = evidenceItems.associate { item ->
             val sameRecordFacetLinkCount = evidenceItems
                 .filter {
@@ -1054,9 +1070,11 @@ class InterviewSessionService(
                 .sumOf { candidate -> linkCountsByEvidenceId[candidate.id] ?: 0 }
             item.id to sameRecordFacetLinkCount
         }
-        return evidenceItems
+        return candidateItems
             .sortedWith(
-                compareBy<InterviewSessionEvidenceItemEntity> { if (it.coverageStatus == COVERAGE_STATUS_UNASKED) 0 else 1 }
+                compareByDescending<InterviewSessionEvidenceItemEntity> {
+                    unresolvedRecoveryCountByRecord[evidenceKey(it.sourceRecordType, it.sourceRecordId)] ?: 0
+                }
                     .thenBy {
                         facetPathPriority(
                             facet = it.facet,

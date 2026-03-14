@@ -502,6 +502,93 @@ class InterviewSessionApiIntegrationTest {
     }
 
     @Test
+    fun `full coverage revisits weak facet before defended facet after one hundred percent coverage`() {
+        val resumeVersionId = insertResumeVersion()
+        insertResumeProject(resumeVersionId)
+        insertResumeExperience(resumeVersionId)
+
+        val sessionResponse = mockMvc.perform(
+            post("/api/interview-sessions")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "sessionType" to "resume_mock",
+                            "interviewMode" to "full_coverage",
+                            "questionCount" to 1,
+                            "resumeVersionId" to resumeVersionId,
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val sessionId = sessionResponse.get("id").asLong()
+        val firstSessionQuestionId = sessionResponse.get("currentQuestion").get("id").asLong()
+        val firstQuestionId = sessionResponse.get("currentQuestion").get("questionId").asLong()
+        val firstAnswerAttemptId = insertAnswerAttempt(firstQuestionId)
+
+        jdbcTemplate.update(
+            """
+            UPDATE interview_session_questions
+            SET answer_attempt_id = ?, updated_at = now()
+            WHERE id = ?
+            """.trimIndent(),
+            firstAnswerAttemptId,
+            firstSessionQuestionId,
+        )
+        jdbcTemplate.update(
+            """
+            UPDATE interview_session_evidence_items
+            SET source_record_type = CASE
+                    WHEN display_order IN (1, 2) THEN 'resume_project_snapshot'
+                    ELSE source_record_type
+                END,
+                source_record_id = CASE
+                    WHEN display_order IN (1, 2) THEN 777
+                    ELSE source_record_id
+                END,
+                label = CASE
+                    WHEN display_order = 1 THEN 'Weak Metric Facet Project'
+                    WHEN display_order = 2 THEN 'Defended Problem Facet Project'
+                    ELSE label
+                END,
+                snippet = CASE
+                    WHEN display_order = 1 THEN 'Weak metric facet snippet'
+                    WHEN display_order = 2 THEN 'Defended problem facet snippet'
+                    ELSE snippet
+                END,
+                facet = CASE
+                    WHEN display_order = 1 THEN 'metric'
+                    WHEN display_order = 2 THEN 'problem'
+                    ELSE facet
+                END,
+                coverage_status = CASE
+                    WHEN display_order = 1 THEN 'weak'
+                    WHEN display_order = 2 THEN 'defended'
+                    ELSE 'defended'
+                END,
+                updated_at = now()
+            WHERE interview_session_id = ?
+            """.trimIndent(),
+            sessionId,
+        )
+
+        mockMvc.perform(post("/api/interview-sessions/$sessionId/next-question").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.status").value("in_progress"))
+            .andExpect(jsonPath("$.currentQuestion.sourceType").value("coverage_planner"))
+            .andExpect(jsonPath("$.currentQuestion.generationStatus").value("coverage_extended"))
+            .andExpect(jsonPath("$.currentQuestion.bodyText").value(startsWith("이력서 근거: Weak metric facet snippet")))
+            .andExpect(jsonPath("$.currentQuestion.bodyText").value(org.hamcrest.Matchers.containsString("어떤 지표를 봤는지")))
+    }
+
+    @Test
     fun `next question rejects advancing while current question is unanswered`() {
         val categoryId = insertCategory("Advance Guard")
         val questionId = insertQuestion("Explain how you debug latency spikes", categoryId)
