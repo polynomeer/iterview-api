@@ -140,6 +140,7 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - use these to render a result-time resume viewer where one hovered or clicked resume evidence item can reveal related interview questions
 - recommended full-coverage frontend behavior:
   - explain that coverage is measured against interviewable resume evidence units, not every raw character
+  - one parsed project or experience block may map to multiple evidence snippets and therefore multiple interview turns over time
   - show overall coverage percent plus per-section completion
   - handle `coverageStatus` values such as `unasked`, `asked`, `defended`, `weak`, and `skipped`
   - do not assume the session ends immediately when coverage reaches 100%; the backend may continue with extra deep-dive questions

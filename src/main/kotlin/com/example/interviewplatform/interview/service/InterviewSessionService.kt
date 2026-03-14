@@ -877,17 +877,21 @@ class InterviewSessionService(
         if (evidenceItems.isEmpty()) {
             return
         }
-        val evidenceBySourceKey = evidenceItems.associateBy { evidenceKey(it.sourceRecordType, it.sourceRecordId) }
+        val evidenceBySourceKey = evidenceItems.groupBy { evidenceKey(it.sourceRecordType, it.sourceRecordId) }
         val evidenceBySnippet = evidenceItems.associateBy { normalizeSnippet(it.snippet) }
         rows.forEach { row ->
             val resumeEvidence = decodeResumeEvidence(row.resumeEvidenceJson)
             val matchedEvidenceIds = linkedSetOf<Long>()
             resumeEvidence.forEach { evidence ->
+                val exactSnippet = normalizeSnippet(evidence.snippet)
                 val matchedItem = when {
                     evidence.sourceRecordType != null && evidence.sourceRecordId != null ->
                         evidenceBySourceKey[evidenceKey(evidence.sourceRecordType, evidence.sourceRecordId)]
+                            .orEmpty()
+                            .firstOrNull { normalizeSnippet(it.snippet) == exactSnippet }
+                            ?: evidenceBySourceKey[evidenceKey(evidence.sourceRecordType, evidence.sourceRecordId)].orEmpty().firstOrNull()
                     else -> null
-                } ?: evidenceBySnippet[normalizeSnippet(evidence.snippet)]
+                } ?: evidenceBySnippet[exactSnippet]
                 if (matchedItem != null) {
                     matchedEvidenceIds += matchedItem.id
                 }
