@@ -54,6 +54,8 @@ class InterviewSessionQuestionEntity(
     val contentLocale: String? = null,
     @Column(name = "answer_attempt_id")
     val answerAttemptId: Long? = null,
+    @Column(name = "skipped_at")
+    val skippedAt: Instant? = null,
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant,
     @Column(name = "updated_at", nullable = false)

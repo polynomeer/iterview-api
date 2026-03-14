@@ -19,6 +19,7 @@ import com.example.interviewplatform.interview.dto.InterviewSessionResumeMapQues
 import com.example.interviewplatform.interview.dto.InterviewSessionResumeMapResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionQuestionDto
 import com.example.interviewplatform.interview.dto.SubmitInterviewSessionAnswerRequest
+import com.example.interviewplatform.interview.dto.SkipInterviewSessionQuestionRequest
 import com.example.interviewplatform.interview.entity.InterviewSessionEvidenceItemEntity
 import com.example.interviewplatform.interview.entity.InterviewSessionEntity
 import com.example.interviewplatform.interview.entity.InterviewSessionQuestionEvidenceLinkEntity
@@ -231,6 +232,9 @@ class InterviewSessionService(
         if (row.answerAttemptId != null) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "Interview session question already answered: ${row.id}")
         }
+        if (row.skippedAt != null) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "Interview session question already skipped: ${row.id}")
+        }
 
         val submission = answerService.submitAnswer(
             userId = userId,
@@ -272,6 +276,7 @@ class InterviewSessionService(
                 llmPromptVersion = row.llmPromptVersion,
                 contentLocale = row.contentLocale,
                 answerAttemptId = submission.answerAttemptId,
+                skippedAt = row.skippedAt,
                 createdAt = row.createdAt,
                 updatedAt = now,
             ),
@@ -337,14 +342,82 @@ class InterviewSessionService(
     }
 
     @Transactional
+    fun skipQuestion(
+        userId: Long,
+        sessionId: Long,
+        request: SkipInterviewSessionQuestionRequest,
+    ): InterviewSessionAdvanceResponseDto {
+        val now = clockService.now()
+        val session = requireSession(userId, sessionId)
+        if (session.status != STATUS_IN_PROGRESS) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "Interview session is not active: $sessionId")
+        }
+
+        val rows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(session.id)
+        val row = rows.firstOrNull { it.id == request.sessionQuestionId }
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Interview session question not found: ${request.sessionQuestionId}")
+        if (row.answerAttemptId != null) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "Interview session question already answered: ${row.id}")
+        }
+        if (row.skippedAt != null) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "Interview session question already skipped: ${row.id}")
+        }
+
+        interviewSessionQuestionRepository.save(
+            InterviewSessionQuestionEntity(
+                id = row.id,
+                interviewSessionId = row.interviewSessionId,
+                questionId = row.questionId,
+                parentSessionQuestionId = row.parentSessionQuestionId,
+                promptText = row.promptText,
+                bodyText = row.bodyText,
+                questionSourceType = row.questionSourceType,
+                orderIndex = row.orderIndex,
+                isFollowUp = row.isFollowUp,
+                depth = row.depth,
+                categoryName = row.categoryName,
+                tagsJson = row.tagsJson,
+                focusSkillNamesJson = row.focusSkillNamesJson,
+                resumeContextSummary = row.resumeContextSummary,
+                resumeEvidenceJson = row.resumeEvidenceJson,
+                generationRationale = row.generationRationale,
+                generationStatus = row.generationStatus,
+                llmModel = row.llmModel,
+                llmPromptVersion = row.llmPromptVersion,
+                contentLocale = row.contentLocale,
+                answerAttemptId = row.answerAttemptId,
+                skippedAt = now,
+                createdAt = row.createdAt,
+                updatedAt = now,
+            ),
+        )
+
+        if (session.interviewMode == INTERVIEW_MODE_FULL_COVERAGE) {
+            val links = interviewSessionQuestionEvidenceLinkRepository.findByIdInterviewSessionQuestionIdIn(listOf(row.id))
+            links.forEach { link ->
+                markCoverageStatus(link.id.interviewSessionEvidenceItemId, COVERAGE_STATUS_SKIPPED, now)
+            }
+        }
+
+        return nextQuestion(userId, sessionId)
+    }
+
+    @Transactional
     fun nextQuestion(userId: Long, sessionId: Long): InterviewSessionAdvanceResponseDto {
         val session = requireSession(userId, sessionId)
         var rows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(session.id)
         var nextRow = rows.firstOrNull { it.answerAttemptId == null }
+        if (nextRow?.skippedAt == null && nextRow != null) {
+            throw ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "Current question must be answered or skipped before advancing: ${nextRow.id}",
+            )
+        }
+        nextRow = rows.firstOrNull { it.answerAttemptId == null && it.skippedAt == null }
         if (nextRow == null && session.status == STATUS_IN_PROGRESS && session.interviewMode == INTERVIEW_MODE_FULL_COVERAGE) {
             maybeInsertNextCoverageQuestion(userId = userId, session = session, now = clockService.now())
             rows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(session.id)
-            nextRow = rows.firstOrNull { it.answerAttemptId == null }
+            nextRow = rows.firstOrNull { it.answerAttemptId == null && it.skippedAt == null }
         }
         val effectiveSession = if (nextRow == null && session.status != STATUS_COMPLETED) {
             val now = clockService.now()
@@ -383,7 +456,7 @@ class InterviewSessionService(
         val tagsByRowId = rows.associate { it.id to decodeJsonArray(it.tagsJson) }
         val focusSkillsByRowId = rows.associate { it.id to decodeJsonArray(it.focusSkillNamesJson) }
         val resumeEvidenceByRowId = rows.associate { it.id to decodeResumeEvidence(it.resumeEvidenceJson) }
-        val currentRowId = rows.firstOrNull { it.answerAttemptId == null }?.id
+        val currentRowId = rows.firstOrNull { it.answerAttemptId == null && it.skippedAt == null }?.id
         val questionDtos = rows.map { row ->
             val question = row.questionId?.let(questionById::get)
             InterviewSessionMapper.toQuestionDto(
@@ -414,6 +487,8 @@ class InterviewSessionService(
         InterviewSessionMapper.toSummaryDto(
             totalQuestions = rows.size,
             answeredQuestions = rows.count { it.answerAttemptId != null },
+            skippedQuestions = rows.count { it.skippedAt != null },
+            remainingQuestions = rows.count { it.answerAttemptId == null && it.skippedAt == null },
             averageScore = averageScore(rows),
         )
 
@@ -464,6 +539,7 @@ class InterviewSessionService(
                 contentLocale = null,
                 createdAt = now,
                 updatedAt = now,
+                skippedAt = null,
             )
         }
     }
@@ -566,6 +642,7 @@ class InterviewSessionService(
             contentLocale = generated.contentLocale,
             createdAt = now,
             updatedAt = now,
+            skippedAt = null,
         )
     }
 
@@ -674,6 +751,7 @@ class InterviewSessionService(
                 contentLocale = null,
                 createdAt = now,
                 updatedAt = now,
+                skippedAt = null,
             ),
         )
         return true
@@ -733,6 +811,7 @@ class InterviewSessionService(
                 contentLocale = generated.contentLocale,
                 createdAt = now,
                 updatedAt = now,
+                skippedAt = null,
             ),
         )
         syncCoverageLinks(session, listOf(savedRow), now)
@@ -967,6 +1046,7 @@ class InterviewSessionService(
             contentLocale = contentLocale,
             createdAt = now,
             updatedAt = now,
+            skippedAt = null,
         )
     }
 
@@ -1034,6 +1114,7 @@ class InterviewSessionService(
             llmPromptVersion = llmPromptVersion,
             contentLocale = contentLocale,
             answerAttemptId = answerAttemptId,
+            skippedAt = skippedAt,
             createdAt = createdAt,
             updatedAt = now,
         )
@@ -1117,6 +1198,7 @@ class InterviewSessionService(
                         llmPromptVersion = row.llmPromptVersion,
                         contentLocale = row.contentLocale,
                         answerAttemptId = row.answerAttemptId,
+                        skippedAt = row.skippedAt,
                         createdAt = row.createdAt,
                         updatedAt = now,
                     ),
@@ -1204,6 +1286,7 @@ class InterviewSessionService(
         sessionStatus: String,
     ): String = when {
         row.answerAttemptId != null -> STATUS_ANSWERED
+        row.skippedAt != null -> STATUS_SKIPPED
         currentRowId == row.id && sessionStatus == STATUS_IN_PROGRESS -> STATUS_CURRENT
         else -> STATUS_QUEUED
     }
@@ -1310,6 +1393,7 @@ class InterviewSessionService(
         const val STATUS_COMPLETED = "completed"
         const val STATUS_CURRENT = "current"
         const val STATUS_ANSWERED = "answered"
+        const val STATUS_SKIPPED = "skipped"
         const val STATUS_QUEUED = "queued"
         const val SOURCE_TYPE_INTERVIEW = "interview"
         const val SOURCE_LABEL_INTERVIEW = "Interview"
@@ -1344,6 +1428,7 @@ class InterviewSessionService(
         const val COVERAGE_STATUS_ASKED = "asked"
         const val COVERAGE_STATUS_DEFENDED = "defended"
         const val COVERAGE_STATUS_WEAK = "weak"
+        const val COVERAGE_STATUS_SKIPPED = "skipped"
         const val COVERAGE_DEFENDED_SCORE_THRESHOLD = 70
         const val FULL_COVERAGE_EVIDENCE_LIMIT = 64
         val SUPPORTED_SESSION_TYPES = setOf(SESSION_TYPE_RESUME_MOCK, SESSION_TYPE_REVIEW_MOCK, SESSION_TYPE_TOPIC_MOCK)

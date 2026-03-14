@@ -641,6 +641,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InterviewSessionAdvanceResponseDto"
+        "409":
+          description: Current question has not been answered or skipped yet
+  /api/interview-sessions/{sessionId}/skip-question:
+    post:
+      tags: [Interview Sessions]
+      summary: Skip current interview question and advance
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SkipInterviewSessionQuestionRequest"
+      responses:
+        "200":
+          description: Advanced session state after skipping the current question
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewSessionAdvanceResponseDto"
 components:
   securitySchemes:
     bearerAuth:
@@ -1524,8 +1545,14 @@ components:
       properties:
         totalQuestions: { type: integer }
         answeredQuestions: { type: integer }
+        skippedQuestions: { type: integer }
         remainingQuestions: { type: integer }
         averageScore: { type: number, format: double, nullable: true }
+    SkipInterviewSessionQuestionRequest:
+      type: object
+      required: [sessionQuestionId]
+      properties:
+        sessionQuestionId: { type: integer, format: int64 }
     InterviewSessionAnswerResponseDto:
       type: object
       properties:

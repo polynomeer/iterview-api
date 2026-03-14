@@ -129,6 +129,11 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - use `snippet` as the visible quoted evidence text
   - never replace the question title with the evidence snippet
   - do not require deep-link behavior for the first implementation; `sourceRecordType` and `sourceRecordId` are forward-compatible metadata
+- recommended session progression behavior:
+  - treat `POST /api/interview-sessions/{sessionId}/next-question` as an advance action only
+  - if the current question is still unanswered, prompt the user to submit an answer or skip the question first
+  - use `POST /api/interview-sessions/{sessionId}/skip-question` when the user wants to bypass the current prompt
+  - after answer or skip, `next-question` may resolve the next queued question or lazily generate the next `full_coverage` question
 - implemented full-coverage result support:
   - `GET /api/interview-sessions/{sessionId}/coverage`
   - `GET /api/interview-sessions/{sessionId}/resume-map`
@@ -136,7 +141,7 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 - recommended full-coverage frontend behavior:
   - explain that coverage is measured against interviewable resume evidence units, not every raw character
   - show overall coverage percent plus per-section completion
-  - handle `coverageStatus` values such as `unasked`, `asked`, `defended`, and `weak`
+  - handle `coverageStatus` values such as `unasked`, `asked`, `defended`, `weak`, and `skipped`
   - in the result view, hovering a resume snippet should show related questions
   - clicking a related question should navigate or scroll back to the relevant question card
 - The home payload is backward compatible. Newly added fields are optional and can be ignored by older clients.

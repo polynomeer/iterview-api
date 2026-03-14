@@ -270,6 +270,55 @@ class InterviewSessionApiIntegrationTest {
     }
 
     @Test
+    fun `next question rejects advancing while current question is unanswered`() {
+        val categoryId = insertCategory("Advance Guard")
+        val questionId = insertQuestion("Explain how you debug latency spikes", categoryId)
+        val sessionResponse = createTopicSession(listOf(questionId))
+        val sessionId = sessionResponse.get("id").asLong()
+        val currentQuestionId = sessionResponse.get("currentQuestion").get("id").asLong()
+
+        mockMvc.perform(post("/api/interview-sessions/$sessionId/next-question").header("Authorization", authHeader))
+            .andExpect(status().isConflict)
+            .andExpect(jsonPath("$.error.message").value("Current question must be answered or skipped before advancing: $currentQuestionId"))
+    }
+
+    @Test
+    fun `skip question marks current question skipped and advances to next one`() {
+        val categoryId = insertCategory("Skip Flow")
+        val firstQuestionId = insertQuestion("Describe a large migration you led", categoryId)
+        val secondQuestionId = insertQuestion("How did you handle rollout risk", categoryId)
+
+        val sessionResponse = createTopicSession(listOf(firstQuestionId, secondQuestionId))
+        val sessionId = sessionResponse.get("id").asLong()
+        val firstSessionQuestionId = sessionResponse.get("questions")[0].get("id").asLong()
+        val secondSessionQuestionId = sessionResponse.get("questions")[1].get("id").asLong()
+
+        mockMvc.perform(
+            post("/api/interview-sessions/$sessionId/skip-question")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf("sessionQuestionId" to firstSessionQuestionId),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.status").value("in_progress"))
+            .andExpect(jsonPath("$.currentQuestion.id").value(secondSessionQuestionId))
+            .andExpect(jsonPath("$.summary.totalQuestions").value(2))
+            .andExpect(jsonPath("$.summary.answeredQuestions").value(0))
+            .andExpect(jsonPath("$.summary.skippedQuestions").value(1))
+            .andExpect(jsonPath("$.summary.remainingQuestions").value(1))
+
+        mockMvc.perform(get("/api/interview-sessions/$sessionId").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.questions[0].status").value("skipped"))
+            .andExpect(jsonPath("$.questions[1].status").value("current"))
+            .andExpect(jsonPath("$.summary.skippedQuestions").value(1))
+    }
+
+    @Test
     fun `review mock session prioritizes pending review questions`() {
         val categoryId = insertCategory("Distributed Systems")
         val questionId = insertQuestion("Explain retry backoff", categoryId)
@@ -368,9 +417,8 @@ class InterviewSessionApiIntegrationTest {
             .andExpect(jsonPath("$.summary.answeredQuestions").value(1))
 
         mockMvc.perform(post("/api/interview-sessions/$sessionId/next-question").header("Authorization", authHeader))
-            .andExpect(status().isOk)
-            .andExpect(jsonPath("$.status").value("in_progress"))
-            .andExpect(jsonPath("$.currentQuestion.id").value(secondSessionQuestionId))
+            .andExpect(status().isConflict)
+            .andExpect(jsonPath("$.error.message").value("Current question must be answered or skipped before advancing: $secondSessionQuestionId"))
 
         mockMvc.perform(
             post("/api/interview-sessions/$sessionId/answers")

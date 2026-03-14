@@ -8,6 +8,7 @@ import com.example.interviewplatform.interview.dto.InterviewSessionCoverageRespo
 import com.example.interviewplatform.interview.dto.InterviewSessionDetailResponseDto
 import com.example.interviewplatform.interview.dto.InterviewSessionListItemDto
 import com.example.interviewplatform.interview.dto.InterviewSessionResumeMapResponseDto
+import com.example.interviewplatform.interview.dto.SkipInterviewSessionQuestionRequest
 import com.example.interviewplatform.interview.dto.SubmitInterviewSessionAnswerRequest
 import com.example.interviewplatform.interview.service.InterviewSessionService
 import io.swagger.v3.oas.annotations.Operation
@@ -63,6 +64,14 @@ class InterviewSessionController(
         @Valid @RequestBody request: SubmitInterviewSessionAnswerRequest,
     ): InterviewSessionAnswerResponseDto =
         interviewSessionService.submitAnswer(currentUserProvider.currentUserId(), sessionId, request)
+
+    @PostMapping("/{sessionId}/skip-question")
+    @Operation(summary = "Skip current interview session question")
+    fun skipQuestion(
+        @PathVariable sessionId: Long,
+        @Valid @RequestBody request: SkipInterviewSessionQuestionRequest,
+    ): InterviewSessionAdvanceResponseDto =
+        interviewSessionService.skipQuestion(currentUserProvider.currentUserId(), sessionId, request)
 
     @PostMapping("/{sessionId}/next-question")
     @Operation(summary = "Advance interview session to next question")

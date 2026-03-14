@@ -76,6 +76,7 @@ Authenticated endpoints:
 - `GET /api/interview-sessions/{sessionId}/coverage`
 - `GET /api/interview-sessions/{sessionId}/resume-map`
 - `POST /api/interview-sessions/{sessionId}/answers`
+- `POST /api/interview-sessions/{sessionId}/skip-question`
 - `POST /api/interview-sessions/{sessionId}/next-question`
 ## Standard Error Response
 All error responses use this shape:
@@ -1304,11 +1305,35 @@ Behavior:
 
 #### `POST /api/interview-sessions/{sessionId}/next-question`
 Purpose:
-- return the next unanswered question and mark the session complete when no questions remain
+- advance only after the current question has already been answered or skipped
 
 Current `full_coverage` behavior:
 - choose the next question based on uncovered resume evidence items first
 - avoid relying on unconstrained AI generation alone when coverage completion is the goal
+
+Advance semantics:
+- if the current question is still unanswered, the backend returns `409 CONFLICT`
+- if the current question has already been answered or skipped, the backend returns the next queued question
+- if no queued question exists, planner-driven modes such as `full_coverage` may generate the next question lazily
+- if no remaining question can be resolved, the session is completed
+
+#### `POST /api/interview-sessions/{sessionId}/skip-question`
+Purpose:
+- mark the current question as skipped and then advance the session to the next question
+
+Request shape:
+```json
+{
+  "sessionQuestionId": 301
+}
+```
+
+Behavior:
+- the target session question must belong to the active session
+- answered questions cannot be skipped
+- skipped questions remain in session history with `status = skipped`
+- in `full_coverage`, linked resume evidence items move to `coverageStatus = skipped`
+- the response shape matches the advance response and returns the next current question when available
 
 #### `GET /api/interview-sessions/{sessionId}/coverage`
 Purpose:
@@ -1339,6 +1364,7 @@ Coverage status semantics:
 - `asked`: a question has been asked from this evidence item, but the linked answer has not yet been evaluated
 - `defended`: the latest linked answer met the current defended threshold
 - `weak`: the latest linked answer did not meet the defended threshold
+- `skipped`: the linked session question was explicitly skipped by the user
 
 #### `GET /api/interview-sessions/{sessionId}/resume-map`
 Purpose:

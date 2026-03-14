@@ -45,11 +45,14 @@ object InterviewSessionMapper {
     fun toSummaryDto(
         totalQuestions: Int,
         answeredQuestions: Int,
+        skippedQuestions: Int,
+        remainingQuestions: Int,
         averageScore: Double?,
     ): InterviewSessionSummaryDto = InterviewSessionSummaryDto(
         totalQuestions = totalQuestions,
         answeredQuestions = answeredQuestions,
-        remainingQuestions = (totalQuestions - answeredQuestions).coerceAtLeast(0),
+        skippedQuestions = skippedQuestions,
+        remainingQuestions = remainingQuestions.coerceAtLeast(0),
         averageScore = averageScore,
     )
 
