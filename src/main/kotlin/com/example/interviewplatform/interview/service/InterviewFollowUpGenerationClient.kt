@@ -10,6 +10,9 @@ data class InterviewFollowUpGenerationInput(
     val resumeProjectSummaries: List<String>,
     val resumeRiskSummaries: List<String>,
     val resumeEvidenceCandidates: List<InterviewResumeEvidenceCandidate>,
+    val parentResumeEvidenceCandidates: List<InterviewResumeEvidenceCandidate>,
+    val preferredResumeEvidenceCandidates: List<InterviewResumeEvidenceCandidate>,
+    val usedFacetsForPreferredRecord: List<String>,
     val parentTags: List<String>,
     val parentFocusSkillNames: List<String>,
 )

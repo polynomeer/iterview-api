@@ -27,6 +27,9 @@ class InterviewFollowUpGenerationService(
         answerText: String,
         parentTags: List<String>,
         parentFocusSkillNames: List<String>,
+        parentResumeEvidenceCandidates: List<InterviewResumeEvidenceCandidate>,
+        preferredResumeEvidenceCandidates: List<InterviewResumeEvidenceCandidate>,
+        usedFacetsForPreferredRecord: List<String>,
     ): GeneratedInterviewFollowUp? {
         val resumeVersionId = session.resumeVersionId ?: return null
         if (!client.isEnabled()) {
@@ -57,6 +60,9 @@ class InterviewFollowUpGenerationService(
                 .map { "${it.title} (${it.severity}): ${it.description}" }
                 .take(4),
             resumeEvidenceCandidates = interviewResumeEvidenceAssembler.loadCandidates(resumeVersionId),
+            parentResumeEvidenceCandidates = parentResumeEvidenceCandidates,
+            preferredResumeEvidenceCandidates = preferredResumeEvidenceCandidates,
+            usedFacetsForPreferredRecord = usedFacetsForPreferredRecord,
             parentTags = parentTags,
             parentFocusSkillNames = parentFocusSkillNames,
         )

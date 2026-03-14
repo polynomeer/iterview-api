@@ -707,12 +707,20 @@ class InterviewSessionService(
         }
 
         if (session.sessionType == SESSION_TYPE_RESUME_MOCK) {
+            val followUpContext = buildFollowUpResumeEvidenceContext(
+                existingRows = existingRows,
+                answeredRow = answeredRow,
+                resumeVersionId = resumeVersionId,
+            )
             val generated = interviewFollowUpGenerationService.generateResumeFollowUp(
                 session = session,
                 answeredRow = answeredRow,
                 answerText = answerText,
                 parentTags = decodeJsonArray(answeredRow.tagsJson),
                 parentFocusSkillNames = decodeJsonArray(answeredRow.focusSkillNamesJson),
+                parentResumeEvidenceCandidates = followUpContext.parentCandidates,
+                preferredResumeEvidenceCandidates = followUpContext.preferredCandidates,
+                usedFacetsForPreferredRecord = followUpContext.usedFacetsForPreferredRecord,
             )
             if (generated != null) {
                 insertGeneratedFollowUp(
@@ -1111,6 +1119,98 @@ class InterviewSessionService(
             .mapValues { (_, links) -> links.map { it.id.interviewSessionQuestionId }.distinct() }
     }
 
+    private fun buildFollowUpResumeEvidenceContext(
+        existingRows: List<InterviewSessionQuestionEntity>,
+        answeredRow: InterviewSessionQuestionEntity,
+        resumeVersionId: Long?,
+    ): FollowUpResumeEvidenceContext {
+        val allCandidates = buildSessionResumeEvidenceCandidates(
+            sessionId = answeredRow.interviewSessionId,
+            resumeVersionId = resumeVersionId,
+        )
+        if (allCandidates.isEmpty()) {
+            return FollowUpResumeEvidenceContext()
+        }
+
+        val rowCandidatesById = existingRows.associate { row ->
+            row.id to matchRowResumeEvidenceCandidates(row, allCandidates)
+        }
+        val parentCandidates = rowCandidatesById[answeredRow.id].orEmpty()
+        if (parentCandidates.isEmpty()) {
+            return FollowUpResumeEvidenceContext()
+        }
+
+        val preferredRecordKey = evidenceKey(parentCandidates.first().sourceRecordType, parentCandidates.first().sourceRecordId)
+        val usedCandidatesForRecord = rowCandidatesById.values
+            .flatten()
+            .filter { evidenceKey(it.sourceRecordType, it.sourceRecordId) == preferredRecordKey }
+        val usedFacetsForPreferredRecord = usedCandidatesForRecord.map { it.facet }.distinct()
+        val parentSnippetKeys = parentCandidates.map { normalizeSnippet(it.snippet) }.toSet()
+        val usedSnippetCounts = usedCandidatesForRecord.groupingBy { normalizeSnippet(it.snippet) }.eachCount()
+        val usedFacetCounts = usedCandidatesForRecord.groupingBy { it.facet }.eachCount()
+        val sameRecordCandidates = allCandidates
+            .filter { evidenceKey(it.sourceRecordType, it.sourceRecordId) == preferredRecordKey }
+            .distinctBy { Triple(it.sourceRecordType, it.sourceRecordId, normalizeSnippet(it.snippet)) }
+
+        val preferredCandidates = sameRecordCandidates
+            .sortedWith(
+                compareBy<InterviewResumeEvidenceCandidate>(
+                    { if (it.facet in usedFacetsForPreferredRecord) 1 else 0 },
+                    { if (normalizeSnippet(it.snippet) in parentSnippetKeys) 1 else 0 },
+                    { usedFacetCounts[it.facet] ?: 0 },
+                    { usedSnippetCounts[normalizeSnippet(it.snippet)] ?: 0 },
+                ).thenBy { it.facet }.thenBy { it.label ?: "" }.thenBy { it.snippet },
+            )
+            .take(MAX_PREFERRED_FOLLOW_UP_EVIDENCE_CANDIDATES)
+
+        return FollowUpResumeEvidenceContext(
+            parentCandidates = parentCandidates,
+            preferredCandidates = preferredCandidates,
+            usedFacetsForPreferredRecord = usedFacetsForPreferredRecord,
+        )
+    }
+
+    private fun buildSessionResumeEvidenceCandidates(
+        sessionId: Long,
+        resumeVersionId: Long?,
+    ): List<InterviewResumeEvidenceCandidate> {
+        val sessionCandidates = interviewSessionEvidenceItemRepository
+            .findByInterviewSessionIdOrderByDisplayOrderAscIdAsc(sessionId)
+            .map { it.toEvidenceCandidate() }
+            .distinctBy { Triple(it.sourceRecordType, it.sourceRecordId, normalizeSnippet(it.snippet)) }
+        if (sessionCandidates.isNotEmpty()) {
+            return sessionCandidates
+        }
+        if (resumeVersionId == null) {
+            return emptyList()
+        }
+        return interviewResumeEvidenceAssembler
+            .loadCandidates(resumeVersionId, FULL_COVERAGE_EVIDENCE_LIMIT)
+            .distinctBy { Triple(it.sourceRecordType, it.sourceRecordId, normalizeSnippet(it.snippet)) }
+    }
+
+    private fun matchRowResumeEvidenceCandidates(
+        row: InterviewSessionQuestionEntity,
+        allCandidates: List<InterviewResumeEvidenceCandidate>,
+    ): List<InterviewResumeEvidenceCandidate> {
+        val candidatesBySourceKey = allCandidates.groupBy { evidenceKey(it.sourceRecordType, it.sourceRecordId) }
+        val candidatesBySnippet = allCandidates.associateBy { normalizeSnippet(it.snippet) }
+        return decodeResumeEvidence(row.resumeEvidenceJson)
+            .mapNotNull { evidence ->
+                val exactSnippet = normalizeSnippet(evidence.snippet)
+                when {
+                    evidence.sourceRecordType != null && evidence.sourceRecordId != null ->
+                        candidatesBySourceKey[evidenceKey(evidence.sourceRecordType, evidence.sourceRecordId)]
+                            .orEmpty()
+                            .firstOrNull { normalizeSnippet(it.snippet) == exactSnippet }
+                            ?: candidatesBySourceKey[evidenceKey(evidence.sourceRecordType, evidence.sourceRecordId)].orEmpty().firstOrNull()
+
+                    else -> null
+                } ?: candidatesBySnippet[exactSnippet]
+            }
+            .distinctBy { Triple(it.sourceRecordType, it.sourceRecordId, normalizeSnippet(it.snippet)) }
+    }
+
     private fun markCoverageStatus(evidenceItemId: Long, nextStatus: String, now: java.time.Instant) {
         val current = interviewSessionEvidenceItemRepository.findById(evidenceItemId).orElse(null) ?: return
         if (current.coverageStatus == nextStatus) {
@@ -1468,6 +1568,12 @@ class InterviewSessionService(
             ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "No category available for interview question generation")
     }
 
+    private data class FollowUpResumeEvidenceContext(
+        val parentCandidates: List<InterviewResumeEvidenceCandidate> = emptyList(),
+        val preferredCandidates: List<InterviewResumeEvidenceCandidate> = emptyList(),
+        val usedFacetsForPreferredRecord: List<String> = emptyList(),
+    )
+
     private companion object {
         const val STATUS_IN_PROGRESS = "in_progress"
         const val STATUS_COMPLETED = "completed"
@@ -1511,6 +1617,7 @@ class InterviewSessionService(
         const val COVERAGE_STATUS_WEAK = "weak"
         const val COVERAGE_STATUS_SKIPPED = "skipped"
         const val COVERAGE_DEFENDED_SCORE_THRESHOLD = 70
+        const val MAX_PREFERRED_FOLLOW_UP_EVIDENCE_CANDIDATES = 4
         const val FULL_COVERAGE_EVIDENCE_LIMIT = 64
         val SUPPORTED_SESSION_TYPES = setOf(SESSION_TYPE_RESUME_MOCK, SESSION_TYPE_REVIEW_MOCK, SESSION_TYPE_TOPIC_MOCK)
         val SUPPORTED_INTERVIEW_MODES = setOf(

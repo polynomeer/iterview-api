@@ -146,6 +146,24 @@ class OpenAiInterviewFollowUpGenerationClient(
                 appendLine("- [${candidate.sourceRecordType}:${candidate.sourceRecordId}] section=${candidate.section} facet=${candidate.facet} label=${candidate.label ?: "-"} snippet=${candidate.snippet}")
             }
         }
+        if (input.parentResumeEvidenceCandidates.isNotEmpty()) {
+            appendLine()
+            appendLine("Parent question resume evidence:")
+            input.parentResumeEvidenceCandidates.forEach { candidate ->
+                appendLine("- [${candidate.sourceRecordType}:${candidate.sourceRecordId}] section=${candidate.section} facet=${candidate.facet} label=${candidate.label ?: "-"} snippet=${candidate.snippet}")
+            }
+        }
+        if (input.preferredResumeEvidenceCandidates.isNotEmpty()) {
+            appendLine()
+            appendLine("Preferred follow-up evidence candidates:")
+            input.preferredResumeEvidenceCandidates.forEach { candidate ->
+                appendLine("- [${candidate.sourceRecordType}:${candidate.sourceRecordId}] section=${candidate.section} facet=${candidate.facet} label=${candidate.label ?: "-"} snippet=${candidate.snippet}")
+            }
+        }
+        if (input.usedFacetsForPreferredRecord.isNotEmpty()) {
+            appendLine()
+            appendLine("Already covered facets for this record: ${input.usedFacetsForPreferredRecord.joinToString(", ")}")
+        }
         if (input.parentTags.isNotEmpty()) {
             appendLine()
             appendLine("Parent tags: ${input.parentTags.joinToString(", ")}")
@@ -157,8 +175,10 @@ class OpenAiInterviewFollowUpGenerationClient(
         appendLine()
         appendLine("Follow-up generation goal:")
         appendLine("Use the answer quality and resume evidence to ask the next most revealing single question, not just a keyword-adjacent question.")
+        appendLine("If preferred follow-up evidence candidates are provided, choose one of them first unless the answer clearly requires a harder challenge on the same exact claim.")
         appendLine("If the answer was vague, ask for concrete evidence, metrics, STAR detail, or a decision process.")
         appendLine("If the answer was strong but incomplete, ask for technical depth, trade-offs, failure handling, or a realistic what-if constraint.")
+        appendLine("Avoid reusing an already-covered facet when another unresolved facet from the same record is available.")
         appendLine("Prefer drilling into one concrete claim or sentence from the same project rather than asking for another broad project overview.")
     }
 

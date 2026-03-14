@@ -1312,6 +1312,7 @@ Current `full_coverage` behavior:
 - avoid relying on unconstrained AI generation alone when coverage completion is the goal
 - one project or experience record may contribute multiple coverage evidence items when the resume contains multiple distinct claims, actions, or outcomes
 - follow-up generation should prefer drilling into a narrower unresolved claim, metric, trade-off, or STAR facet from the same project instead of repeating broad overview questions
+- follow-up generation should use session memory so that, within the same project or experience record, already-covered facets are deprioritized in favor of unresolved facets and different supporting snippets
 - reaching `overallCoveragePercent = 100` does not automatically end the session
 - after all evidence items have been covered, the backend may continue generating additional deep-dive questions against previously covered evidence until the user ends the interview or the session is otherwise completed
 - deterministic extra questions generated after 100% coverage may expose `generationStatus = coverage_extended`

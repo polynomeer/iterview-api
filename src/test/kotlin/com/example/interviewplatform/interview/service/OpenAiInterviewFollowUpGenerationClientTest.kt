@@ -64,6 +64,27 @@ class OpenAiInterviewFollowUpGenerationClientTest {
                         sourceRecordId = 12,
                     ),
                 ),
+                parentResumeEvidenceCandidates = listOf(
+                    InterviewResumeEvidenceCandidate(
+                        section = "project",
+                        label = "Payments migration",
+                        snippet = "Led phased rollout of the payments migration with rollback safeguards.",
+                        facet = "tradeoff",
+                        sourceRecordType = "resume_project_snapshot",
+                        sourceRecordId = 12,
+                    ),
+                ),
+                preferredResumeEvidenceCandidates = listOf(
+                    InterviewResumeEvidenceCandidate(
+                        section = "project",
+                        label = "Payments migration",
+                        snippet = "Cut p95 latency by 28 percent after moving rollback checks earlier in the flow.",
+                        facet = "metric",
+                        sourceRecordType = "resume_project_snapshot",
+                        sourceRecordId = 12,
+                    ),
+                ),
+                usedFacetsForPreferredRecord = listOf("problem", "tradeoff"),
                 parentTags = listOf("payments"),
                 parentFocusSkillNames = listOf("Distributed Systems"),
             ),
@@ -85,6 +106,8 @@ class OpenAiInterviewFollowUpGenerationClientTest {
         assertEquals("interview-follow-up-v1", result.llmPromptVersion)
         assertEquals("en", result.contentLocale)
         assertTrue(transport.capturedBody.orEmpty().contains("facet=tradeoff"))
+        assertTrue(transport.capturedBody.orEmpty().contains("Preferred follow-up evidence candidates"))
+        assertTrue(transport.capturedBody.orEmpty().contains("Already covered facets for this record: problem, tradeoff"))
     }
 
     private class FakeTransport(
