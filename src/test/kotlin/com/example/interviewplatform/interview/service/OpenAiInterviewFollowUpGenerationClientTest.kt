@@ -33,9 +33,10 @@ class OpenAiInterviewFollowUpGenerationClientTest {
               "output_text": "{\"promptText\":\"How did you verify rollback readiness?\",\"bodyText\":\"Focus on the signals and fallback threshold.\",\"tags\":[\"payments\",\"rollback\"],\"focusSkillNames\":[\"Risk Management\",\"Observability\"],\"resumeContextSummary\":\"Resume references a payments migration and latency target.\",\"resumeEvidence\":[{\"type\":\"resume_sentence\",\"section\":\"project\",\"label\":\"Payments migration\",\"snippet\":\"Led phased rollout of the payments migration with rollback safeguards.\",\"sourceRecordType\":\"resume_project_snapshot\",\"sourceRecordId\":12,\"confidence\":0.93,\"startOffset\":null,\"endOffset\":null}],\"generationRationale\":\"The answer skipped rollback criteria and monitoring specifics.\"}"
             }
         """.trimIndent()
+        val transport = FakeTransport(response)
         val client = OpenAiInterviewFollowUpGenerationClient(
             objectMapper = objectMapper,
-            transport = FakeTransport(response),
+            transport = transport,
             apiKey = "test-key",
             baseUrl = "https://api.openai.com/v1",
             model = "gpt-5-mini",
@@ -58,6 +59,7 @@ class OpenAiInterviewFollowUpGenerationClientTest {
                         section = "project",
                         label = "Payments migration",
                         snippet = "Led phased rollout of the payments migration with rollback safeguards.",
+                        facet = "tradeoff",
                         sourceRecordType = "resume_project_snapshot",
                         sourceRecordId = 12,
                     ),
@@ -82,11 +84,17 @@ class OpenAiInterviewFollowUpGenerationClientTest {
         assertEquals("gpt-5-mini", result.llmModel)
         assertEquals("interview-follow-up-v1", result.llmPromptVersion)
         assertEquals("en", result.contentLocale)
+        assertTrue(transport.capturedBody.orEmpty().contains("facet=tradeoff"))
     }
 
     private class FakeTransport(
         private val response: String,
     ) : InterviewLlmApiTransport {
-        override fun postJson(url: String, apiKey: String, body: String, timeout: Duration): String = response
+        var capturedBody: String? = null
+
+        override fun postJson(url: String, apiKey: String, body: String, timeout: Duration): String {
+            capturedBody = body
+            return response
+        }
     }
 }

@@ -87,6 +87,7 @@ class OpenAiInterviewOpeningGenerationClient(
         Ask one strong interviewer-style question that opens the mock interview.
         Do not ask multiple questions.
         Prefer a question that feels like a real interviewer read the resume line by line and wants to probe one specific claim, decision, trade-off, incident, or result.
+        If evidence candidates include different facets such as problem, action, result, metric, or tradeoff, use that facet signal to avoid overly general questions.
         Choose one of these realistic opener styles:
         1. Resume evidence explanation: ask the candidate to explain a specific sentence, project, responsibility, or claimed outcome from the resume.
         2. STAR / problem-solving: ask for the situation, task, action, and result behind a concrete experience or achievement.
@@ -133,20 +134,21 @@ class OpenAiInterviewOpeningGenerationClient(
             appendLine()
             appendLine("Resume evidence candidates:")
             input.resumeEvidenceCandidates.forEach { candidate ->
-                appendLine("- [${candidate.sourceRecordType}:${candidate.sourceRecordId}] section=${candidate.section} label=${candidate.label ?: "-"} snippet=${candidate.snippet}")
+                appendLine("- [${candidate.sourceRecordType}:${candidate.sourceRecordId}] section=${candidate.section} facet=${candidate.facet} label=${candidate.label ?: "-"} snippet=${candidate.snippet}")
             }
         }
         if (input.preferredResumeEvidenceCandidates.isNotEmpty()) {
             appendLine()
             appendLine("Preferred evidence to prioritize for this opener:")
             input.preferredResumeEvidenceCandidates.forEach { candidate ->
-                appendLine("- [${candidate.sourceRecordType}:${candidate.sourceRecordId}] section=${candidate.section} label=${candidate.label ?: "-"} snippet=${candidate.snippet}")
+                appendLine("- [${candidate.sourceRecordType}:${candidate.sourceRecordId}] section=${candidate.section} facet=${candidate.facet} label=${candidate.label ?: "-"} snippet=${candidate.snippet}")
             }
             appendLine("When possible, anchor the opener to one of the preferred evidence items above.")
         }
         appendLine()
         appendLine("Question design goal:")
         appendLine("Generate a realistic opener that is specific enough to be answerable from the resume, but deep enough to reveal explanation quality, problem-solving structure, technical understanding, or design judgment.")
+        appendLine("Prefer one narrow, defendable slice of the project or experience rather than asking for a whole-project summary every time.")
     }
 
     private fun responseSchema(): Map<String, Any> = mapOf(

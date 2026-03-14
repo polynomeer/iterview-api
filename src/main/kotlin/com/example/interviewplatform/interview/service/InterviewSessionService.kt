@@ -1125,6 +1125,7 @@ class InterviewSessionService(
             section = section,
             label = label,
             snippet = snippet,
+            facet = "general",
             sourceRecordType = sourceRecordType,
             sourceRecordId = sourceRecordId,
         )

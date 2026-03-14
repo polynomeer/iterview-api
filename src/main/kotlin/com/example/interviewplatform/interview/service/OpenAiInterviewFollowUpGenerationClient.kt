@@ -87,6 +87,7 @@ class OpenAiInterviewFollowUpGenerationClient(
         Use the answer and the resume context to ask a concrete, defensible, technically relevant follow-up.
         Do not ask multiple questions.
         The follow-up should feel like a real interviewer noticed a gap, weak reasoning step, vague claim, missing metric, unexplained trade-off, or shallow technical explanation.
+        If the resume evidence candidates include facets such as problem, action, result, metric, or tradeoff, prefer a follow-up that attacks a different unresolved facet from the parent question instead of repeating the same high-level summary angle.
         Prefer one of these follow-up styles:
         1. STAR deepening: ask for the missing situation, task, action, result, metric, or decision point.
         2. Evidence challenge: ask the candidate to justify a claim from the answer or the resume with specific evidence.
@@ -142,7 +143,7 @@ class OpenAiInterviewFollowUpGenerationClient(
             appendLine()
             appendLine("Resume evidence candidates:")
             input.resumeEvidenceCandidates.forEach { candidate ->
-                appendLine("- [${candidate.sourceRecordType}:${candidate.sourceRecordId}] section=${candidate.section} label=${candidate.label ?: "-"} snippet=${candidate.snippet}")
+                appendLine("- [${candidate.sourceRecordType}:${candidate.sourceRecordId}] section=${candidate.section} facet=${candidate.facet} label=${candidate.label ?: "-"} snippet=${candidate.snippet}")
             }
         }
         if (input.parentTags.isNotEmpty()) {
@@ -158,6 +159,7 @@ class OpenAiInterviewFollowUpGenerationClient(
         appendLine("Use the answer quality and resume evidence to ask the next most revealing single question, not just a keyword-adjacent question.")
         appendLine("If the answer was vague, ask for concrete evidence, metrics, STAR detail, or a decision process.")
         appendLine("If the answer was strong but incomplete, ask for technical depth, trade-offs, failure handling, or a realistic what-if constraint.")
+        appendLine("Prefer drilling into one concrete claim or sentence from the same project rather than asking for another broad project overview.")
     }
 
     private fun responseSchema(): Map<String, Any> = mapOf(

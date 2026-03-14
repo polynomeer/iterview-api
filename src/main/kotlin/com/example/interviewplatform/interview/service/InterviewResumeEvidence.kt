@@ -4,6 +4,7 @@ data class InterviewResumeEvidenceCandidate(
     val section: String,
     val label: String?,
     val snippet: String,
+    val facet: String,
     val sourceRecordType: String,
     val sourceRecordId: Long,
 )

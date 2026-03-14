@@ -22,6 +22,7 @@ class InterviewResumeEvidenceAssembler(
                         section = "project",
                         label = project.title.ifBlank { null },
                         snippet = snippet,
+                        facet = inferFacet(snippet),
                         sourceRecordType = "resume_project_snapshot",
                         sourceRecordId = project.id,
                     )
@@ -39,6 +40,7 @@ class InterviewResumeEvidenceAssembler(
                             .joinToString(" - ")
                             .ifBlank { null },
                         snippet = snippet,
+                        facet = inferFacet(snippet),
                         sourceRecordType = "resume_experience_snapshot",
                         sourceRecordId = experience.id,
                     )
@@ -104,6 +106,23 @@ class InterviewResumeEvidenceAssembler(
     }
 
     private fun normalize(value: String?): String = value?.replace(Regex("\\s+"), " ")?.trim().orEmpty()
+
+    private fun inferFacet(snippet: String): String {
+        val normalized = snippet.lowercase()
+        return when {
+            normalized.contains("문제") || normalized.contains("issue") || normalized.contains("challenge") || normalized.contains("risk") ->
+                "problem"
+            normalized.contains("해결") || normalized.contains("개선") || normalized.contains("implemented") || normalized.contains("built") || normalized.contains("led") ->
+                "action"
+            normalized.contains("결과") || normalized.contains("improved") || normalized.contains("reduced") || normalized.contains("increased") || normalized.contains("outcome") ->
+                "result"
+            normalized.contains("trade-off") || normalized.contains("tradeoff") || normalized.contains("설계") || normalized.contains("architecture") ->
+                "tradeoff"
+            normalized.contains("metric") || normalized.contains("latency") || normalized.contains("conversion") || normalized.contains("%") ->
+                "metric"
+            else -> "general"
+        }
+    }
 
     private companion object {
         const val MAX_SNIPPET_LENGTH = 220
