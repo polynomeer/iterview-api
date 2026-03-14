@@ -172,6 +172,9 @@ class InterviewSessionService(
                     section = item.section,
                     label = item.label,
                     snippet = item.snippet,
+                    sourceRecordType = item.sourceRecordType,
+                    sourceRecordId = item.sourceRecordId,
+                    displayOrder = item.displayOrder,
                     coverageStatus = item.coverageStatus,
                     linkedQuestionIds = linkedQuestionIdsByEvidenceId[item.id].orEmpty(),
                 )
@@ -184,8 +187,9 @@ class InterviewSessionService(
         val session = requireSession(userId, sessionId)
         val evidenceItems = interviewSessionEvidenceItemRepository.findByInterviewSessionIdOrderByDisplayOrderAscIdAsc(session.id)
         val links = interviewSessionQuestionEvidenceLinkRepository.findByIdInterviewSessionEvidenceItemIdIn(evidenceItems.map { it.id })
-        val rowsById = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(session.id)
-            .associateBy { it.id }
+        val orderedRows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(session.id)
+        val rowsById = orderedRows.associateBy { it.id }
+        val currentRowId = orderedRows.firstOrNull { it.answerAttemptId == null && it.skippedAt == null }?.id
         val relatedQuestionsByEvidenceId = links.groupBy { it.id.interviewSessionEvidenceItemId }.mapValues { (_, groupedLinks) ->
             groupedLinks.mapNotNull { link ->
                 rowsById[link.id.interviewSessionQuestionId]?.let { row ->
@@ -193,6 +197,9 @@ class InterviewSessionService(
                         sessionQuestionId = row.id,
                         title = row.promptText ?: "",
                         sourceType = row.questionSourceType,
+                        orderIndex = row.orderIndex,
+                        status = questionStatus(row, currentRowId, session.status),
+                        isFollowUp = row.isFollowUp,
                     )
                 }
             }.sortedBy { question -> rowsById[question.sessionQuestionId]?.orderIndex }
@@ -207,7 +214,10 @@ class InterviewSessionService(
                     snippet = item.snippet,
                     sourceRecordType = item.sourceRecordType,
                     sourceRecordId = item.sourceRecordId,
+                    displayOrder = item.displayOrder,
                     coverageStatus = item.coverageStatus,
+                    primaryQuestionCount = relatedQuestionsByEvidenceId[item.id].orEmpty().count { !it.isFollowUp },
+                    followUpQuestionCount = relatedQuestionsByEvidenceId[item.id].orEmpty().count { it.isFollowUp },
                     relatedQuestions = relatedQuestionsByEvidenceId[item.id].orEmpty(),
                 )
             },

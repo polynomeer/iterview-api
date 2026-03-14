@@ -144,8 +144,11 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - handle `coverageStatus` values such as `unasked`, `asked`, `defended`, `weak`, and `skipped`
   - prefer a structured resume viewer based on parsed experiences and projects instead of first attempting raw PDF overlays
   - use `sourceRecordType` + `sourceRecordId` from `resume-map` as the join key back into parsed resume sections
+  - use `displayOrder` from `coverage` or `resume-map` to keep highlighted resume blocks aligned with parsed resume section ordering
   - in the result view, hovering a highlighted resume block should show related questions in a lightweight preview
   - clicking a highlighted resume block should pin the related questions and allow navigation or scrolling back to the relevant question card
+  - use `primaryQuestionCount` and `followUpQuestionCount` to summarize how many turns are attached before expanding the full related-question list
+  - use `relatedQuestions[].orderIndex`, `status`, and `isFollowUp` to render the preview in timeline order without fetching another intermediate mapping structure
   - treat current result highlighting scope as `project` and `experience` only
 - The home payload is backward compatible. Newly added fields are optional and can be ignored by older clients.
 - Mixed-language rendering is expected and should be handled gracefully:

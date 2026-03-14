@@ -1352,6 +1352,9 @@ Current response shape:
       "section": "project",
       "label": "Payments migration",
       "snippet": "Led phased rollout of the payments migration with rollback safeguards.",
+      "sourceRecordType": "resume_project_snapshot",
+      "sourceRecordId": 12,
+      "displayOrder": 1,
       "coverageStatus": "defended",
       "linkedQuestionIds": [3001, 3004]
     }
@@ -1382,12 +1385,18 @@ Current response shape:
       "snippet": "Received the Engineering Excellence Award for the payments migration.",
       "sourceRecordType": "resume_award_item",
       "sourceRecordId": 41,
+      "displayOrder": 3,
       "coverageStatus": "defended",
+      "primaryQuestionCount": 1,
+      "followUpQuestionCount": 1,
       "relatedQuestions": [
         {
           "sessionQuestionId": 3007,
           "title": "What specific outcome led to that award?",
-          "sourceType": "ai_follow_up"
+          "sourceType": "ai_follow_up",
+          "orderIndex": 4,
+          "status": "answered",
+          "isFollowUp": true
         }
       ]
     }
@@ -1398,9 +1407,11 @@ Current response shape:
 Recommended result-view semantics:
 - the first implementation should use a structured resume viewer backed by parsed resume sections such as experiences and projects rather than PDF coordinate overlays
 - `sourceRecordType` and `sourceRecordId` should be treated as the stable join key between resume section APIs and the session result map
+- `displayOrder` should be used to keep the result-time resume viewer aligned with the original parsed resume section ordering
 - one resume evidence block may map to multiple related interview turns
 - hover should show a lightweight related-question preview, not necessarily a fully expanded question card
 - click should pin the related questions and navigate or scroll to the linked session question card when practical
+- `primaryQuestionCount` and `followUpQuestionCount` can drive badges or preview density without forcing the client to pre-expand the full question list
 - clients should visually distinguish `coverageStatus` values such as `defended`, `weak`, `skipped`, and `unasked` in the result viewer
 - current resume-grounded result mapping is intentionally scoped to project and experience evidence only
 

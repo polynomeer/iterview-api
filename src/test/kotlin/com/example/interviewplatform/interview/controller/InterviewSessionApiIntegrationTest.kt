@@ -175,6 +175,9 @@ class InterviewSessionApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.overallCoveragePercent").value(50))
             .andExpect(jsonPath("$.evidenceItems.length()").value(2))
+            .andExpect(jsonPath("$.evidenceItems[0].sourceRecordType").value("resume_project_snapshot"))
+            .andExpect(jsonPath("$.evidenceItems[0].sourceRecordId").isNumber)
+            .andExpect(jsonPath("$.evidenceItems[0].displayOrder").value(1))
             .andExpect(jsonPath("$.evidenceItems[0].coverageStatus").value("asked"))
             .andExpect(jsonPath("$.evidenceItems[0].linkedQuestionIds[0]").value(sessionQuestionId))
 
@@ -202,7 +205,13 @@ class InterviewSessionApiIntegrationTest {
         mockMvc.perform(get("/api/interview-sessions/$sessionId/resume-map").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.resumeVersionId").value(resumeVersionId))
+            .andExpect(jsonPath("$.evidenceItems[0].displayOrder").value(1))
+            .andExpect(jsonPath("$.evidenceItems[0].primaryQuestionCount").value(1))
+            .andExpect(jsonPath("$.evidenceItems[0].followUpQuestionCount").value(0))
             .andExpect(jsonPath("$.evidenceItems[0].relatedQuestions[0].sessionQuestionId").value(sessionQuestionId))
+            .andExpect(jsonPath("$.evidenceItems[0].relatedQuestions[0].orderIndex").value(1))
+            .andExpect(jsonPath("$.evidenceItems[0].relatedQuestions[0].status").value("answered"))
+            .andExpect(jsonPath("$.evidenceItems[0].relatedQuestions[0].isFollowUp").value(false))
     }
 
     @Test

@@ -5,6 +5,9 @@ data class InterviewSessionCoverageEvidenceItemDto(
     val section: String,
     val label: String?,
     val snippet: String,
+    val sourceRecordType: String,
+    val sourceRecordId: Long,
+    val displayOrder: Int,
     val coverageStatus: String,
     val linkedQuestionIds: List<Long>,
 )
@@ -21,6 +24,9 @@ data class InterviewSessionResumeMapQuestionDto(
     val sessionQuestionId: Long,
     val title: String,
     val sourceType: String,
+    val orderIndex: Int,
+    val status: String,
+    val isFollowUp: Boolean,
 )
 
 data class InterviewSessionResumeMapEvidenceItemDto(
@@ -29,7 +35,10 @@ data class InterviewSessionResumeMapEvidenceItemDto(
     val snippet: String,
     val sourceRecordType: String,
     val sourceRecordId: Long,
+    val displayOrder: Int,
     val coverageStatus: String,
+    val primaryQuestionCount: Int,
+    val followUpQuestionCount: Int,
     val relatedQuestions: List<InterviewSessionResumeMapQuestionDto>,
 )
 

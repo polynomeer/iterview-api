@@ -1471,6 +1471,9 @@ components:
         section: { type: string }
         label: { type: string, nullable: true }
         snippet: { type: string }
+        sourceRecordType: { type: string }
+        sourceRecordId: { type: integer, format: int64 }
+        displayOrder: { type: integer }
         coverageStatus: { type: string }
         linkedQuestionIds:
           type: array
@@ -1492,6 +1495,9 @@ components:
         sessionQuestionId: { type: integer, format: int64 }
         title: { type: string }
         sourceType: { type: string }
+        orderIndex: { type: integer }
+        status: { type: string }
+        isFollowUp: { type: boolean }
     InterviewSessionResumeMapEvidenceItemDto:
       type: object
       properties:
@@ -1500,7 +1506,10 @@ components:
         snippet: { type: string }
         sourceRecordType: { type: string }
         sourceRecordId: { type: integer, format: int64 }
+        displayOrder: { type: integer }
         coverageStatus: { type: string }
+        primaryQuestionCount: { type: integer }
+        followUpQuestionCount: { type: integer }
         relatedQuestions:
           type: array
           items:
