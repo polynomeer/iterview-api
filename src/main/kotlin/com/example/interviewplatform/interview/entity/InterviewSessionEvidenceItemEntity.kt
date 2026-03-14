@@ -22,6 +22,8 @@ class InterviewSessionEvidenceItemEntity(
     val label: String? = null,
     @Column(nullable = false)
     val snippet: String,
+    @Column(nullable = false)
+    val facet: String,
     @Column(name = "source_record_type", nullable = false)
     val sourceRecordType: String,
     @Column(name = "source_record_id", nullable = false)

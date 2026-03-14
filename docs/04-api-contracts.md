@@ -1357,6 +1357,7 @@ Current response shape:
       "section": "project",
       "label": "Payments migration",
       "snippet": "Led phased rollout of the payments migration with rollback safeguards.",
+      "facet": "action",
       "sourceRecordType": "resume_project_snapshot",
       "sourceRecordId": 12,
       "displayOrder": 1,
@@ -1388,6 +1389,7 @@ Current response shape:
       "section": "award",
       "label": "Engineering Excellence Award",
       "snippet": "Received the Engineering Excellence Award for the payments migration.",
+      "facet": "result",
       "sourceRecordType": "resume_award_item",
       "sourceRecordId": 41,
       "displayOrder": 3,
@@ -1413,6 +1415,7 @@ Recommended result-view semantics:
 - the first implementation should use a structured resume viewer backed by parsed resume sections such as experiences and projects rather than PDF coordinate overlays
 - `sourceRecordType` and `sourceRecordId` should be treated as the stable join key between resume section APIs and the session result map
 - `displayOrder` should be used to keep the result-time resume viewer aligned with the original parsed resume section ordering
+- `facet` can be used as additive metadata for debugging, richer badges, or planner visualization of whether the question targeted a problem, action, result, trade-off, or metric slice
 - one resume evidence block may map to multiple related interview turns
 - hover should show a lightweight related-question preview, not necessarily a fully expanded question card
 - click should pin the related questions and navigate or scroll to the linked session question card when practical

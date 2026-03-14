@@ -172,6 +172,7 @@ class InterviewSessionService(
                     section = item.section,
                     label = item.label,
                     snippet = item.snippet,
+                    facet = item.facet,
                     sourceRecordType = item.sourceRecordType,
                     sourceRecordId = item.sourceRecordId,
                     displayOrder = item.displayOrder,
@@ -212,6 +213,7 @@ class InterviewSessionService(
                     section = item.section,
                     label = item.label,
                     snippet = item.snippet,
+                    facet = item.facet,
                     sourceRecordType = item.sourceRecordType,
                     sourceRecordId = item.sourceRecordId,
                     displayOrder = item.displayOrder,
@@ -855,6 +857,7 @@ class InterviewSessionService(
                     snippet = candidate.snippet,
                     sourceRecordType = candidate.sourceRecordType,
                     sourceRecordId = candidate.sourceRecordId,
+                    facet = candidate.facet,
                     coverageStatus = COVERAGE_STATUS_UNASKED,
                     coveragePriority = coveragePriority(candidate.section, index),
                     displayOrder = index + 1,
@@ -1007,9 +1010,20 @@ class InterviewSessionService(
             .findByIdInterviewSessionEvidenceItemIdIn(evidenceItems.map { it.id })
             .groupingBy { it.id.interviewSessionEvidenceItemId }
             .eachCount()
+        val facetLinkCountsByRecord = evidenceItems.associate { item ->
+            val sameRecordFacetLinkCount = evidenceItems
+                .filter {
+                    it.sourceRecordType == item.sourceRecordType &&
+                        it.sourceRecordId == item.sourceRecordId &&
+                        it.facet == item.facet
+                }
+                .sumOf { candidate -> linkCountsByEvidenceId[candidate.id] ?: 0 }
+            item.id to sameRecordFacetLinkCount
+        }
         return evidenceItems
             .sortedWith(
                 compareByDescending<InterviewSessionEvidenceItemEntity> { extendedCoveragePriority(it.coverageStatus) }
+                    .thenBy { facetLinkCountsByRecord[it.id] ?: 0 }
                     .thenBy { linkCountsByEvidenceId[it.id] ?: 0 }
                     .thenByDescending { it.coveragePriority }
                     .thenBy { it.displayOrder }
@@ -1109,6 +1123,7 @@ class InterviewSessionService(
                 section = current.section,
                 label = current.label,
                 snippet = current.snippet,
+                facet = current.facet,
                 sourceRecordType = current.sourceRecordType,
                 sourceRecordId = current.sourceRecordId,
                 coverageStatus = nextStatus,
@@ -1125,7 +1140,7 @@ class InterviewSessionService(
             section = section,
             label = label,
             snippet = snippet,
-            facet = "general",
+            facet = facet,
             sourceRecordType = sourceRecordType,
             sourceRecordId = sourceRecordId,
         )
