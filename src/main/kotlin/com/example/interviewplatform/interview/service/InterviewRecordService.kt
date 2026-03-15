@@ -295,6 +295,7 @@ class InterviewRecordService(
         val persistedQuestions = mutableListOf<InterviewRecordQuestionEntity>()
         val answersToPersist = mutableListOf<InterviewRecordAnswerEntity>()
         val segmentIdBySequence = segments.associateBy({ it.sequence }, { it.id })
+        val persistedQuestionIdByOrderIndex = mutableMapOf<Int, Long>()
 
         parsed.questions.forEach { parsedQuestion ->
             val questionEntity = interviewRecordQuestionRepository.save(
@@ -311,13 +312,14 @@ class InterviewRecordService(
                     derivedFromResumeRecordType = parsedQuestion.derivedFromResumeRecordType,
                     derivedFromResumeRecordId = parsedQuestion.derivedFromResumeRecordId,
                     derivedFromJobPostingSection = null,
-                    parentQuestionId = null,
+                    parentQuestionId = parsedQuestion.parentOrderIndex?.let(persistedQuestionIdByOrderIndex::get),
                     orderIndex = parsedQuestion.orderIndex,
                     createdAt = now,
                     updatedAt = now,
                 ),
             )
             persistedQuestions += questionEntity
+            persistedQuestionIdByOrderIndex[parsedQuestion.orderIndex] = questionEntity.id
             parsedQuestion.answer?.let { parsedAnswer ->
                 answersToPersist += InterviewRecordAnswerEntity(
                     interviewRecordQuestionId = questionEntity.id,
@@ -348,19 +350,13 @@ class InterviewRecordService(
         )
 
         if (persistedQuestions.size > 1) {
-            val edges = persistedQuestions.zipWithNext().map { (fromQuestion, toQuestion) ->
-                InterviewRecordFollowUpEdgeEntity(
-                    interviewRecordId = record.id,
-                    fromQuestionId = fromQuestion.id,
-                    toQuestionId = toQuestion.id,
-                    relationType = RELATION_TYPE_FOLLOW_UP,
-                    triggerType = TRIGGER_TYPE_INTERVIEWER_PROBE,
-                    createdAt = now,
-                )
+            val edges = buildFollowUpEdges(record.id, parsed.questions, persistedQuestions, now)
+            if (edges.isNotEmpty()) {
+                interviewRecordFollowUpEdgeRepository.saveAll(edges)
             }
-            interviewRecordFollowUpEdgeRepository.saveAll(edges)
         }
 
+        val overallSummary = buildOverallSummary(parsed.questions)
         val profile = buildInterviewerProfile(record.userId, record.id, parsed.questions, now)
         interviewerProfileRepository.findBySourceInterviewRecordId(record.id)?.let { existingProfile ->
             interviewRecordRepository.saveAndFlush(
@@ -383,7 +379,7 @@ class InterviewRecordService(
                     linkedResumeVersionId = record.linkedResumeVersionId,
                     linkedJobPostingId = record.linkedJobPostingId,
                     interviewerProfileId = null,
-                    overallSummary = buildOverallSummary(parsed.questions),
+                    overallSummary = overallSummary,
                     createdAt = record.createdAt,
                     updatedAt = now,
                 ),
@@ -412,16 +408,50 @@ class InterviewRecordService(
                 linkedResumeVersionId = record.linkedResumeVersionId,
                 linkedJobPostingId = record.linkedJobPostingId,
                 interviewerProfileId = savedProfile.id,
-                overallSummary = buildOverallSummary(parsed.questions),
+                overallSummary = overallSummary,
                 createdAt = record.createdAt,
                 updatedAt = now,
             ),
         )
     }
 
+    private fun buildFollowUpEdges(
+        interviewRecordId: Long,
+        parsedQuestions: List<ParsedQuestion>,
+        persistedQuestions: List<InterviewRecordQuestionEntity>,
+        now: Instant,
+    ): List<InterviewRecordFollowUpEdgeEntity> {
+        val persistedQuestionIdByOrderIndex = persistedQuestions.associateBy({ it.orderIndex }, { it.id })
+        val explicitEdges = parsedQuestions.mapNotNull { parsedQuestion ->
+            val fromQuestionId = parsedQuestion.parentOrderIndex?.let(persistedQuestionIdByOrderIndex::get) ?: return@mapNotNull null
+            val toQuestionId = persistedQuestionIdByOrderIndex[parsedQuestion.orderIndex] ?: return@mapNotNull null
+            InterviewRecordFollowUpEdgeEntity(
+                interviewRecordId = interviewRecordId,
+                fromQuestionId = fromQuestionId,
+                toQuestionId = toQuestionId,
+                relationType = RELATION_TYPE_FOLLOW_UP,
+                triggerType = TRIGGER_TYPE_INTERVIEWER_PROBE,
+                createdAt = now,
+            )
+        }
+        if (explicitEdges.isNotEmpty()) {
+            return explicitEdges
+        }
+        return persistedQuestions.zipWithNext().map { (fromQuestion, toQuestion) ->
+            InterviewRecordFollowUpEdgeEntity(
+                interviewRecordId = interviewRecordId,
+                fromQuestionId = fromQuestion.id,
+                toQuestionId = toQuestion.id,
+                relationType = RELATION_TYPE_FOLLOW_UP,
+                triggerType = TRIGGER_TYPE_INTERVIEWER_PROBE,
+                createdAt = now,
+            )
+        }
+    }
+
     private fun parseTranscript(transcriptText: String, now: Instant): ParsedInterviewTranscript {
         val lines = transcriptText.lines().map { it.trim() }.filter { it.isNotEmpty() }
-        val segments = lines.mapIndexed { index, line ->
+        val classifiedSegments = lines.mapIndexed { index, line ->
             val (speakerType, normalizedText) = classifySpeaker(line)
             ParsedSegment(
                 sequence = index + 1,
@@ -436,6 +466,7 @@ class InterviewRecordService(
                 updatedAt = now,
             )
         }
+        val segments = mergeAdjacentSegments(classifiedSegments, now)
         val questions = mutableListOf<ParsedQuestion>()
         var questionOrder = 1
         var currentQuestionSegment: ParsedSegment? = null
@@ -448,6 +479,7 @@ class InterviewRecordService(
             val questionType = inferQuestionType(questionText)
             val topicTags = inferTopicTags(questionText)
             val answerText = answerSegments.joinToString(" ") { it.confirmedText.orEmpty() }.trim()
+            val parentQuestion = inferParentQuestion(questions, questionText, topicTags)
             questions += ParsedQuestion(
                 orderIndex = questionOrder++,
                 segmentStartSequence = questionSegment.sequence,
@@ -460,6 +492,7 @@ class InterviewRecordService(
                 derivedFromResumeSection = deriveResumeSection(topicTags),
                 derivedFromResumeRecordType = deriveResumeRecordType(topicTags),
                 derivedFromResumeRecordId = null,
+                parentOrderIndex = parentQuestion?.orderIndex,
                 answer = if (answerText.isBlank()) {
                     null
                 } else {
@@ -468,13 +501,15 @@ class InterviewRecordService(
                         segmentEndSequence = answerSegments.last().sequence,
                         text = answerText,
                         normalizedText = normalize(answerText),
-                        summary = answerText.take(240),
+                        summary = summarizeAnswer(answerText),
                         confidenceMarkers = inferConfidenceMarkers(answerText),
                         weaknessTags = inferWeaknessTags(answerText),
                         strengthTags = inferStrengthTags(answerText),
                         analysis = mapOf(
-                            "specificity" to if (answerText.length >= 120) "medium_or_high" else "low",
+                            "specificity" to inferSpecificity(answerText),
                             "containsNumbers" to answerText.contains(Regex("\\d")),
+                            "containsTradeoff" to containsTradeoff(answerText),
+                            "containsProblemActionResult" to containsProblemActionResult(answerText),
                         ),
                     )
                 },
@@ -495,6 +530,91 @@ class InterviewRecordService(
         return ParsedInterviewTranscript(segments, questions)
     }
 
+    private fun mergeAdjacentSegments(
+        rawSegments: List<ParsedSegment>,
+        now: Instant,
+    ): List<ParsedSegment> {
+        if (rawSegments.isEmpty()) return emptyList()
+        val merged = mutableListOf<ParsedSegment>()
+        rawSegments.forEach { segment ->
+            val previous = merged.lastOrNull()
+            if (previous != null && previous.speakerType == segment.speakerType) {
+                merged[merged.lastIndex] = ParsedSegment(
+                    sequence = previous.sequence,
+                    startMs = previous.startMs,
+                    endMs = segment.endMs,
+                    speakerType = previous.speakerType,
+                    rawText = "${previous.rawText} ${segment.rawText}".trim(),
+                    cleanedText = "${previous.cleanedText} ${segment.cleanedText}".trim(),
+                    confirmedText = "${previous.confirmedText} ${segment.confirmedText}".trim(),
+                    confidenceScore = if (previous.confidenceScore <= segment.confidenceScore) previous.confidenceScore else segment.confidenceScore,
+                    createdAt = previous.createdAt,
+                    updatedAt = now,
+                )
+            } else {
+                merged += segment
+            }
+        }
+        return merged.mapIndexed { index, segment ->
+            ParsedSegment(
+                sequence = index + 1,
+                startMs = segment.startMs,
+                endMs = segment.endMs,
+                speakerType = segment.speakerType,
+                rawText = segment.rawText,
+                cleanedText = segment.cleanedText,
+                confirmedText = segment.confirmedText,
+                confidenceScore = segment.confidenceScore,
+                createdAt = segment.createdAt,
+                updatedAt = segment.updatedAt,
+            )
+        }
+    }
+
+    private fun inferParentQuestion(
+        existingQuestions: List<ParsedQuestion>,
+        questionText: String,
+        topicTags: List<String>,
+    ): ParsedQuestion? {
+        val normalizedQuestionText = normalize(questionText)
+        val latestQuestion = existingQuestions.lastOrNull() ?: return null
+        if (isLikelyFollowUpQuestion(normalizedQuestionText)) {
+            return latestQuestion
+        }
+        val overlappedQuestion = existingQuestions
+            .asReversed()
+            .firstOrNull { existing ->
+                existing.topicTags.intersect(topicTags.toSet()).isNotEmpty() && topicTags.isNotEmpty()
+            }
+        return overlappedQuestion?.takeIf {
+            normalizedQuestionText.contains("그", ignoreCase = true) ||
+                normalizedQuestionText.contains("then", ignoreCase = true) ||
+                normalizedQuestionText.contains("당시", ignoreCase = true) ||
+                normalizedQuestionText.startsWith("어떻게", ignoreCase = true) ||
+                normalizedQuestionText.startsWith("how ", ignoreCase = true) ||
+                normalizedQuestionText.startsWith("what ", ignoreCase = true) ||
+                normalizedQuestionText.length <= 60
+        }
+    }
+
+    private fun isLikelyFollowUpQuestion(normalizedQuestionText: String): Boolean {
+        val followUpMarkers = listOf(
+            "구체적으로",
+            "좀 더",
+            "그때",
+            "당시",
+            "이후",
+            "why exactly",
+            "how exactly",
+            "what happened next",
+            "can you elaborate",
+            "tell me more",
+            "how did you",
+        )
+        return followUpMarkers.any { normalizedQuestionText.contains(it, ignoreCase = true) } ||
+            normalizedQuestionText.startsWith("그리고", ignoreCase = true)
+    }
+
     private fun buildInterviewerProfile(
         userId: Long,
         recordId: Long,
@@ -503,15 +623,24 @@ class InterviewRecordService(
     ): InterviewerProfileEntity {
         val favoriteTopics = questions.flatMap { it.topicTags }.groupingBy { it }.eachCount()
             .entries.sortedByDescending { it.value }.take(5).map { it.key }
+        val followUpCount = questions.count { it.parentOrderIndex != null }
         val pressureLevel = when {
             questions.any { it.text.contains("왜", ignoreCase = true) || it.text.contains("really", ignoreCase = true) } -> "high"
+            followUpCount >= 2 -> "high"
             questions.size >= 5 -> "medium"
             else -> "low"
         }
         val depthPreference = when {
+            followUpCount >= 2 -> "deep"
             questions.any { it.questionType == QUESTION_TYPE_TECHNICAL_DEPTH || it.questionType == QUESTION_TYPE_PROJECT } -> "deep"
             else -> "moderate"
         }
+        val followUpPatterns = buildList {
+            if (followUpCount > 0) add("clarification_probe")
+            if (questions.any { it.parentOrderIndex != null && "performance" in it.topicTags }) add("metric_probe")
+            if (questions.any { it.parentOrderIndex != null && "project" in it.topicTags }) add("deep_dive_probe")
+            if (questions.zipWithNext().any { (first, second) -> second.parentOrderIndex == first.orderIndex }) add("sequential_probe")
+        }.ifEmpty { listOf("sequential_probe") }
         return InterviewerProfileEntity(
             userId = userId,
             sourceInterviewRecordId = recordId,
@@ -525,7 +654,7 @@ class InterviewRecordService(
             toneProfile = if (pressureLevel == "high") "probing" else "measured",
             pressureLevel = pressureLevel,
             depthPreference = depthPreference,
-            followUpPatternJson = objectMapper.writeValueAsString(listOf("sequential_probe", "clarification_probe")),
+            followUpPatternJson = objectMapper.writeValueAsString(followUpPatterns),
             favoriteTopicsJson = objectMapper.writeValueAsString(favoriteTopics),
             openingPattern = questions.firstOrNull()?.questionType,
             closingPattern = questions.lastOrNull()?.questionType,
@@ -534,8 +663,19 @@ class InterviewRecordService(
         )
     }
 
-    private fun buildOverallSummary(questions: List<ParsedQuestion>): String =
-        "Imported ${questions.size} interview questions with topics ${questions.flatMap { it.topicTags }.distinct().joinToString(", ").ifBlank { "general" }}."
+    private fun buildOverallSummary(questions: List<ParsedQuestion>): String {
+        if (questions.isEmpty()) return "Imported interview record without structured questions."
+        val topics = questions.flatMap { it.topicTags }.distinct().joinToString(", ").ifBlank { "general" }
+        val followUpCount = questions.count { it.parentOrderIndex != null }
+        val quantifiedAnswers = questions.count { it.answer?.strengthTags?.contains("quantified") == true }
+        return buildString {
+            append("Imported ${questions.size} interview questions")
+            append(" across topics $topics")
+            if (followUpCount > 0) append(", including $followUpCount follow-up probes")
+            if (quantifiedAnswers > 0) append(" and $quantifiedAnswers quantified candidate answers")
+            append(".")
+        }
+    }
 
     private fun classifySpeaker(line: String): Pair<String, String> {
         val normalized = line.trim()
@@ -601,11 +741,42 @@ class InterviewRecordService(
     private fun inferWeaknessTags(answerText: String): List<String> = buildList {
         if (answerText.length < 80) add("too_short")
         if (!answerText.contains(Regex("\\d"))) add("missing_metrics")
+        if (!containsProblemActionResult(answerText)) add("missing_star_shape")
+        if (!containsTradeoff(answerText)) add("missing_tradeoff")
     }
 
     private fun inferStrengthTags(answerText: String): List<String> = buildList {
         if (answerText.length >= 120) add("detailed")
         if (answerText.contains(Regex("\\d"))) add("quantified")
+        if (containsProblemActionResult(answerText)) add("structured")
+        if (containsTradeoff(answerText)) add("tradeoff_aware")
+    }
+
+    private fun summarizeAnswer(answerText: String): String {
+        val normalized = normalize(answerText)
+        val summary = normalized.split(Regex("(?<=[.!?])\\s+")).take(2).joinToString(" ").take(240).trim()
+        return if (summary.isBlank()) normalized.take(240) else summary
+    }
+
+    private fun inferSpecificity(answerText: String): String = when {
+        answerText.length >= 180 || answerText.contains(Regex("\\d")) -> "high"
+        answerText.length >= 100 -> "medium"
+        else -> "low"
+    }
+
+    private fun containsProblemActionResult(answerText: String): Boolean {
+        val lowered = answerText.lowercase()
+        val hasProblem = listOf("문제", "이슈", "상황", "배경", "problem", "issue").any { lowered.contains(it) }
+        val hasAction = listOf("구현", "적용", "설계", "조치", "개선", "implemented", "designed", "changed").any { lowered.contains(it) }
+        val hasResult = listOf("결과", "성과", "개선", "줄였", "높였", "result", "outcome", "improved", "reduced").any { lowered.contains(it) }
+        return (hasProblem && hasAction) || (hasAction && hasResult)
+    }
+
+    private fun containsTradeoff(answerText: String): Boolean {
+        val lowered = answerText.lowercase()
+        return listOf("대신", "트레이드오프", "하지만", "반면", "우회", "trade-off", "tradeoff", "however", "instead").any {
+            lowered.contains(it)
+        }
     }
 
     private fun normalize(value: String): String = value.replace(Regex("\\s+"), " ").trim()
@@ -673,6 +844,7 @@ private data class ParsedQuestion(
     val derivedFromResumeSection: String?,
     val derivedFromResumeRecordType: String?,
     val derivedFromResumeRecordId: Long?,
+    val parentOrderIndex: Int?,
     val answer: ParsedAnswer?,
 )
 

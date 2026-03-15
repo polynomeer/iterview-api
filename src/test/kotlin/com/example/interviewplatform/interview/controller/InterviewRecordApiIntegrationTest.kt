@@ -20,6 +20,9 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.testcontainers.junit.jupiter.Testcontainers
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -120,12 +123,20 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.segments[0].speakerType").value("interviewer"))
             .andExpect(jsonPath("$.segments[1].speakerType").value("candidate"))
 
-        mockMvc.perform(get("/api/interview-records/$recordId/questions").header("Authorization", authHeader))
+        val questions = mockMvc.perform(get("/api/interview-records/$recordId/questions").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.items.length()").value(2))
             .andExpect(jsonPath("$.items[0].linkedQuestionId").isNumber)
             .andExpect(jsonPath("$.items[0].questionType").value("technical_depth"))
             .andExpect(jsonPath("$.items[0].answer.strengthTags[0]").value("quantified"))
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val firstQuestionId = questions["items"][0]["id"].asLong()
+        assertEquals(firstQuestionId, questions["items"][1]["parentQuestionId"].asLong())
+        assertTrue(questions["items"][1]["answer"]["summary"].asText().contains("TTL"))
 
         mockMvc.perform(get("/api/interview-records/$recordId/analysis").header("Authorization", authHeader))
             .andExpect(status().isOk)
@@ -189,5 +200,48 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.items[0].text").value("Tell me about the migration project and rollout metrics?"))
             .andExpect(jsonPath("$.items[0].topicTags[0]").exists())
+    }
+
+    @Test
+    fun `adjacent same speaker transcript lines are merged into one answer segment`() {
+        val audio = MockMultipartFile("file", "real-interview.wav", "audio/wav", "fake-audio".toByteArray())
+        val created = mockMvc.perform(
+            multipart("/api/interview-records")
+                .file(audio)
+                .param(
+                    "transcriptText",
+                    """
+                    interviewer: Describe the rollout.
+                    candidate: We migrated the APIs in phases.
+                    candidate: We watched error rate and latency during the rollout.
+                    interviewer: What metric moved the most?
+                    candidate: p95 latency dropped by 30 percent.
+                    """.trimIndent(),
+                )
+                .header("Authorization", authHeader),
+        )
+            .andExpect(status().isOk)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val recordId = created["id"].asLong()
+        val transcript = mockMvc.perform(get("/api/interview-records/$recordId/transcript").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+        assertEquals(4, transcript["segments"].size())
+
+        val questions = mockMvc.perform(get("/api/interview-records/$recordId/questions").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+        assertNotNull(questions["items"][1]["parentQuestionId"])
+        assertTrue(questions["items"][0]["answer"]["summary"].asText().contains("error rate"))
     }
 }
