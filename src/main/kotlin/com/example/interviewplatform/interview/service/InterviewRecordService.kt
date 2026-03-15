@@ -5,6 +5,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordAnalysisDto
 import com.example.interviewplatform.interview.dto.InterviewRecordDetailDto
 import com.example.interviewplatform.interview.dto.InterviewRecordListItemDto
 import com.example.interviewplatform.interview.dto.InterviewRecordQuestionsResponseDto
+import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptDto
 import com.example.interviewplatform.interview.dto.BulkUpdateInterviewTranscriptSegmentsRequest
@@ -225,6 +226,7 @@ class InterviewRecordService(
         } else {
             interviewRecordAnswerRepository.findByInterviewRecordQuestionIdIn(questions.map { it.id })
         }
+        val answerByQuestionId = answers.associateBy { it.interviewRecordQuestionId }
         val interviewerProfile = interviewerProfileRepository.findBySourceInterviewRecordId(recordId)
         return InterviewRecordReviewDto(
             interviewRecordId = record.id,
@@ -243,6 +245,26 @@ class InterviewRecordService(
             questionSourceCounts = questions.groupingBy { it.structuringSource }.eachCount().toSortedMap(),
             answerSourceCounts = answers.groupingBy { it.structuringSource }.eachCount().toSortedMap(),
             interviewerProfileSource = interviewerProfile?.structuringSource,
+            questionSummaries = questions.map { question ->
+                val answer = answerByQuestionId[question.id]
+                val weaknessTags = answer?.let { decodeStringList(it.weaknessTagsJson) }.orEmpty()
+                val strengthTags = answer?.let { decodeStringList(it.strengthTagsJson) }.orEmpty()
+                InterviewRecordReviewQuestionSummaryDto(
+                    questionId = question.id,
+                    linkedQuestionId = question.linkedQuestionId,
+                    orderIndex = question.orderIndex,
+                    text = question.text,
+                    questionType = question.questionType,
+                    isFollowUp = question.parentQuestionId != null,
+                    parentQuestionId = question.parentQuestionId,
+                    hasWeakAnswer = weaknessTags.isNotEmpty(),
+                    answerSummary = answer?.summary,
+                    weaknessTags = weaknessTags,
+                    strengthTags = strengthTags,
+                    questionStructuringSource = question.structuringSource,
+                    answerStructuringSource = answer?.structuringSource,
+                )
+            },
         )
     }
 

@@ -63,6 +63,23 @@ data class InterviewRecordReviewDto(
     val questionSourceCounts: Map<String, Int>,
     val answerSourceCounts: Map<String, Int>,
     val interviewerProfileSource: String?,
+    val questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
+)
+
+data class InterviewRecordReviewQuestionSummaryDto(
+    val questionId: Long,
+    val linkedQuestionId: Long?,
+    val orderIndex: Int,
+    val text: String,
+    val questionType: String,
+    val isFollowUp: Boolean,
+    val parentQuestionId: Long?,
+    val hasWeakAnswer: Boolean,
+    val answerSummary: String?,
+    val weaknessTags: List<String>,
+    val strengthTags: List<String>,
+    val questionStructuringSource: String,
+    val answerStructuringSource: String?,
 )
 
 data class InterviewTranscriptSegmentDto(

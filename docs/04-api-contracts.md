@@ -1582,6 +1582,20 @@ Current structured extraction semantics:
   - `questionSourceCounts`
   - `answerSourceCounts`
   - `interviewerProfileSource`
+  - `questionSummaries[]`
+    - `questionId`
+    - `linkedQuestionId`
+    - `orderIndex`
+    - `text`
+    - `questionType`
+    - `isFollowUp`
+    - `parentQuestionId`
+    - `hasWeakAnswer`
+    - `answerSummary`
+    - `weaknessTags`
+    - `strengthTags`
+    - `questionStructuringSource`
+    - `answerStructuringSource`
 - `PATCH /api/interview-records/{recordId}/review` applies bulk transcript review edits:
   - request body:
     - `edits[]`

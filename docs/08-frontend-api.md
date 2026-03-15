@@ -254,6 +254,8 @@ Implemented practical interview record foundation:
   - `questionSourceCounts`
   - `answerSourceCounts`
   - `interviewerProfileSource`
+  - `questionSummaries[]`
+    - use this for practical interview question review tables instead of recomputing follow-up/weak/confirmed state on the client
 - `PATCH /api/interview-records/{recordId}/review` supports bulk review editing:
   - `edits[]`
   - each edit may update `speakerType`, `cleanedText`, and `confirmedText` for one `segmentId`
