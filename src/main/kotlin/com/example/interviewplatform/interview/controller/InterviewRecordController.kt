@@ -7,6 +7,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordListItemDto
 import com.example.interviewplatform.interview.dto.InterviewRecordQuestionsResponseDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptDto
+import com.example.interviewplatform.interview.dto.BulkUpdateInterviewTranscriptSegmentsRequest
 import com.example.interviewplatform.interview.dto.UpdateInterviewTranscriptSegmentRequest
 import com.example.interviewplatform.interview.dto.InterviewerProfileDto
 import com.example.interviewplatform.interview.service.InterviewRecordService
@@ -93,6 +94,14 @@ class InterviewRecordController(
     @Operation(summary = "Get practical interview review provenance")
     fun getReview(@PathVariable recordId: Long): InterviewRecordReviewDto =
         interviewRecordService.getReview(currentUserProvider.currentUserId(), recordId)
+
+    @PatchMapping("/{recordId}/review")
+    @Operation(summary = "Apply bulk transcript review edits and optionally confirm")
+    fun applyReview(
+        @PathVariable recordId: Long,
+        @Valid @org.springframework.web.bind.annotation.RequestBody request: BulkUpdateInterviewTranscriptSegmentsRequest,
+    ): InterviewRecordReviewDto =
+        interviewRecordService.applyReview(currentUserProvider.currentUserId(), recordId, request)
 
     @GetMapping("/{recordId}/analysis")
     @Operation(summary = "Get imported interview analysis")

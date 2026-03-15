@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -276,5 +277,76 @@ class InterviewRecordApiIntegrationTest {
             .let(objectMapper::readTree)
         assertNotNull(questions["items"][1]["parentQuestionId"])
         assertTrue(questions["items"][0]["answer"]["summary"].asText().contains("error rate"))
+    }
+
+    @Test
+    fun `bulk review applies multiple segment edits and can confirm in one call`() {
+        val audio = MockMultipartFile("file", "bulk-review.wav", "audio/wav", "fake-audio".toByteArray())
+        val created = mockMvc.perform(
+            multipart("/api/interview-records")
+                .file(audio)
+                .param(
+                    "transcriptText",
+                    """
+                    interviewer: Tell me about the rollout?
+                    candidate: We rolled it out in phases.
+                    interviewer: What metric moved?
+                    candidate: latency improved.
+                    """.trimIndent(),
+                )
+                .header("Authorization", authHeader),
+        )
+            .andExpect(status().isOk)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+        val recordId = created["id"].asLong()
+        val transcript = mockMvc.perform(get("/api/interview-records/$recordId/transcript").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+        val firstQuestionSegmentId = transcript["segments"][0]["id"].asLong()
+        val secondAnswerSegmentId = transcript["segments"][3]["id"].asLong()
+
+        mockMvc.perform(
+            patch("/api/interview-records/$recordId/review")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "edits" to listOf(
+                                mapOf(
+                                    "segmentId" to firstQuestionSegmentId,
+                                    "confirmedText" to "Tell me about the rollout strategy and rollback guardrails?",
+                                ),
+                                mapOf(
+                                    "segmentId" to secondAnswerSegmentId,
+                                    "confirmedText" to "p95 latency improved by 25 percent after the phased rollout.",
+                                ),
+                            ),
+                            "confirmAfterApply" to true,
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.structuringStage").value("confirmed"))
+            .andExpect(jsonPath("$.requiresConfirmation").value(false))
+            .andExpect(jsonPath("$.questionSourceCounts.confirmed").value(2))
+
+        mockMvc.perform(get("/api/interview-records/$recordId/questions").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items[0].text").value("Tell me about the rollout strategy and rollback guardrails?"))
+            .andExpect(jsonPath("$.items[1].answer.summary").value(org.hamcrest.Matchers.containsString("25 percent")))
+            .andExpect(jsonPath("$.items[0].structuringSource").value("confirmed"))
+
+        mockMvc.perform(get("/api/interview-records/$recordId").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.structuringStage").value("confirmed"))
+            .andExpect(jsonPath("$.confirmedAt").exists())
     }
 }

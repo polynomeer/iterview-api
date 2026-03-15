@@ -641,6 +641,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InterviewRecordReviewDto"
+    patch:
+      tags: [Interview Records]
+      summary: Apply bulk transcript review edits and optionally confirm
+      parameters:
+        - $ref: "#/components/parameters/RecordId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkUpdateInterviewTranscriptSegmentsRequest"
+      responses:
+        "200":
+          description: Updated practical interview review payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewRecordReviewDto"
   /api/interview-records/{recordId}/analysis:
     get:
       tags: [Interview Records]
@@ -1878,6 +1896,21 @@ components:
         speakerType: { type: string, nullable: true }
         cleanedText: { type: string, nullable: true }
         confirmedText: { type: string, nullable: true }
+    UpdateInterviewTranscriptSegmentItemRequest:
+      type: object
+      properties:
+        segmentId: { type: integer, format: int64 }
+        speakerType: { type: string, nullable: true }
+        cleanedText: { type: string, nullable: true }
+        confirmedText: { type: string, nullable: true }
+    BulkUpdateInterviewTranscriptSegmentsRequest:
+      type: object
+      properties:
+        edits:
+          type: array
+          items:
+            $ref: "#/components/schemas/UpdateInterviewTranscriptSegmentItemRequest"
+        confirmAfterApply: { type: boolean }
     InterviewRecordQuestionAnswerDto:
       type: object
       properties:

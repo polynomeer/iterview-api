@@ -3,6 +3,9 @@ package com.example.interviewplatform.interview.dto
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotEmpty
+import jakarta.validation.constraints.NotNull
 
 data class InterviewRecordListItemDto(
     val id: Long,
@@ -79,6 +82,21 @@ data class InterviewRecordTranscriptDto(
 )
 
 data class UpdateInterviewTranscriptSegmentRequest(
+    val speakerType: String?,
+    val cleanedText: String?,
+    val confirmedText: String?,
+)
+
+data class BulkUpdateInterviewTranscriptSegmentsRequest(
+    @field:NotEmpty
+    @field:Valid
+    val edits: List<UpdateInterviewTranscriptSegmentItemRequest>,
+    val confirmAfterApply: Boolean = false,
+)
+
+data class UpdateInterviewTranscriptSegmentItemRequest(
+    @field:NotNull
+    val segmentId: Long?,
     val speakerType: String?,
     val cleanedText: String?,
     val confirmedText: String?,

@@ -1492,6 +1492,7 @@ Implemented resources:
 - `PATCH /api/interview-records/{recordId}/transcript/segments/{segmentId}`
 - `GET /api/interview-records/{recordId}/questions`
 - `GET /api/interview-records/{recordId}/review`
+- `PATCH /api/interview-records/{recordId}/review`
 - `GET /api/interview-records/{recordId}/analysis`
 - `GET /api/interview-records/{recordId}/interviewer-profile`
 - `POST /api/interview-records/{recordId}/confirm`
@@ -1574,6 +1575,13 @@ Current structured extraction semantics:
   - `questionSourceCounts`
   - `answerSourceCounts`
   - `interviewerProfileSource`
+- `PATCH /api/interview-records/{recordId}/review` applies bulk transcript review edits:
+  - request body:
+    - `edits[]`
+    - each edit supports `segmentId`, `speakerType`, `cleanedText`, `confirmedText`
+    - optional `confirmAfterApply`
+  - response currently returns the same review provenance payload as `GET /review`
+  - when `confirmAfterApply = true`, the backend rebuilds structure and immediately promotes the result to `confirmed`
 - `GET /api/interview-records/{recordId}/interviewer-profile` currently returns a reusable interviewer-style summary including:
   - `styleTags`
   - `toneProfile`

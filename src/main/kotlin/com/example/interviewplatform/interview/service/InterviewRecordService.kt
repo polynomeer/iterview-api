@@ -7,6 +7,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordListItemDto
 import com.example.interviewplatform.interview.dto.InterviewRecordQuestionsResponseDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptDto
+import com.example.interviewplatform.interview.dto.BulkUpdateInterviewTranscriptSegmentsRequest
 import com.example.interviewplatform.interview.dto.UpdateInterviewTranscriptSegmentRequest
 import com.example.interviewplatform.interview.dto.InterviewerProfileDto
 import com.example.interviewplatform.interview.entity.InterviewRecordAnswerEntity
@@ -236,6 +237,77 @@ class InterviewRecordService(
             answerSourceCounts = answers.groupingBy { it.structuringSource }.eachCount().toSortedMap(),
             interviewerProfileSource = interviewerProfile?.structuringSource,
         )
+    }
+
+    @Transactional
+    fun applyReview(
+        userId: Long,
+        recordId: Long,
+        request: BulkUpdateInterviewTranscriptSegmentsRequest,
+    ): InterviewRecordReviewDto {
+        val record = requireOwnedRecord(userId, recordId)
+        val now = clockService.now()
+        val segmentsById = interviewTranscriptSegmentRepository.findByInterviewRecordIdOrderBySequenceAsc(recordId)
+            .associateBy { it.id }
+        val updatedSegments = request.edits.map { edit ->
+            val segmentId = edit.segmentId
+                ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "segmentId is required")
+            val existing = segmentsById[segmentId]
+                ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Transcript segment not found: $segmentId")
+            InterviewTranscriptSegmentEntity(
+                id = existing.id,
+                interviewRecordId = existing.interviewRecordId,
+                startMs = existing.startMs,
+                endMs = existing.endMs,
+                speakerType = edit.speakerType?.trim()?.takeIf { it.isNotEmpty() } ?: existing.speakerType,
+                rawText = existing.rawText,
+                cleanedText = edit.cleanedText?.trim() ?: existing.cleanedText,
+                confirmedText = edit.confirmedText?.trim() ?: existing.confirmedText,
+                confidenceScore = existing.confidenceScore,
+                sequence = existing.sequence,
+                createdAt = existing.createdAt,
+                updatedAt = now,
+            )
+        }
+        if (updatedSegments.isNotEmpty()) {
+            interviewTranscriptSegmentRepository.saveAll(updatedSegments)
+        }
+        val refreshedSegments = interviewTranscriptSegmentRepository.findByInterviewRecordIdOrderBySequenceAsc(record.id)
+        val rebuiltTranscript = refreshedSegments.joinToString("\n") { it.confirmedText ?: it.cleanedText ?: it.rawText.orEmpty() }.trim()
+        val updatedRecord = interviewRecordRepository.save(
+            InterviewRecordEntity(
+                id = record.id,
+                userId = record.userId,
+                companyName = record.companyName,
+                roleName = record.roleName,
+                interviewDate = record.interviewDate,
+                interviewType = record.interviewType,
+                sourceAudioFileUrl = record.sourceAudioFileUrl,
+                sourceAudioFileName = record.sourceAudioFileName,
+                sourceAudioDurationMs = record.sourceAudioDurationMs,
+                sourceAudioContentType = record.sourceAudioContentType,
+                rawTranscript = record.rawTranscript,
+                cleanedTranscript = refreshedSegments.joinToString("\n") { it.cleanedText ?: it.rawText.orEmpty() }.trim(),
+                confirmedTranscript = rebuiltTranscript,
+                transcriptStatus = TRANSCRIPT_STATUS_CONFIRMED,
+                analysisStatus = ANALYSIS_STATUS_COMPLETED,
+                linkedResumeVersionId = record.linkedResumeVersionId,
+                linkedJobPostingId = record.linkedJobPostingId,
+                interviewerProfileId = record.interviewerProfileId,
+                deterministicSummary = record.deterministicSummary,
+                aiEnrichedSummary = record.aiEnrichedSummary,
+                overallSummary = record.overallSummary,
+                structuringStage = record.structuringStage,
+                confirmedAt = record.confirmedAt,
+                createdAt = record.createdAt,
+                updatedAt = now,
+            ),
+        )
+        rebuildStructuredData(updatedRecord, rebuiltTranscript, now, isUserConfirmed = request.confirmAfterApply)
+        if (request.confirmAfterApply) {
+            confirmRecord(userId, recordId)
+        }
+        return getReview(userId, recordId)
     }
 
     @Transactional(readOnly = true)

@@ -204,6 +204,7 @@ Implemented practical interview record foundation:
   - `PATCH /api/interview-records/{recordId}/transcript/segments/{segmentId}`
   - `GET /api/interview-records/{recordId}/questions`
   - `GET /api/interview-records/{recordId}/review`
+  - `PATCH /api/interview-records/{recordId}/review`
   - `GET /api/interview-records/{recordId}/analysis`
   - `GET /api/interview-records/{recordId}/interviewer-profile`
   - `POST /api/interview-records/{recordId}/confirm`
@@ -246,6 +247,10 @@ Implemented practical interview record foundation:
   - `questionSourceCounts`
   - `answerSourceCounts`
   - `interviewerProfileSource`
+- `PATCH /api/interview-records/{recordId}/review` supports bulk review editing:
+  - `edits[]`
+  - each edit may update `speakerType`, `cleanedText`, and `confirmedText` for one `segmentId`
+  - `confirmAfterApply=true` lets the frontend apply edits and finalize confirmation in a single submit
 - `POST /api/interview-records/{recordId}/confirm` finalizes the currently reviewed structured output as the confirmed version
 - current provenance values:
   - `deterministic`
