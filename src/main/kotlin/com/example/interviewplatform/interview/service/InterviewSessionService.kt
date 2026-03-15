@@ -31,6 +31,10 @@ import com.example.interviewplatform.interview.repository.InterviewSessionEviden
 import com.example.interviewplatform.interview.repository.InterviewSessionQuestionEvidenceLinkRepository
 import com.example.interviewplatform.interview.repository.InterviewSessionQuestionRepository
 import com.example.interviewplatform.interview.repository.InterviewSessionRepository
+import com.example.interviewplatform.interview.repository.InterviewRecordQuestionRepository
+import com.example.interviewplatform.interview.repository.InterviewRecordRepository
+import com.example.interviewplatform.interview.repository.InterviewRecordAnswerRepository
+import com.example.interviewplatform.interview.repository.InterviewerProfileRepository
 import com.example.interviewplatform.question.entity.QuestionEntity
 import com.example.interviewplatform.question.repository.CategoryRepository
 import com.example.interviewplatform.question.repository.QuestionRelationshipRepository
@@ -58,6 +62,10 @@ class InterviewSessionService(
     private val interviewSessionQuestionRepository: InterviewSessionQuestionRepository,
     private val interviewSessionEvidenceItemRepository: InterviewSessionEvidenceItemRepository,
     private val interviewSessionQuestionEvidenceLinkRepository: InterviewSessionQuestionEvidenceLinkRepository,
+    private val interviewRecordRepository: InterviewRecordRepository,
+    private val interviewRecordQuestionRepository: InterviewRecordQuestionRepository,
+    private val interviewRecordAnswerRepository: InterviewRecordAnswerRepository,
+    private val interviewerProfileRepository: InterviewerProfileRepository,
     private val questionRepository: QuestionRepository,
     private val questionRelationshipRepository: QuestionRelationshipRepository,
     private val questionSkillMappingRepository: QuestionSkillMappingRepository,
@@ -99,6 +107,8 @@ class InterviewSessionService(
                 id = session.id,
                 sessionType = session.sessionType,
                 interviewMode = session.interviewMode,
+                sourceInterviewRecordId = session.sourceInterviewRecordId,
+                replayMode = session.replayMode,
                 status = session.status,
                 resumeVersionId = session.resumeVersionId,
                 startedAt = session.startedAt,
@@ -116,12 +126,16 @@ class InterviewSessionService(
         val sessionType = normalizeSessionType(request.sessionType)
         val interviewMode = normalizeInterviewMode(request.interviewMode)
         val resumeVersionId = resolveResumeVersionId(userId, request.resumeVersionId, sessionType)
+        val sourceInterviewRecordId = resolveSourceInterviewRecordId(userId, request.sourceInterviewRecordId, sessionType)
+        val replayMode = normalizeReplayMode(request.replayMode, sessionType)
 
         val session = interviewSessionRepository.save(
             InterviewSessionEntity(
                 userId = userId,
                 resumeVersionId = resumeVersionId,
+                sourceInterviewRecordId = sourceInterviewRecordId,
                 sessionType = sessionType,
+                replayMode = replayMode,
                 interviewMode = interviewMode,
                 status = STATUS_IN_PROGRESS,
                 startedAt = now,
@@ -326,7 +340,9 @@ class InterviewSessionService(
                     id = session.id,
                     userId = session.userId,
                     resumeVersionId = session.resumeVersionId,
+                    sourceInterviewRecordId = session.sourceInterviewRecordId,
                     sessionType = session.sessionType,
+                    replayMode = session.replayMode,
                     interviewMode = session.interviewMode,
                     status = STATUS_COMPLETED,
                     startedAt = session.startedAt,
@@ -341,7 +357,9 @@ class InterviewSessionService(
                     id = session.id,
                     userId = session.userId,
                     resumeVersionId = session.resumeVersionId,
+                    sourceInterviewRecordId = session.sourceInterviewRecordId,
                     sessionType = session.sessionType,
+                    replayMode = session.replayMode,
                     interviewMode = session.interviewMode,
                     status = STATUS_IN_PROGRESS,
                     startedAt = session.startedAt,
@@ -448,7 +466,9 @@ class InterviewSessionService(
                     id = session.id,
                     userId = session.userId,
                     resumeVersionId = session.resumeVersionId,
+                    sourceInterviewRecordId = session.sourceInterviewRecordId,
                     sessionType = session.sessionType,
+                    replayMode = session.replayMode,
                     interviewMode = session.interviewMode,
                     status = STATUS_COMPLETED,
                     startedAt = session.startedAt,
@@ -504,6 +524,8 @@ class InterviewSessionService(
             id = session.id,
             sessionType = session.sessionType,
             interviewMode = session.interviewMode,
+            sourceInterviewRecordId = session.sourceInterviewRecordId,
+            replayMode = session.replayMode,
             status = session.status,
             resumeVersionId = session.resumeVersionId,
             startedAt = session.startedAt,
@@ -615,6 +637,17 @@ class InterviewSessionService(
                 return listOf(openingRow)
             }
         }
+        if (session.sessionType == SESSION_TYPE_REPLAY_MOCK && session.sourceInterviewRecordId != null) {
+            val replayRows = buildReplaySeedRows(
+                session = session,
+                sourceInterviewRecordId = session.sourceInterviewRecordId,
+                requestedCount = requestedCount,
+                now = now,
+            )
+            if (replayRows.isNotEmpty()) {
+                return replayRows
+            }
+        }
 
         val questionIds = resolveQuestionIds(
             userId = userId,
@@ -626,6 +659,78 @@ class InterviewSessionService(
             return emptyList()
         }
         return buildSeedRows(session.id, questionIds, resumeVersionId, now)
+    }
+
+    private fun buildReplaySeedRows(
+        session: InterviewSessionEntity,
+        sourceInterviewRecordId: Long,
+        requestedCount: Int,
+        now: java.time.Instant,
+    ): List<InterviewSessionQuestionEntity> {
+        val importedQuestions = interviewRecordQuestionRepository
+            .findByInterviewRecordIdOrderByOrderIndexAsc(sourceInterviewRecordId)
+            .take(requestedCount.coerceIn(1, 10))
+        if (importedQuestions.isEmpty()) {
+            return emptyList()
+        }
+        val interviewerProfile = interviewerProfileRepository.findBySourceInterviewRecordId(sourceInterviewRecordId)
+
+        return importedQuestions.mapIndexed { index, importedQuestion ->
+            val tags = decodeJsonArray(importedQuestion.topicTagsJson)
+            val intentTags = decodeJsonArray(importedQuestion.intentTagsJson)
+            val replayBody = buildReplayBodyText(
+                importedQuestionText = importedQuestion.text,
+                importedAnswerSummary = loadImportedAnswerSummary(importedQuestion.id),
+                interviewerProfileTone = interviewerProfile?.toneProfile,
+                replayMode = session.replayMode ?: REPLAY_MODE_ORIGINAL_REPLAY,
+            )
+            InterviewSessionQuestionEntity(
+                interviewSessionId = session.id,
+                questionId = null,
+                parentSessionQuestionId = null,
+                promptText = importedQuestion.text,
+                bodyText = replayBody,
+                questionSourceType = SOURCE_TYPE_REPLAY_SEED,
+                orderIndex = index + 1,
+                isFollowUp = false,
+                depth = 0,
+                categoryName = importedQuestion.questionType,
+                tagsJson = objectMapper.writeValueAsString((tags + intentTags).distinct()),
+                focusSkillNamesJson = objectMapper.writeValueAsString(emptyList<String>()),
+                resumeContextSummary = null,
+                resumeEvidenceJson = null,
+                generationRationale = "Seeded from imported interview record ${session.sourceInterviewRecordId} using replay mode ${session.replayMode ?: REPLAY_MODE_ORIGINAL_REPLAY}.",
+                generationStatus = GENERATION_STATUS_REPLAY_IMPORTED,
+                contentLocale = null,
+                createdAt = now,
+                updatedAt = now,
+                skippedAt = null,
+            )
+        }
+    }
+
+    private fun loadImportedAnswerSummary(importedQuestionId: Long): String? =
+        interviewRecordAnswerRepository
+            .findByInterviewRecordQuestionIdIn(listOf(importedQuestionId))
+            .firstOrNull()
+            ?.summary
+
+    private fun buildReplayBodyText(
+        importedQuestionText: String,
+        importedAnswerSummary: String?,
+        interviewerProfileTone: String?,
+        replayMode: String,
+    ): String {
+        val parts = mutableListOf<String>()
+        parts += "Imported practical interview prompt: $importedQuestionText"
+        importedAnswerSummary?.takeIf { it.isNotBlank() }?.let { parts += "Original answer summary: $it" }
+        interviewerProfileTone?.takeIf { it.isNotBlank() }?.let { parts += "Interviewer tone: $it" }
+        parts += when (replayMode) {
+            REPLAY_MODE_PRESSURE_VARIANT -> "Replay mode: pressure variant. Expect a firmer probe than the imported baseline."
+            REPLAY_MODE_PATTERN_SIMILAR -> "Replay mode: pattern similar. Keep the imported interviewer rhythm and probing order in mind."
+            else -> "Replay mode: original replay. Start from the imported question wording and flow."
+        }
+        return parts.joinToString(" ")
     }
 
     private fun buildGeneratedOpeningRow(
@@ -1691,6 +1796,17 @@ class InterviewSessionService(
         return normalized
     }
 
+    private fun normalizeReplayMode(value: String?, sessionType: String): String? {
+        if (sessionType != SESSION_TYPE_REPLAY_MOCK) {
+            return null
+        }
+        val normalized = value?.trim()?.lowercase()?.takeIf { it.isNotBlank() } ?: REPLAY_MODE_ORIGINAL_REPLAY
+        if (normalized !in SUPPORTED_REPLAY_MODES) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported replayMode: $value")
+        }
+        return normalized
+    }
+
     private fun resolveResumeVersionId(userId: Long, requestedResumeVersionId: Long?): Long? {
         if (requestedResumeVersionId == null) {
             return null
@@ -1707,6 +1823,17 @@ class InterviewSessionService(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "resumeVersionId is required for resume_mock")
         }
         return resolveResumeVersionId(userId, requestedResumeVersionId)
+    }
+
+    private fun resolveSourceInterviewRecordId(userId: Long, requestedSourceInterviewRecordId: Long?, sessionType: String): Long? {
+        if (sessionType != SESSION_TYPE_REPLAY_MOCK) {
+            return null
+        }
+        val recordId = requestedSourceInterviewRecordId
+            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "sourceInterviewRecordId is required for replay_mock")
+        interviewRecordRepository.findByIdAndUserId(recordId, userId)
+            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid sourceInterviewRecordId: $recordId")
+        return recordId
     }
 
     private fun resolveResumeVersionId(
@@ -1743,6 +1870,7 @@ class InterviewSessionService(
                     )
                     .forEach { selected += it.questionId }
             }
+            SESSION_TYPE_REPLAY_MOCK -> Unit
             SESSION_TYPE_TOPIC_MOCK -> Unit
         }
 
@@ -1788,19 +1916,25 @@ class InterviewSessionService(
         const val SOURCE_TYPE_AI_OPENING = "ai_opening"
         const val SOURCE_TYPE_AI_FOLLOW_UP = "ai_follow_up"
         const val SOURCE_TYPE_COVERAGE_PLANNER = "coverage_planner"
+        const val SOURCE_TYPE_REPLAY_SEED = "replay_seed"
         const val GENERATION_STATUS_SEEDED = "seeded"
         const val GENERATION_STATUS_CATALOG_FOLLOW_UP = "catalog_follow_up"
         const val GENERATION_STATUS_AI_GENERATED = "ai_generated"
         const val GENERATION_STATUS_COVERAGE_PLANNED = "coverage_planned"
         const val GENERATION_STATUS_COVERAGE_EXTENDED = "coverage_extended"
+        const val GENERATION_STATUS_REPLAY_IMPORTED = "replay_imported"
         const val SESSION_TYPE_RESUME_MOCK = "resume_mock"
         const val SESSION_TYPE_REVIEW_MOCK = "review_mock"
         const val SESSION_TYPE_TOPIC_MOCK = "topic_mock"
+        const val SESSION_TYPE_REPLAY_MOCK = "replay_mock"
         const val INTERVIEW_MODE_QUICK_SCREEN = "quick_screen"
         const val INTERVIEW_MODE_MOCK_30 = "mock_30"
         const val INTERVIEW_MODE_MOCK_60 = "mock_60"
         const val INTERVIEW_MODE_FREE_INTERVIEW = "free_interview"
         const val INTERVIEW_MODE_FULL_COVERAGE = "full_coverage"
+        const val REPLAY_MODE_ORIGINAL_REPLAY = "original_replay"
+        const val REPLAY_MODE_PATTERN_SIMILAR = "pattern_similar"
+        const val REPLAY_MODE_PRESSURE_VARIANT = "pressure_variant"
         const val RELATIONSHIP_TYPE_FOLLOW_UP = "follow_up"
         const val REVIEW_STATUS_PENDING = "pending"
         const val QUESTION_SOURCE_TYPE_INTERVIEW_AI = "interview_ai"
@@ -1820,7 +1954,7 @@ class InterviewSessionService(
         const val MAX_PREFERRED_FOLLOW_UP_EVIDENCE_CANDIDATES = 4
         const val FULL_COVERAGE_EVIDENCE_LIMIT = 64
         val FACET_PROGRESSION = listOf("problem", "action", "result", "metric", "tradeoff", "general")
-        val SUPPORTED_SESSION_TYPES = setOf(SESSION_TYPE_RESUME_MOCK, SESSION_TYPE_REVIEW_MOCK, SESSION_TYPE_TOPIC_MOCK)
+        val SUPPORTED_SESSION_TYPES = setOf(SESSION_TYPE_RESUME_MOCK, SESSION_TYPE_REVIEW_MOCK, SESSION_TYPE_TOPIC_MOCK, SESSION_TYPE_REPLAY_MOCK)
         val SUPPORTED_INTERVIEW_MODES = setOf(
             INTERVIEW_MODE_QUICK_SCREEN,
             INTERVIEW_MODE_MOCK_30,
@@ -1828,5 +1962,6 @@ class InterviewSessionService(
             INTERVIEW_MODE_FREE_INTERVIEW,
             INTERVIEW_MODE_FULL_COVERAGE,
         )
+        val SUPPORTED_REPLAY_MODES = setOf(REPLAY_MODE_ORIGINAL_REPLAY, REPLAY_MODE_PATTERN_SIMILAR, REPLAY_MODE_PRESSURE_VARIANT)
     }
 }

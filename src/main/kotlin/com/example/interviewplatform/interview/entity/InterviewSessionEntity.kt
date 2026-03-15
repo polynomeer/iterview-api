@@ -18,8 +18,12 @@ class InterviewSessionEntity(
     val userId: Long,
     @Column(name = "resume_version_id")
     val resumeVersionId: Long? = null,
+    @Column(name = "source_interview_record_id")
+    val sourceInterviewRecordId: Long? = null,
     @Column(name = "session_type", nullable = false)
     val sessionType: String,
+    @Column(name = "replay_mode")
+    val replayMode: String? = null,
     @Column(name = "interview_mode", nullable = false)
     val interviewMode: String,
     @Column(nullable = false)

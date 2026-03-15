@@ -12,5 +12,7 @@ data class CreateInterviewSessionRequest(
     val questionCount: Int = 5,
     val interviewMode: String? = null,
     val resumeVersionId: Long? = null,
+    val sourceInterviewRecordId: Long? = null,
+    val replayMode: String? = null,
     val seedQuestionIds: List<Long> = emptyList(),
 )

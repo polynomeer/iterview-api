@@ -1537,5 +1537,41 @@ Current structured extraction semantics:
 Current implementation notes:
 - the current structuring pipeline is deterministic and text-based; it does not yet include speech-to-text or LLM transcript cleaning
 - current speaker detection uses prefixes and question-mark heuristics
-- imported real-interview questions are not yet mirrored into archive and do not yet start `replay_mock`
-- replay simulations should still be added as a later additive session type on top of the existing interview session engine
+- imported real-interview questions are not yet mirrored into archive
+
+### Implemented Replay Mock Session Seeding
+
+Purpose:
+- start a standard interview session from an imported practical interview record instead of the global catalog or resume opener flow
+
+Implemented additive contract:
+- `POST /api/interview-sessions` now supports `sessionType = replay_mock`
+- current additive create fields:
+  - `sourceInterviewRecordId`
+  - `replayMode`
+
+Current semantics:
+- `sourceInterviewRecordId` is required for `replay_mock`
+- `replayMode` currently supports:
+  - `original_replay`
+  - `pattern_similar`
+  - `pressure_variant`
+- `resumeVersionId` remains optional for `replay_mock`
+- the created session stores:
+  - `sourceInterviewRecordId`
+  - `replayMode`
+- list and detail responses for interview sessions now also expose:
+  - `sourceInterviewRecordId`
+  - `replayMode`
+- current replay seeding behavior:
+  - loads ordered imported questions from the selected interview record
+  - seeds those question texts directly into `interview_session_questions`
+  - does not require a catalog `questionId`
+  - carries replay-specific snapshot metadata in `bodyText`, `generationRationale`, and `generationStatus = replay_imported`
+- current replay seed turns use:
+  - `sourceType = replay_seed`
+  - `generationStatus = replay_imported`
+
+Current limitations:
+- `replay_mock` currently reuses the standard turn-based session engine but does not yet generate interviewer-style follow-up questions from the stored interviewer profile
+- imported real-interview archive mirroring is still deferred

@@ -70,6 +70,9 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 - The skill APIs recalculate and persist score snapshots server-side; frontend clients should treat them as read APIs.
 - Interview sessions are minimal turn-based APIs. They do not imply realtime or streaming behavior.
 - Interview history is now available from `GET /api/interview-sessions` as session-level summaries.
+- `POST /api/interview-sessions` now also supports `sessionType = replay_mock` with:
+  - required `sourceInterviewRecordId`
+  - optional `replayMode`
 - Archive payloads now include additive source fields so the frontend can render `Practice` and `Interview` badges without changing archive list semantics.
 - Asked interview turns are now mirrored into archive as question-level records, while interview history remains session-level.
 - Session question payloads now include follow-up metadata:
@@ -102,8 +105,16 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - profile summary, contacts, competencies, awards, certifications, and education are not currently used as interview question sources
 - Resume interview creation should expose one explicit `resumeVersionId` selector in the frontend start flow rather than silently relying on whichever version happens to be active.
 - implemented interview-start configuration now accepts `interviewMode` values such as `quick_screen`, `mock_30`, `mock_60`, `free_interview`, and `full_coverage`
+- implemented session list/detail payloads now also include:
+  - `sourceInterviewRecordId`
+  - `replayMode`
 - The opening question for a resume-based interview may also be AI-generated from the selected resume version and should be rendered from session snapshot fields the same way as AI follow-ups.
 - Frontend should not assume every follow-up maps to a global `questionId`; AI-generated follow-ups may rely on snapshot fields only.
+- for `replay_mock`, the first session rows may also have:
+  - `questionId = null`
+  - `sourceType = replay_seed`
+  - `generationStatus = replay_imported`
+  - replay-oriented `bodyText` that summarizes the imported answer/interviewer tone
 - Recommended rendering fallback for session questions:
   - use `title` as the primary visible prompt
   - use `bodyText` as supporting interviewer framing when present
@@ -197,6 +208,7 @@ Implemented practical interview record foundation:
   - `openingPattern`
   - `closingPattern`
 - `replay_mock` is still planned, but frontend should already model imported interview records as reusable assets that can later seed replay flows
+- the initial replay seeding flow is now implemented, but interviewer-profile-driven dynamic replay follow-ups are still planned
 
 ## Recommended Frontend Usage
 - During local integration, point Swagger or codegen tooling at `/v3/api-docs`.

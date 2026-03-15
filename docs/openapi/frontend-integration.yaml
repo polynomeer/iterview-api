@@ -1494,6 +1494,8 @@ components:
         id: { type: integer, format: int64 }
         sessionType: { type: string }
         interviewMode: { type: string }
+        sourceInterviewRecordId: { type: integer, format: int64, nullable: true }
+        replayMode: { type: string, nullable: true }
         status: { type: string }
         resumeVersionId: { type: integer, format: int64, nullable: true }
         startedAt: { type: string, format: date-time }
@@ -1514,6 +1516,8 @@ components:
         id: { type: integer, format: int64 }
         sessionType: { type: string }
         interviewMode: { type: string }
+        sourceInterviewRecordId: { type: integer, format: int64, nullable: true }
+        replayMode: { type: string, nullable: true }
         status: { type: string }
         resumeVersionId: { type: integer, format: int64, nullable: true }
         startedAt: { type: string, format: date-time }
@@ -1527,7 +1531,7 @@ components:
       properties:
         sessionType:
           type: string
-          enum: [resume_mock, review_mock, topic_mock]
+          enum: [resume_mock, review_mock, topic_mock, replay_mock]
         interviewMode:
           type: string
           enum: [quick_screen, mock_30, mock_60, free_interview, full_coverage]
@@ -1541,6 +1545,15 @@ components:
           format: int64
           nullable: true
           description: Required when `sessionType` is `resume_mock`.
+        sourceInterviewRecordId:
+          type: integer
+          format: int64
+          nullable: true
+          description: Required when `sessionType` is `replay_mock`.
+        replayMode:
+          type: string
+          nullable: true
+          enum: [original_replay, pattern_similar, pressure_variant]
         seedQuestionIds:
           type: array
           items:

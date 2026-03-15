@@ -672,6 +672,60 @@ class InterviewSessionApiIntegrationTest {
     }
 
     @Test
+    fun `replay mock session seeds imported practical interview questions`() {
+        val sourceInterviewRecordId = insertInterviewRecord()
+        insertInterviewerProfile(sourceInterviewRecordId)
+        insertInterviewRecordQuestion(
+            sourceInterviewRecordId = sourceInterviewRecordId,
+            orderIndex = 1,
+            text = "실제 장애 대응에서 어떤 지표를 먼저 봤나요?",
+            questionType = "technical_depth",
+            topicTagsJson = """["performance","incident"]""",
+            intentTagsJson = """["evidence_challenge"]""",
+        )
+        insertInterviewRecordAnswer(
+            sourceInterviewRecordId = sourceInterviewRecordId,
+            interviewRecordQuestionOrderIndex = 1,
+            summary = "에러율과 p95 지연 시간을 우선 확인했고 큐 적체도 같이 봤습니다.",
+        )
+        insertInterviewRecordQuestion(
+            sourceInterviewRecordId = sourceInterviewRecordId,
+            orderIndex = 2,
+            text = "롤백과 완화 조치 중 어떤 기준으로 결정했나요?",
+            questionType = "system_design",
+            topicTagsJson = """["project","tradeoff"]""",
+            intentTagsJson = """["design_probe"]""",
+        )
+
+        mockMvc.perform(
+            post("/api/interview-sessions")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "sessionType" to "replay_mock",
+                            "questionCount" to 2,
+                            "sourceInterviewRecordId" to sourceInterviewRecordId,
+                            "replayMode" to "pressure_variant",
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.sessionType").value("replay_mock"))
+            .andExpect(jsonPath("$.sourceInterviewRecordId").value(sourceInterviewRecordId))
+            .andExpect(jsonPath("$.replayMode").value("pressure_variant"))
+            .andExpect(jsonPath("$.currentQuestion.questionId").value(nullValue()))
+            .andExpect(jsonPath("$.currentQuestion.sourceType").value("replay_seed"))
+            .andExpect(jsonPath("$.currentQuestion.generationStatus").value("replay_imported"))
+            .andExpect(jsonPath("$.currentQuestion.title").value("실제 장애 대응에서 어떤 지표를 먼저 봤나요?"))
+            .andExpect(jsonPath("$.currentQuestion.bodyText").value(org.hamcrest.Matchers.containsString("Original answer summary")))
+            .andExpect(jsonPath("$.questions.length()").value(2))
+            .andExpect(jsonPath("$.questions[1].title").value("롤백과 완화 조치 중 어떤 기준으로 결정했나요?"))
+    }
+
+    @Test
     fun `list sessions returns session history summaries`() {
         val categoryId = insertCategory("History")
         val firstQuestionId = insertQuestion("Explain idempotency", categoryId)
@@ -968,6 +1022,98 @@ class InterviewSessionApiIntegrationTest {
             title,
             "$title body",
         )
+    }
+
+    private fun insertInterviewRecord(): Long {
+        return jdbcTemplate.queryForObject(
+            """
+            INSERT INTO interview_records (
+                user_id, company_name, role_name, interview_date, interview_type, source_audio_file_url, source_audio_file_name,
+                transcript_status, analysis_status, overall_summary, created_at, updated_at
+            ) VALUES (
+                1, 'Example Corp', 'Backend Engineer', current_date, 'onsite', '/uploads/interview-audio/example.m4a', 'example.m4a',
+                'confirmed', 'completed', 'Imported summary', now(), now()
+            )
+            RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+        ) ?: error("Failed to insert interview_record")
+    }
+
+    private fun insertInterviewerProfile(sourceInterviewRecordId: Long): Long {
+        return jdbcTemplate.queryForObject(
+            """
+            INSERT INTO interviewer_profiles (
+                user_id, source_interview_record_id, style_tags_json, tone_profile, pressure_level, depth_preference,
+                follow_up_pattern_json, favorite_topics_json, opening_pattern, closing_pattern, created_at, updated_at
+            ) VALUES (
+                1, ?, '["structured_probe"]', 'probing', 'high', 'deep',
+                '["clarification_probe"]', '["performance"]', 'technical_depth', 'system_design', now(), now()
+            )
+            RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            sourceInterviewRecordId,
+        ) ?: error("Failed to insert interviewer_profile")
+    }
+
+    private fun insertInterviewRecordQuestion(
+        sourceInterviewRecordId: Long,
+        orderIndex: Int,
+        text: String,
+        questionType: String,
+        topicTagsJson: String,
+        intentTagsJson: String,
+    ): Long {
+        return jdbcTemplate.queryForObject(
+            """
+            INSERT INTO interview_record_questions (
+                interview_record_id, segment_start_id, segment_end_id, text, normalized_text, question_type,
+                topic_tags_json, intent_tags_json, derived_from_resume_section, derived_from_resume_record_type,
+                derived_from_resume_record_id, derived_from_job_posting_section, parent_question_id, order_index, created_at, updated_at
+            ) VALUES (
+                ?, null, null, ?, ?, ?, ?, ?, null, null, null, null, null, ?, now(), now()
+            )
+            RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            sourceInterviewRecordId,
+            text,
+            text.lowercase(),
+            questionType,
+            topicTagsJson,
+            intentTagsJson,
+            orderIndex,
+        ) ?: error("Failed to insert interview_record_question")
+    }
+
+    private fun insertInterviewRecordAnswer(
+        sourceInterviewRecordId: Long,
+        interviewRecordQuestionOrderIndex: Int,
+        summary: String,
+    ): Long {
+        return jdbcTemplate.queryForObject(
+            """
+            INSERT INTO interview_record_answers (
+                interview_record_question_id, segment_start_id, segment_end_id, text, normalized_text, summary,
+                confidence_markers_json, weakness_tags_json, strength_tags_json, analysis_json, order_index, created_at, updated_at
+            ) VALUES (
+                (
+                    SELECT id FROM interview_record_questions
+                    WHERE interview_record_id = ? AND order_index = ?
+                ),
+                null, null, ?, ?, ?, '[]', '[]', '["detailed"]', '{}', ?, now(), now()
+            )
+            RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            sourceInterviewRecordId,
+            interviewRecordQuestionOrderIndex,
+            "$summary 원문 답변",
+            summary.lowercase(),
+            summary,
+            interviewRecordQuestionOrderIndex,
+        ) ?: error("Failed to insert interview_record_answer")
     }
 
     private fun insertSkillCategory(code: String, name: String): Long {
