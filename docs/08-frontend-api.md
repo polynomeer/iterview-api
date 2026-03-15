@@ -166,6 +166,14 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - AI-generated question text may be English
   - resume evidence snippets may still be Korean original text
 
+Planned full-scope practical interview replay support:
+- add real-interview resources for upload, transcript review, structured question review, and interviewer-profile reads
+- keep imported real-interview records distinct from interactive mock-session resources
+- when `replay_mock` is introduced, frontend should reuse the interview session UI shell where possible, but start the session from a selected `sourceInterviewRecordId`
+- transcript review screens should expose raw transcript, cleaned transcript, and confirmed transcript separately
+- imported real-interview questions should behave like question-level study assets and may later appear in archive with additive source metadata such as `Real Interview`
+- replay simulation questions should remain dynamic even when they are seeded from a stored interviewer profile
+
 ## Recommended Frontend Usage
 - During local integration, point Swagger or codegen tooling at `/v3/api-docs`.
 - For PR review, schema discussion, or frontend mocking, use the checked-in snapshot file.

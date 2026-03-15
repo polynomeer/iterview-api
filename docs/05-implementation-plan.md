@@ -205,6 +205,15 @@ Acceptance intent:
 - do not bundle schema, API, and UI assumptions into one oversized change
 - commit after each completed vertical slice
 - every migration set should have corresponding repository or API coverage
+
+## Planned Full-Scope Practical Interview Work
+18. add `interview_records`, transcript segments, structured question/answer rows, and interviewer-profile storage without collapsing them into the ordinary answer-attempt flow
+19. add the staged processing pipeline for audio upload, transcription, cleanup, structuring, resume/JD linkage, and interviewer-profile extraction
+20. add transcript review and correction APIs so raw, cleaned, and confirmed transcript layers remain distinct
+21. add real-interview analysis reads for question flow, topic distribution, weak-answer zones, and interviewer-style summaries
+22. extend the interview session domain with `replay_mock` so imported real interviews can launch dynamic replay simulations through the existing session engine
+23. extend archive source metadata so imported real-interview questions and replay-simulation questions remain distinguishable from practice and ordinary mock interviews
+24. add frontend-facing contracts for real-interview detail, transcript review, interviewer profile, and replay simulation start flows
 - keep Swagger/OpenAPI docs in sync with each new endpoint
 
 ## Explicit Deferred Work

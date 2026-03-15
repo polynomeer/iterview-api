@@ -1448,3 +1448,48 @@ The following interview features are still intentionally deferred:
 - live or streaming mock interview sessions
 - voice transcription pipeline
 - AI realtime interactions that bypass the standard answer-attempt model
+
+### Planned Full-Scope Practical Interview Replay
+
+Purpose:
+- ingest one real interview recording, structure it into reusable learning assets, and reuse its interviewer style inside a later replay simulation
+
+Recommended additive resources:
+- `POST /api/interview-records`
+- `GET /api/interview-records`
+- `GET /api/interview-records/{recordId}`
+- `GET /api/interview-records/{recordId}/transcript`
+- `PATCH /api/interview-records/{recordId}/transcript/segments/{segmentId}`
+- `GET /api/interview-records/{recordId}/questions`
+- `GET /api/interview-records/{recordId}/analysis`
+- `GET /api/interview-records/{recordId}/interviewer-profile`
+- `POST /api/interview-sessions` with `sessionType = replay_mock`
+
+Recommended semantics:
+- audio upload should keep the original asset plus staged transcript artifacts:
+  - raw transcript
+  - cleaned transcript
+  - user-confirmed transcript
+- transcript editing should be additive and auditable; user corrections should not destroy the raw speech-to-text output
+- structured question and answer extraction should produce stable question-level records that can be searched, replayed, and archived
+- imported real-interview questions should be eligible to appear in archive with additive source metadata such as:
+  - `sourceType = real_interview`
+  - `sourceLabel = Real Interview`
+  - `sourceInterviewRecordId`
+- replay simulations should reuse the existing session engine while extending `sessionType` to include `replay_mock`
+- `replay_mock` creation should accept:
+  - `sourceInterviewRecordId`
+  - optional `resumeVersionId`
+  - optional `jobPostingId`
+  - `replayMode`
+- recommended replay modes:
+  - `original_replay`
+  - `pattern_similar`
+  - `pressure_variant`
+- replay simulations should preserve the imported interviewer style and topic ordering tendencies, but still generate dynamic follow-up questions from the user's new answer
+- imported real-interview detail should expose:
+  - transcript segments
+  - structured questions and answers
+  - follow-up edges
+  - interviewer-style summary
+  - resume/JD linkage when available

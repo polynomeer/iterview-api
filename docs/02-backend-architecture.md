@@ -194,6 +194,23 @@ Do not move product rules into `common`.
 - expose a result-oriented resume map so hover and click interactions can reveal related questions for one resume sentence or structured record
 - keep a deterministic non-LLM fallback path so local development and non-AI environments remain usable
 
+### Practical Interview Replay
+- accept uploaded real interview audio as a first-class domain record instead of flattening it into a plain note or transcript blob
+- run a staged pipeline:
+  - asset ingestion
+  - speech-to-text
+  - transcript cleanup
+  - speaker attribution
+  - question/answer structuring
+  - resume/JD linkage
+  - interviewer-profile extraction
+  - replay-simulation seed generation
+- persist raw transcript, cleaned transcript, and user-confirmed transcript separately so corrections remain auditable
+- keep real interview records immutable once processing is finalized, except for additive user transcript corrections and metadata edits
+- model replay simulation as an additive `replay_mock` variant of the existing interview-session engine so live session progression, archive writes, and result rendering can be reused
+- derive interviewer profile signals from one or more imported interview records and use them as constraints for replay-mode question ordering, tone, and follow-up generation
+- allow replay simulations to stay dynamic: the original interview pattern is the style anchor, but follow-up questions still adapt to the user's new answers
+
 ### Review and Learning Loop
 - determine retry need
 - schedule or clear retry items
@@ -220,6 +237,10 @@ These belong behind service interfaces and should not leak into controllers:
 - resume parsing
 - resume signal extraction
 - LLM resume field extraction and normalization
+- interview audio storage and waveform/asset metadata extraction
+- speech-to-text transcription
+- transcript cleanup and speaker diarization
+- interviewer-profile extraction and replay-seed generation
 - answer deep analysis
 - skill score recalculation
 - benchmark refresh jobs

@@ -96,6 +96,10 @@
 - hovering one highlighted resume block can reveal one or more related interview turns without losing the current result context
 - clicking one related interview turn can focus or scroll to the linked session question card
 - AI-generated interview and analysis text can be produced in the selected system language while original resume evidence remains in the source language
+- a practical interview upload can preserve raw transcript, cleaned transcript, and user-confirmed transcript without overwriting earlier processing stages
+- a practical interview record can expose structured question, answer, and follow-up-edge data that remain queryable independently of replay simulation
+- imported real-interview questions can become archive-visible question assets with additive source metadata such as `real_interview`
+- `replay_mock` sessions can preserve one imported interviewer profile while still generating dynamic answer-dependent follow-up questions
 
 ## Data and Schema Quality
 - every schema change uses Flyway

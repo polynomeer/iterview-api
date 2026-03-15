@@ -103,6 +103,14 @@ This is an additive evolution of the current backend, not a new product line.
 - generate AI-created interview questions, follow-ups, and analysis text in the selected system language
 - allow mixed-language screens where original resume or answer text remains in the source language while the product UI is rendered in another language
 
+### 7. Practical Interview Replay
+- accept real interview audio uploads and keep the raw asset, transcript, cleaned transcript, and user-confirmed transcript separately
+- segment one real interview into speaker-tagged timeline units, structured questions, structured answers, and follow-up edges
+- derive interviewer-style metadata such as pressure level, preferred topics, depth preference, and follow-up habits from the imported interview
+- let one imported interview become a reusable simulation source without collapsing it into the same table as ordinary practice answers
+- support replay-oriented interview sessions that reuse the existing interactive interview flow while grounding question strategy in one imported real interview record
+- preserve imported real-interview questions as archive-visible question-level assets so they can feed later practice, review, and replay flows
+
 ## Current Scope vs Extension Scope
 ### Implemented Today
 - authentication and current-user profile APIs
@@ -121,6 +129,7 @@ This is an additive evolution of the current backend, not a new product line.
 - question relationship modeling for follow-up trees
 - interview-session history, interview question snapshots, and archive source metadata
 - interview modes, resume-evidence coverage planning, and resume-question map results
+- practical interview replay records, transcript editing, interviewer-profile extraction, and replay-simulation seeds
 - question-linked model answers and richer learning material metadata
 - richer answer analysis beyond the current score + feedback rows
 - skill radar, gap analysis, and benchmark APIs
@@ -150,6 +159,8 @@ This is an additive evolution of the current backend, not a new product line.
 - full resume coverage should be measured against structured resume evidence units, not raw character-by-character text
 - full-coverage results should prefer a structured resume viewer over raw PDF-coordinate highlighting for the first implementation
 - resume interview results should highlight asked or defended resume evidence blocks and let the user inspect the linked interview questions from those highlights
+- practical interview uploads should preserve raw transcript, cleaned transcript, and user-confirmed transcript independently rather than overwriting earlier stages
+- real interview records and replay simulations should remain distinct from ordinary mock sessions, while still contributing question-level assets into archive and study flows
 - user-authored or uploaded original data must remain stored and retrievable in the original language
 - UI language, system-generated text language, and static/reference-data language should follow the effective locale for the request or user setting
 - generated interview questions, follow-ups, and analysis text should persist the locale they were generated in

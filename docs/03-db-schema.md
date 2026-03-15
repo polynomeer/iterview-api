@@ -255,6 +255,114 @@ Interpretation:
 - one resume evidence item may later be linked to several questions
 - this link table is the stable source for building a result-time resume map with hover and click interactions
 
+Recommended additive practical-interview tables for full-scope replay and analysis:
+
+### `interview_records`
+- `id`
+- `user_id`
+- `company_name`
+- `role_name`
+- `interview_date`
+- `interview_type`
+- `source_audio_file_url`
+- `source_audio_file_name`
+- `source_audio_duration_ms`
+- `raw_transcript`
+- `cleaned_transcript`
+- `confirmed_transcript`
+- `transcript_status`
+- `analysis_status`
+- `linked_resume_version_id`
+- `linked_job_posting_id`
+- `interviewer_profile_id`
+- `overall_summary`
+- `created_at`
+- `updated_at`
+
+### `interview_transcript_segments`
+- `id`
+- `interview_record_id`
+- `start_ms`
+- `end_ms`
+- `speaker_type`
+- `raw_text`
+- `cleaned_text`
+- `confirmed_text`
+- `confidence_score`
+- `sequence`
+- `created_at`
+- `updated_at`
+
+### `interview_record_questions`
+- `id`
+- `interview_record_id`
+- `segment_start_id`
+- `segment_end_id`
+- `text`
+- `normalized_text`
+- `question_type`
+- `topic_tags_json`
+- `intent_tags_json`
+- `derived_from_resume_section`
+- `derived_from_resume_record_type`
+- `derived_from_resume_record_id`
+- `derived_from_job_posting_section`
+- `parent_question_id`
+- `order_index`
+- `created_at`
+- `updated_at`
+
+### `interview_record_answers`
+- `id`
+- `interview_record_question_id`
+- `segment_start_id`
+- `segment_end_id`
+- `text`
+- `normalized_text`
+- `summary`
+- `confidence_markers_json`
+- `weakness_tags_json`
+- `strength_tags_json`
+- `analysis_json`
+- `order_index`
+- `created_at`
+- `updated_at`
+
+### `interview_record_follow_up_edges`
+- `id`
+- `interview_record_id`
+- `from_question_id`
+- `to_question_id`
+- `relation_type`
+- `trigger_type`
+- `created_at`
+
+### `interviewer_profiles`
+- `id`
+- `user_id`
+- `source_interview_record_id`
+- `style_tags_json`
+- `tone_profile`
+- `pressure_level`
+- `depth_preference`
+- `follow_up_pattern_json`
+- `favorite_topics_json`
+- `opening_pattern`
+- `closing_pattern`
+- `created_at`
+- `updated_at`
+
+Recommended additive session extensions for replay simulation:
+- extend `interview_sessions.session_type` with `replay_mock`
+- add `source_interview_record_id`
+- add `interviewer_profile_id`
+- add `replay_mode`
+
+Recommended replay modes:
+- `original_replay`
+- `pattern_similar`
+- `pressure_variant`
+
 ## Current Answer and Progress Tables
 ### `daily_cards`
 - `id`
