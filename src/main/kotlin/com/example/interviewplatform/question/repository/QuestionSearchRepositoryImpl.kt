@@ -16,6 +16,7 @@ class QuestionSearchRepositoryImpl : QuestionSearchRepository {
         val params = linkedMapOf<String, Any>()
 
         clauses += "q.isActive = true"
+        clauses += "LOWER(q.visibility) = 'public'"
 
         filter.categoryId?.let {
             clauses += "q.categoryId = :categoryId"

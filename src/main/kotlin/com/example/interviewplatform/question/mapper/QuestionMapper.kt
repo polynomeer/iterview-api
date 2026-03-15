@@ -5,6 +5,7 @@ import com.example.interviewplatform.question.dto.QuestionCompanyDto
 import com.example.interviewplatform.question.dto.QuestionDetailResponse
 import com.example.interviewplatform.question.dto.QuestionListItemDto
 import com.example.interviewplatform.question.dto.QuestionMetadataDto
+import com.example.interviewplatform.question.dto.PracticalInterviewQuestionContextDto
 import com.example.interviewplatform.question.dto.QuestionReferenceAnswerDto
 import com.example.interviewplatform.question.dto.QuestionRoleDto
 import com.example.interviewplatform.question.dto.QuestionTagDto
@@ -49,6 +50,7 @@ object QuestionMapper {
         roles: List<QuestionRoleDto>,
         learningMaterials: List<LearningMaterialDto>,
         referenceAnswers: List<QuestionReferenceAnswerDto>,
+        practicalInterviewContext: PracticalInterviewQuestionContextDto?,
         progress: UserQuestionProgressEntity?,
     ): QuestionDetailResponse = QuestionDetailResponse(
         question = QuestionMetadataDto(
@@ -71,6 +73,7 @@ object QuestionMapper {
         roles = roles,
         learningMaterials = learningMaterials,
         referenceAnswers = referenceAnswers,
+        practicalInterviewContext = practicalInterviewContext,
         userProgressSummary = progress?.let {
             UserProgressSummaryDto(
                 currentStatus = it.currentStatus,

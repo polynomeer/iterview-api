@@ -123,6 +123,7 @@ class InterviewRecordApiIntegrationTest {
         mockMvc.perform(get("/api/interview-records/$recordId/questions").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.items.length()").value(2))
+            .andExpect(jsonPath("$.items[0].linkedQuestionId").isNumber)
             .andExpect(jsonPath("$.items[0].questionType").value("technical_depth"))
             .andExpect(jsonPath("$.items[0].answer.strengthTags[0]").value("quantified"))
 

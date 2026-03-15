@@ -1076,6 +1076,10 @@ Implemented additive endpoints:
 #### `GET /api/questions/{questionId}/reference-answers`
 Purpose:
 - return curated model answers or answer outlines for a question in stable display order
+- if the question is a private imported practical interview asset owned by the current user, the response may also append one additive imported answer row with:
+  - `sourceType = real_interview_import`
+  - `title = Imported real interview answer summary`
+  - `answerFormat = summary` or `transcript_excerpt`
 
 Response:
 ```json
@@ -1113,6 +1117,32 @@ Response:
   }
 ]
 ```
+
+### Imported Real Interview Question Assets
+Implemented additive behavior:
+- imported practical interview questions are now backed by private generated `questions` assets
+- `interview_record_questions.linked_question_id` points to the generated question asset
+- `GET /api/interview-records/{recordId}/questions` now exposes `linkedQuestionId`
+- archive rows for `sourceType = real_interview` now use that linked question asset id in `questionId`
+- `replay_mock` seed turns may also use the linked question asset id as `questionId`
+
+Question detail behavior:
+- `GET /api/questions/{questionId}` now supports imported real interview question assets when the authenticated user owns the source interview record
+- imported assets stay private and are not intended for anonymous question detail reads or public catalog listing
+- detail payload now includes additive `practicalInterviewContext` with:
+  - `sourceInterviewRecordId`
+  - `sourceInterviewQuestionId`
+  - `companyName`
+  - `roleName`
+  - `interviewDate`
+  - `interviewType`
+  - `questionType`
+  - `topicTags`
+  - `intentTags`
+  - `interviewerProfileId`
+  - `importedAnswerSummary`
+  - `importedAnswerText`
+  - `isFollowUp`
 
 ### Answer Analysis
 #### `GET /api/answer-attempts/{answerAttemptId}/analysis`

@@ -63,10 +63,14 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `projectCategoryName`
   - `tags`
 - Frontend should render projects as richer cards rather than only short experience subrows.
-- Question detail includes generic `learningMaterials` and additive `referenceAnswers`.
+- Question detail includes generic `learningMaterials`, additive `referenceAnswers`, and additive `practicalInterviewContext` for imported real interview assets.
 - Dedicated question reference-content reads are:
   - `GET /api/questions/{questionId}/reference-answers`
   - `GET /api/questions/{questionId}/learning-materials`
+- For imported real interview assets, `GET /api/questions/{questionId}/reference-answers` may append one imported answer row with:
+  - `sourceType = real_interview_import`
+  - `title = Imported real interview answer summary`
+- Imported real interview question assets are private. Frontend should treat their question detail reads as authenticated owner-only flows.
 - The skill APIs recalculate and persist score snapshots server-side; frontend clients should treat them as read APIs.
 - Interview sessions are minimal turn-based APIs. They do not imply realtime or streaming behavior.
 - Interview history is now available from `GET /api/interview-sessions` as session-level summaries.
@@ -79,6 +83,9 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `sourceLabel = Real Interview`
   - `sourceInterviewRecordId`
   - `sourceInterviewQuestionId`
+- Imported practical interview questions are now also backed by private generated question assets:
+  - `GET /api/interview-records/{recordId}/questions` includes `linkedQuestionId`
+  - archive `questionId` for `real_interview` items now points to the linked question asset id, so frontend can deep-link into the normal question detail route
 - Asked interview turns are now mirrored into archive as question-level records, while interview history remains session-level.
 - Session question payloads now include follow-up metadata:
   - `sourceType`

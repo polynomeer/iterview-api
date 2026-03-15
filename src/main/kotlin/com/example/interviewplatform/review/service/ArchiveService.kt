@@ -7,6 +7,7 @@ import com.example.interviewplatform.interview.repository.InterviewRecordQuestio
 import com.example.interviewplatform.interview.repository.InterviewRecordRepository
 import com.example.interviewplatform.interview.repository.InterviewSessionQuestionRepository
 import com.example.interviewplatform.interview.repository.InterviewSessionRepository
+import com.example.interviewplatform.interview.service.InterviewRecordQuestionAssetService
 import com.example.interviewplatform.question.repository.QuestionRepository
 import com.example.interviewplatform.question.repository.UserQuestionProgressRepository
 import com.example.interviewplatform.review.dto.ArchivedQuestionDto
@@ -22,9 +23,10 @@ class ArchiveService(
     private val interviewRecordRepository: InterviewRecordRepository,
     private val interviewRecordQuestionRepository: InterviewRecordQuestionRepository,
     private val interviewRecordAnswerRepository: InterviewRecordAnswerRepository,
+    private val interviewRecordQuestionAssetService: InterviewRecordQuestionAssetService,
     private val answerScoreRepository: AnswerScoreRepository,
 ) {
-    @Transactional(readOnly = true)
+    @Transactional
     fun listArchived(userId: Long): List<ArchivedQuestionDto> {
         val progressRows = userQuestionProgressRepository
             .findByUserIdAndCurrentStatusOrderByArchivedAtDesc(userId, STATUS_ARCHIVED)
@@ -104,9 +106,15 @@ class ArchiveService(
                 .associateBy { it.interviewRecordQuestionId }
         }
         val realInterviewItems = interviewRecords.flatMap { record ->
-            importedQuestionsByRecordId[record.id].orEmpty().map { question ->
+            val ensuredQuestions = interviewRecordQuestionAssetService.ensureLinkedQuestionAssets(
+                record = record,
+                questions = importedQuestionsByRecordId[record.id].orEmpty(),
+                answersByQuestionId = importedAnswerByQuestionId,
+                now = record.updatedAt,
+            )
+            ensuredQuestions.map { question ->
                 ArchivedQuestionDto(
-                    questionId = question.id,
+                    questionId = question.linkedQuestionId ?: question.id,
                     title = question.text,
                     difficulty = question.questionType.uppercase(),
                     archivedAt = question.updatedAt,

@@ -42,6 +42,7 @@ class InterviewRecordService(
     private val interviewRecordAnswerRepository: InterviewRecordAnswerRepository,
     private val interviewRecordFollowUpEdgeRepository: InterviewRecordFollowUpEdgeRepository,
     private val interviewerProfileRepository: InterviewerProfileRepository,
+    private val interviewRecordQuestionAssetService: InterviewRecordQuestionAssetService,
     private val interviewAudioStorageService: InterviewAudioStorageService,
     private val resumeRepository: ResumeRepository,
     private val resumeVersionRepository: ResumeVersionRepository,
@@ -184,12 +185,19 @@ class InterviewRecordService(
         return getTranscript(userId, record.id)
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     fun listQuestions(userId: Long, recordId: Long): InterviewRecordQuestionsResponseDto {
-        requireOwnedRecord(userId, recordId)
-        val questions = interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(recordId)
-        val answersByQuestionId = interviewRecordAnswerRepository.findByInterviewRecordQuestionIdIn(questions.map { it.id })
+        val record = requireOwnedRecord(userId, recordId)
+        val answersByQuestionId = interviewRecordAnswerRepository.findByInterviewRecordQuestionIdIn(
+            interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(recordId).map { it.id },
+        )
             .associateBy { it.interviewRecordQuestionId }
+        val questions = interviewRecordQuestionAssetService.ensureLinkedQuestionAssets(
+            record = record,
+            questions = interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(recordId),
+            answersByQuestionId = answersByQuestionId,
+            now = clockService.now(),
+        )
         return InterviewRecordQuestionsResponseDto(
             interviewRecordId = recordId,
             items = questions.map { InterviewRecordMapper.toQuestionDto(it, answersByQuestionId[it.id], objectMapper) },
@@ -331,6 +339,13 @@ class InterviewRecordService(
         if (answersToPersist.isNotEmpty()) {
             interviewRecordAnswerRepository.saveAll(answersToPersist)
         }
+        val answersByQuestionId = answersToPersist.associateBy { it.interviewRecordQuestionId }
+        interviewRecordQuestionAssetService.ensureLinkedQuestionAssets(
+            record = record,
+            questions = persistedQuestions,
+            answersByQuestionId = answersByQuestionId,
+            now = now,
+        )
 
         if (persistedQuestions.size > 1) {
             val edges = persistedQuestions.zipWithNext().map { (fromQuestion, toQuestion) ->

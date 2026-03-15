@@ -79,6 +79,7 @@ object InterviewRecordMapper {
         objectMapper: ObjectMapper,
     ): InterviewRecordQuestionDto = InterviewRecordQuestionDto(
         id = entity.id,
+        linkedQuestionId = entity.linkedQuestionId,
         text = entity.text,
         normalizedText = entity.normalizedText,
         questionType = entity.questionType,

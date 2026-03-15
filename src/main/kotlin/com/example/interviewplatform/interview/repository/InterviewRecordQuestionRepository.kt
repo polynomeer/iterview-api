@@ -5,4 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface InterviewRecordQuestionRepository : JpaRepository<InterviewRecordQuestionEntity, Long> {
     fun findByInterviewRecordIdOrderByOrderIndexAsc(interviewRecordId: Long): List<InterviewRecordQuestionEntity>
+    fun findByLinkedQuestionId(linkedQuestionId: Long): InterviewRecordQuestionEntity?
 }

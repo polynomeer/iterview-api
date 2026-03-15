@@ -10,6 +10,7 @@ import com.example.interviewplatform.question.dto.QuestionSearchFilter
 import com.example.interviewplatform.question.dto.QuestionTagDto
 import com.example.interviewplatform.question.dto.QuestionTreeNodeDto
 import com.example.interviewplatform.question.dto.QuestionTreeResponseDto
+import com.example.interviewplatform.question.dto.PracticalInterviewQuestionContextDto
 import com.example.interviewplatform.question.dto.RecommendedFollowUpDto
 import com.example.interviewplatform.question.dto.ResumeBasedQuestionDto
 import com.example.interviewplatform.question.mapper.QuestionMapper
@@ -30,9 +31,14 @@ import com.example.interviewplatform.resume.repository.ResumeRepository
 import com.example.interviewplatform.resume.repository.ResumeRiskItemRepository
 import com.example.interviewplatform.resume.repository.ResumeSkillSnapshotRepository
 import com.example.interviewplatform.resume.repository.ResumeVersionRepository
+import com.example.interviewplatform.interview.repository.InterviewRecordAnswerRepository
+import com.example.interviewplatform.interview.repository.InterviewRecordQuestionRepository
+import com.example.interviewplatform.interview.repository.InterviewRecordRepository
 import com.example.interviewplatform.skill.repository.SkillRepository
 import com.example.interviewplatform.user.repository.CompanyRepository
 import com.example.interviewplatform.user.repository.JobRoleRepository
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -56,11 +62,15 @@ class QuestionService(
     private val learningMaterialRepository: LearningMaterialRepository,
     private val categoryRepository: CategoryRepository,
     private val userQuestionProgressRepository: UserQuestionProgressRepository,
+    private val interviewRecordQuestionRepository: InterviewRecordQuestionRepository,
+    private val interviewRecordAnswerRepository: InterviewRecordAnswerRepository,
+    private val interviewRecordRepository: InterviewRecordRepository,
     private val resumeRepository: ResumeRepository,
     private val resumeVersionRepository: ResumeVersionRepository,
     private val resumeSkillSnapshotRepository: ResumeSkillSnapshotRepository,
     private val resumeRiskItemRepository: ResumeRiskItemRepository,
     private val skillRepository: SkillRepository,
+    private val objectMapper: ObjectMapper,
 ) {
     @Transactional(readOnly = true)
     fun listQuestions(filter: QuestionSearchFilter): List<QuestionListItemDto> {
@@ -86,10 +96,10 @@ class QuestionService(
 
     @Transactional(readOnly = true)
     fun getQuestionDetail(questionId: Long, userId: Long?): QuestionDetailResponse {
-        val question = questionRepository.findByIdAndIsActiveTrue(questionId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found: $questionId")
+        val question = requireReadableQuestion(questionId, userId)
         val context = loadContext(questionIds = listOf(questionId), categoryIds = listOf(question.categoryId))
         val progress = userId?.let { userQuestionProgressRepository.findByUserIdAndQuestionId(it, questionId) }
+        val practicalInterviewContext = loadPracticalInterviewContext(question, userId)
 
         return QuestionMapper.toDetailResponse(
             question = question,
@@ -98,28 +108,34 @@ class QuestionService(
             companies = context.companiesByQuestionId[question.id].orEmpty(),
             roles = context.rolesByQuestionId[question.id].orEmpty(),
             learningMaterials = context.learningMaterialsByQuestionId[question.id].orEmpty(),
-            referenceAnswers = context.referenceAnswersByQuestionId[question.id].orEmpty(),
+            referenceAnswers = mergeReferenceAnswers(
+                curated = context.referenceAnswersByQuestionId[question.id].orEmpty(),
+                practicalInterviewContext = practicalInterviewContext,
+            ),
+            practicalInterviewContext = practicalInterviewContext,
             progress = progress,
         )
     }
 
     @Transactional(readOnly = true)
-    fun getQuestionReferenceAnswers(questionId: Long): List<QuestionReferenceAnswerDto> {
-        requireActiveQuestion(questionId)
-        return questionReferenceAnswerRepository.findByQuestionIdOrderByDisplayOrderAscIdAsc(questionId)
-            .map(QuestionMapper::toReferenceAnswerDto)
+    fun getQuestionReferenceAnswers(questionId: Long, userId: Long?): List<QuestionReferenceAnswerDto> {
+        val question = requireReadableQuestion(questionId, userId)
+        return mergeReferenceAnswers(
+            curated = questionReferenceAnswerRepository.findByQuestionIdOrderByDisplayOrderAscIdAsc(questionId)
+                .map(QuestionMapper::toReferenceAnswerDto),
+            practicalInterviewContext = loadPracticalInterviewContext(question, userId),
+        )
     }
 
     @Transactional(readOnly = true)
-    fun getQuestionLearningMaterials(questionId: Long): List<LearningMaterialDto> {
-        requireActiveQuestion(questionId)
+    fun getQuestionLearningMaterials(questionId: Long, userId: Long?): List<LearningMaterialDto> {
+        requireReadableQuestion(questionId, userId)
         return mapLearningMaterials(listOf(questionId))[questionId].orEmpty()
     }
 
     @Transactional(readOnly = true)
     fun getQuestionTree(questionId: Long, userId: Long?): QuestionTreeResponseDto {
-        val rootQuestion = questionRepository.findByIdAndIsActiveTrue(questionId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found: $questionId")
+        val rootQuestion = requireReadableQuestion(questionId, userId)
         val graph = loadQuestionTreeGraph(questionId)
         val questionsById = questionRepository.findAllById(graph.questionIds).filter { it.isActive }.associateBy { it.id }
         val progressByQuestionId = if (userId == null || graph.questionIds.isEmpty()) {
@@ -141,8 +157,7 @@ class QuestionService(
 
     @Transactional(readOnly = true)
     fun getRecommendedFollowUps(questionId: Long, userId: Long?): List<RecommendedFollowUpDto> {
-        val question = questionRepository.findByIdAndIsActiveTrue(questionId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found: $questionId")
+        val question = requireReadableQuestion(questionId, userId)
         val edges = questionRelationshipRepository.findByParentQuestionIdOrderByDisplayOrderAscIdAsc(question.id)
         if (edges.isEmpty()) {
             return emptyList()
@@ -291,9 +306,74 @@ class QuestionService(
             .groupBy { it.questionId }
             .mapValues { (_, answers) -> answers.map(QuestionMapper::toReferenceAnswerDto) }
 
-    private fun requireActiveQuestion(questionId: Long) {
-        questionRepository.findByIdAndIsActiveTrue(questionId)
+    private fun requireReadableQuestion(questionId: Long, userId: Long?): com.example.interviewplatform.question.entity.QuestionEntity {
+        val question = questionRepository.findByIdAndIsActiveTrue(questionId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found: $questionId")
+        if (question.visibility.lowercase() != QUESTION_VISIBILITY_PUBLIC && question.authorUserId != userId) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found: $questionId")
+        }
+        return question
+    }
+
+    private fun loadPracticalInterviewContext(
+        question: com.example.interviewplatform.question.entity.QuestionEntity,
+        userId: Long?,
+    ): PracticalInterviewQuestionContextDto? {
+        if (question.sourceType != QUESTION_SOURCE_TYPE_REAL_INTERVIEW_IMPORT) {
+            return null
+        }
+        val linkedQuestion = interviewRecordQuestionRepository.findByLinkedQuestionId(question.id) ?: return null
+        val record = interviewRecordRepository.findById(linkedQuestion.interviewRecordId).orElse(null) ?: return null
+        if (record.userId != userId) {
+            return null
+        }
+        val answer = interviewRecordAnswerRepository.findByInterviewRecordQuestionIdIn(listOf(linkedQuestion.id)).firstOrNull()
+        return PracticalInterviewQuestionContextDto(
+            sourceInterviewRecordId = record.id,
+            sourceInterviewQuestionId = linkedQuestion.id,
+            companyName = record.companyName,
+            roleName = record.roleName,
+            interviewDate = record.interviewDate,
+            interviewType = record.interviewType,
+            questionType = linkedQuestion.questionType,
+            topicTags = decodeStringList(linkedQuestion.topicTagsJson),
+            intentTags = decodeStringList(linkedQuestion.intentTagsJson),
+            interviewerProfileId = record.interviewerProfileId,
+            importedAnswerSummary = answer?.summary,
+            importedAnswerText = answer?.text,
+            isFollowUp = linkedQuestion.parentQuestionId != null,
+        )
+    }
+
+    private fun mergeReferenceAnswers(
+        curated: List<QuestionReferenceAnswerDto>,
+        practicalInterviewContext: PracticalInterviewQuestionContextDto?,
+    ): List<QuestionReferenceAnswerDto> {
+        val imported = practicalInterviewContext?.importedAnswerSummary?.takeIf { it.isNotBlank() }?.let {
+            listOf(
+                QuestionReferenceAnswerDto(
+                    id = -practicalInterviewContext.sourceInterviewQuestionId,
+                    title = "Imported real interview answer summary",
+                    answerText = practicalInterviewContext.importedAnswerText?.takeIf { text -> text.isNotBlank() } ?: it,
+                    answerFormat = if (practicalInterviewContext.importedAnswerText.isNullOrBlank()) "summary" else "transcript_excerpt",
+                    sourceType = QUESTION_SOURCE_TYPE_REAL_INTERVIEW_IMPORT,
+                    targetRoleId = null,
+                    companyId = null,
+                    isOfficial = false,
+                    displayOrder = curated.size + 1,
+                ),
+            )
+        }.orEmpty()
+        return curated + imported
+    }
+
+    private fun decodeStringList(raw: String): List<String> =
+        runCatching { objectMapper.readValue(raw, object : TypeReference<List<String>>() {}) }
+            .getOrDefault(emptyList())
+
+    private companion object {
+        const val QUESTION_SOURCE_TYPE_REAL_INTERVIEW_IMPORT = "real_interview_import"
+        const val QUESTION_VISIBILITY_PUBLIC = "public"
     }
 
     private data class QuestionQueryContext(

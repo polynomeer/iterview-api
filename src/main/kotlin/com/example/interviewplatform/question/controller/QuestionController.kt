@@ -55,12 +55,12 @@ class QuestionController(
     @GetMapping("/{questionId}/reference-answers")
     @Operation(summary = "Get curated model answers for a question")
     fun getQuestionReferenceAnswers(@PathVariable questionId: Long): List<QuestionReferenceAnswerDto> =
-        questionService.getQuestionReferenceAnswers(questionId)
+        questionService.getQuestionReferenceAnswers(questionId, currentUserProvider.currentUserIdOrNull())
 
     @GetMapping("/{questionId}/learning-materials")
     @Operation(summary = "Get curated learning materials for a question")
     fun getQuestionLearningMaterials(@PathVariable questionId: Long): List<LearningMaterialDto> =
-        questionService.getQuestionLearningMaterials(questionId)
+        questionService.getQuestionLearningMaterials(questionId, currentUserProvider.currentUserIdOrNull())
 
     @GetMapping("/{questionId}/tree")
     @Operation(summary = "Get question follow-up tree")

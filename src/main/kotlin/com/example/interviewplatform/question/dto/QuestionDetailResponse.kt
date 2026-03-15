@@ -16,6 +16,8 @@ data class QuestionDetailResponse(
     val learningMaterials: List<LearningMaterialDto>,
     @field:Schema(description = "Curated model answers or answer outlines for this question")
     val referenceAnswers: List<QuestionReferenceAnswerDto> = emptyList(),
+    @field:Schema(description = "Imported practical interview metadata when this question originated from a real interview asset", nullable = true)
+    val practicalInterviewContext: PracticalInterviewQuestionContextDto? = null,
     @field:Schema(description = "Current user progress summary when the request is authenticated")
     val userProgressSummary: UserProgressSummaryDto?,
 )

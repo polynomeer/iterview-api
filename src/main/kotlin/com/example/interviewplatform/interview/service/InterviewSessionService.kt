@@ -66,6 +66,7 @@ class InterviewSessionService(
     private val interviewRecordQuestionRepository: InterviewRecordQuestionRepository,
     private val interviewRecordAnswerRepository: InterviewRecordAnswerRepository,
     private val interviewerProfileRepository: InterviewerProfileRepository,
+    private val interviewRecordQuestionAssetService: InterviewRecordQuestionAssetService,
     private val questionRepository: QuestionRepository,
     private val questionRelationshipRepository: QuestionRelationshipRepository,
     private val questionSkillMappingRepository: QuestionSkillMappingRepository,
@@ -726,8 +727,16 @@ class InterviewSessionService(
         requestedCount: Int,
         now: java.time.Instant,
     ): List<InterviewSessionQuestionEntity> {
-        val importedQuestions = interviewRecordQuestionRepository
-            .findByInterviewRecordIdOrderByOrderIndexAsc(sourceInterviewRecordId)
+        val interviewRecord = interviewRecordRepository.findById(sourceInterviewRecordId)
+            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Imported interview record not found: $sourceInterviewRecordId") }
+        val importedQuestions = interviewRecordQuestionAssetService.ensureLinkedQuestionAssets(
+            record = interviewRecord,
+            questions = interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(sourceInterviewRecordId),
+            answersByQuestionId = interviewRecordAnswerRepository.findByInterviewRecordQuestionIdIn(
+                interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(sourceInterviewRecordId).map { it.id },
+            ).associateBy { it.interviewRecordQuestionId },
+            now = now,
+        )
             .take(requestedCount.coerceIn(1, 10))
         if (importedQuestions.isEmpty()) {
             return emptyList()
@@ -745,7 +754,7 @@ class InterviewSessionService(
             )
             InterviewSessionQuestionEntity(
                 interviewSessionId = session.id,
-                questionId = null,
+                questionId = importedQuestion.linkedQuestionId,
                 parentSessionQuestionId = null,
                 promptText = importedQuestion.text,
                 bodyText = replayBody,

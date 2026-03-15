@@ -103,7 +103,7 @@ class QuestionApiIntegrationTest {
             RETURNING id
             """.trimIndent(),
             Long::class.java,
-        )!!
+        )
         jdbcTemplate.update(
             "INSERT INTO question_learning_materials (question_id, learning_material_id, relevance_score, created_at) VALUES (?, ?, 0.95, now())",
             matchingQuestionId,
@@ -356,6 +356,101 @@ class QuestionApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.question.id").value(questionId))
             .andExpect(jsonPath("$.userProgressSummary").doesNotExist())
+    }
+
+    @Test
+    fun `owner can view imported real interview question detail with practical context and reference answer`() {
+        val categoryId = idByName("categories", "name", "Backend Engineering")
+        val linkedQuestionId = jdbcTemplate.queryForObject(
+            """
+            INSERT INTO questions (
+                author_user_id, category_id, title, body, question_type, difficulty_level,
+                source_type, quality_status, visibility, expected_answer_seconds, is_active, created_at, updated_at
+            ) VALUES (
+                1, ?, 'How did you decide rollback timing during the outage?',
+                'Imported from a recorded practical interview.', 'technical', 'MEDIUM',
+                'real_interview_import', 'approved', 'private', 180, true, now(), now()
+            ) RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            categoryId,
+        )!!
+        val recordId = jdbcTemplate.queryForObject(
+            """
+            INSERT INTO interview_records (
+                user_id, company_name, role_name, interview_date, interview_type, source_audio_file_url, source_audio_file_name,
+                transcript_status, analysis_status, interviewer_profile_id, overall_summary, created_at, updated_at
+            ) VALUES (
+                1, 'Replay Corp', 'Platform Engineer', current_date, 'onsite', '/uploads/interview-audio/replay.m4a', 'replay.m4a',
+                'confirmed', 'completed', NULL, 'High-pressure outage interview', now(), now()
+            ) RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+        )
+        val interviewerProfileId = jdbcTemplate.queryForObject(
+            """
+            INSERT INTO interviewer_profiles (
+                user_id, source_interview_record_id, style_tags_json, tone_profile, pressure_level, depth_preference,
+                follow_up_pattern_json, favorite_topics_json, opening_pattern, closing_pattern, created_at, updated_at
+            ) VALUES (
+                1, ?, '["pressure_probe"]', 'probing', 'high', 'deep',
+                '["threshold_probe"]', '["incident"]', 'technical_depth', 'technical_depth', now(), now()
+            ) RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            recordId,
+        )
+        jdbcTemplate.update(
+            "UPDATE interview_records SET interviewer_profile_id = ? WHERE id = ?",
+            interviewerProfileId,
+            recordId,
+        )
+        val interviewRecordQuestionId = jdbcTemplate.queryForObject(
+            """
+            INSERT INTO interview_record_questions (
+                interview_record_id, segment_start_id, segment_end_id, text, normalized_text, question_type,
+                topic_tags_json, intent_tags_json, derived_from_resume_section, derived_from_resume_record_type,
+                derived_from_resume_record_id, derived_from_job_posting_section, linked_question_id, parent_question_id, order_index, created_at, updated_at
+            ) VALUES (
+                ?, NULL, NULL, 'How did you decide rollback timing during the outage?', 'how did you decide rollback timing during the outage?',
+                'technical_depth', '["incident","rollback"]', '["threshold_probe"]', NULL, NULL, NULL, NULL, ?, NULL, 1, now(), now()
+            ) RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            recordId,
+            linkedQuestionId,
+        )!!
+        jdbcTemplate.update(
+            """
+            INSERT INTO interview_record_answers (
+                interview_record_question_id, segment_start_id, segment_end_id, text, normalized_text, summary,
+                confidence_markers_json, weakness_tags_json, strength_tags_json, analysis_json, order_index, created_at, updated_at
+            ) VALUES (
+                ?, NULL, NULL, 'I rolled back after confirming error budgets and customer impact thresholds.',
+                'i rolled back after confirming error budgets and customer impact thresholds.',
+                'The candidate explained rollback timing but left the escalation threshold vague.',
+                '[]', '["missing_thresholds"]', '[]', '{}', 1, now(), now()
+            )
+            """.trimIndent(),
+            interviewRecordQuestionId,
+        )
+
+        mockMvc.perform(get("/api/questions/$linkedQuestionId").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.question.sourceType").value("real_interview_import"))
+            .andExpect(jsonPath("$.practicalInterviewContext.sourceInterviewRecordId").value(recordId))
+            .andExpect(jsonPath("$.practicalInterviewContext.sourceInterviewQuestionId").value(interviewRecordQuestionId))
+            .andExpect(jsonPath("$.practicalInterviewContext.interviewerProfileId").value(interviewerProfileId))
+            .andExpect(jsonPath("$.practicalInterviewContext.topicTags[0]").value("incident"))
+            .andExpect(jsonPath("$.referenceAnswers[0].sourceType").value("real_interview_import"))
+            .andExpect(jsonPath("$.referenceAnswers[0].title").value("Imported real interview answer summary"))
+
+        mockMvc.perform(get("/api/questions/$linkedQuestionId/reference-answers").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].sourceType").value("real_interview_import"))
+
+        mockMvc.perform(get("/api/questions/$linkedQuestionId"))
+            .andExpect(status().isNotFound)
     }
 
     @Test

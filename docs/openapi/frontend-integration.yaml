@@ -1199,10 +1199,34 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/QuestionReferenceAnswerDto"
+        practicalInterviewContext:
+          allOf:
+            - $ref: "#/components/schemas/PracticalInterviewQuestionContextDto"
+          nullable: true
         userProgressSummary:
           allOf:
             - $ref: "#/components/schemas/UserProgressSummaryDto"
           nullable: true
+    PracticalInterviewQuestionContextDto:
+      type: object
+      properties:
+        sourceInterviewRecordId: { type: integer, format: int64 }
+        sourceInterviewQuestionId: { type: integer, format: int64 }
+        companyName: { type: string, nullable: true }
+        roleName: { type: string, nullable: true }
+        interviewDate: { type: string, format: date, nullable: true }
+        interviewType: { type: string }
+        questionType: { type: string }
+        topicTags:
+          type: array
+          items: { type: string }
+        intentTags:
+          type: array
+          items: { type: string }
+        interviewerProfileId: { type: integer, format: int64, nullable: true }
+        importedAnswerSummary: { type: string, nullable: true }
+        importedAnswerText: { type: string, nullable: true }
+        isFollowUp: { type: boolean }
     QuestionSummaryDetailDto:
       type: object
       properties:
@@ -1826,6 +1850,7 @@ components:
       type: object
       properties:
         id: { type: integer, format: int64 }
+        linkedQuestionId: { type: integer, format: int64, nullable: true }
         text: { type: string }
         normalizedText: { type: string, nullable: true }
         questionType: { type: string }

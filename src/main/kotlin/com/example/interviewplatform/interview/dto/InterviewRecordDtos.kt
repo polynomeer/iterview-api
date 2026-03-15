@@ -80,6 +80,7 @@ data class InterviewRecordQuestionAnswerDto(
 
 data class InterviewRecordQuestionDto(
     val id: Long,
+    val linkedQuestionId: Long?,
     val text: String,
     val normalizedText: String?,
     val questionType: String,

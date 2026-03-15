@@ -248,16 +248,18 @@ class ArchiveApiIntegrationTest {
 
         mockMvc.perform(get("/api/archive").header("Authorization", authHeader))
             .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].questionId").isNumber)
             .andExpect(jsonPath("$[0].sourceType").value("real_interview"))
             .andExpect(jsonPath("$[0].sourceLabel").value("Real Interview"))
             .andExpect(jsonPath("$[0].sourceInterviewRecordId").value(201))
-            .andExpect(jsonPath("$[0].sourceInterviewQuestionId").value(302))
-            .andExpect(jsonPath("$[0].isFollowUp").value(true))
+            .andExpect(jsonPath("$[0].sourceInterviewQuestionId").value(301))
+            .andExpect(jsonPath("$[0].isFollowUp").value(false))
+            .andExpect(jsonPath("$[1].questionId").isNumber)
             .andExpect(jsonPath("$[1].sourceType").value("real_interview"))
             .andExpect(jsonPath("$[1].sourceInterviewRecordId").value(201))
-            .andExpect(jsonPath("$[1].sourceInterviewQuestionId").value(301))
-            .andExpect(jsonPath("$[1].totalAttemptCount").value(1))
-            .andExpect(jsonPath("$[1].isFollowUp").value(false))
+            .andExpect(jsonPath("$[1].sourceInterviewQuestionId").value(302))
+            .andExpect(jsonPath("$[0].totalAttemptCount").value(1))
+            .andExpect(jsonPath("$[1].isFollowUp").value(true))
     }
 
     private fun insertQuestion(title: String, difficulty: String): Long {

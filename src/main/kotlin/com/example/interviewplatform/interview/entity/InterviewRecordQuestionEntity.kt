@@ -38,6 +38,8 @@ class InterviewRecordQuestionEntity(
     val derivedFromResumeRecordId: Long? = null,
     @Column(name = "derived_from_job_posting_section")
     val derivedFromJobPostingSection: String? = null,
+    @Column(name = "linked_question_id")
+    val linkedQuestionId: Long? = null,
     @Column(name = "parent_question_id")
     val parentQuestionId: Long? = null,
     @Column(name = "order_index", nullable = false)
