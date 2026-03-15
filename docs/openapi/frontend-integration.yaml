@@ -540,6 +540,120 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ArchivedQuestionDto"
+  /api/interview-records:
+    get:
+      tags: [Interview Records]
+      summary: List imported interview records
+      responses:
+        "200":
+          description: Imported interview record list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InterviewRecordListItemDto"
+    post:
+      tags: [Interview Records]
+      summary: Upload and create imported interview record
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/CreateInterviewRecordRequest"
+      responses:
+        "200":
+          description: Created imported interview record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewRecordDetailDto"
+  /api/interview-records/{recordId}:
+    get:
+      tags: [Interview Records]
+      summary: Get imported interview record detail
+      parameters:
+        - $ref: "#/components/parameters/RecordId"
+      responses:
+        "200":
+          description: Imported interview record detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewRecordDetailDto"
+  /api/interview-records/{recordId}/transcript:
+    get:
+      tags: [Interview Records]
+      summary: Get imported interview transcript detail
+      parameters:
+        - $ref: "#/components/parameters/RecordId"
+      responses:
+        "200":
+          description: Imported interview transcript detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewRecordTranscriptDto"
+  /api/interview-records/{recordId}/transcript/segments/{segmentId}:
+    patch:
+      tags: [Interview Records]
+      summary: Update one imported interview transcript segment
+      parameters:
+        - $ref: "#/components/parameters/RecordId"
+        - $ref: "#/components/parameters/SegmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateInterviewTranscriptSegmentRequest"
+      responses:
+        "200":
+          description: Updated imported interview transcript detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewRecordTranscriptDto"
+  /api/interview-records/{recordId}/questions:
+    get:
+      tags: [Interview Records]
+      summary: Get structured imported interview questions and answers
+      parameters:
+        - $ref: "#/components/parameters/RecordId"
+      responses:
+        "200":
+          description: Imported interview question list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewRecordQuestionsResponseDto"
+  /api/interview-records/{recordId}/analysis:
+    get:
+      tags: [Interview Records]
+      summary: Get imported interview analysis
+      parameters:
+        - $ref: "#/components/parameters/RecordId"
+      responses:
+        "200":
+          description: Imported interview analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewRecordAnalysisDto"
+  /api/interview-records/{recordId}/interviewer-profile:
+    get:
+      tags: [Interview Records]
+      summary: Get inferred interviewer profile for an imported interview
+      parameters:
+        - $ref: "#/components/parameters/RecordId"
+      responses:
+        "200":
+          description: Inferred interviewer profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewerProfileDto"
   /api/interview-sessions:
     get:
       tags: [Interview Sessions]
@@ -707,6 +821,20 @@ components:
     SessionId:
       in: path
       name: sessionId
+      required: true
+      schema:
+        type: integer
+        format: int64
+    RecordId:
+      in: path
+      name: recordId
+      required: true
+      schema:
+        type: integer
+        format: int64
+    SegmentId:
+      in: path
+      name: segmentId
       required: true
       schema:
         type: integer
@@ -1580,6 +1708,171 @@ components:
         confidence: { type: number, format: double, nullable: true }
         startOffset: { type: integer, nullable: true }
         endOffset: { type: integer, nullable: true }
+    CreateInterviewRecordRequest:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+        companyName: { type: string, nullable: true }
+        roleName: { type: string, nullable: true }
+        interviewDate: { type: string, format: date, nullable: true }
+        interviewType: { type: string, nullable: true }
+        linkedResumeVersionId: { type: integer, format: int64, nullable: true }
+        linkedJobPostingId: { type: integer, format: int64, nullable: true }
+        transcriptText: { type: string, nullable: true }
+    InterviewRecordListItemDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        companyName: { type: string, nullable: true }
+        roleName: { type: string, nullable: true }
+        interviewDate: { type: string, format: date, nullable: true }
+        interviewType: { type: string }
+        transcriptStatus: { type: string }
+        analysisStatus: { type: string }
+        linkedResumeVersionId: { type: integer, format: int64, nullable: true }
+        interviewerProfileId: { type: integer, format: int64, nullable: true }
+        questionCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+    InterviewRecordDetailDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        companyName: { type: string, nullable: true }
+        roleName: { type: string, nullable: true }
+        interviewDate: { type: string, format: date, nullable: true }
+        interviewType: { type: string }
+        sourceAudioFileUrl: { type: string, nullable: true }
+        sourceAudioFileName: { type: string, nullable: true }
+        sourceAudioDurationMs: { type: integer, format: int64, nullable: true }
+        transcriptStatus: { type: string }
+        analysisStatus: { type: string }
+        linkedResumeVersionId: { type: integer, format: int64, nullable: true }
+        linkedJobPostingId: { type: integer, format: int64, nullable: true }
+        interviewerProfileId: { type: integer, format: int64, nullable: true }
+        overallSummary: { type: string, nullable: true }
+        questionCount: { type: integer }
+        answerCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    InterviewTranscriptSegmentDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        startMs: { type: integer, format: int64 }
+        endMs: { type: integer, format: int64 }
+        speakerType: { type: string }
+        rawText: { type: string, nullable: true }
+        cleanedText: { type: string, nullable: true }
+        confirmedText: { type: string, nullable: true }
+        confidenceScore: { type: number, format: double, nullable: true }
+        sequence: { type: integer }
+    InterviewRecordTranscriptDto:
+      type: object
+      properties:
+        interviewRecordId: { type: integer, format: int64 }
+        rawTranscript: { type: string, nullable: true }
+        cleanedTranscript: { type: string, nullable: true }
+        confirmedTranscript: { type: string, nullable: true }
+        transcriptStatus: { type: string }
+        segments:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewTranscriptSegmentDto"
+        updatedAt: { type: string, format: date-time }
+    UpdateInterviewTranscriptSegmentRequest:
+      type: object
+      properties:
+        speakerType: { type: string, nullable: true }
+        cleanedText: { type: string, nullable: true }
+        confirmedText: { type: string, nullable: true }
+    InterviewRecordQuestionAnswerDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        text: { type: string }
+        normalizedText: { type: string, nullable: true }
+        summary: { type: string, nullable: true }
+        confidenceMarkers:
+          type: array
+          items: { type: string }
+        weaknessTags:
+          type: array
+          items: { type: string }
+        strengthTags:
+          type: array
+          items: { type: string }
+        orderIndex: { type: integer }
+    InterviewRecordQuestionDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        text: { type: string }
+        normalizedText: { type: string, nullable: true }
+        questionType: { type: string }
+        topicTags:
+          type: array
+          items: { type: string }
+        intentTags:
+          type: array
+          items: { type: string }
+        derivedFromResumeSection: { type: string, nullable: true }
+        derivedFromResumeRecordType: { type: string, nullable: true }
+        derivedFromResumeRecordId: { type: integer, format: int64, nullable: true }
+        derivedFromJobPostingSection: { type: string, nullable: true }
+        parentQuestionId: { type: integer, format: int64, nullable: true }
+        orderIndex: { type: integer }
+        answer:
+          allOf:
+            - $ref: "#/components/schemas/InterviewRecordQuestionAnswerDto"
+          nullable: true
+    InterviewRecordQuestionsResponseDto:
+      type: object
+      properties:
+        interviewRecordId: { type: integer, format: int64 }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewRecordQuestionDto"
+    InterviewRecordAnalysisDto:
+      type: object
+      properties:
+        interviewRecordId: { type: integer, format: int64 }
+        totalQuestions: { type: integer }
+        totalAnswers: { type: integer }
+        followUpCount: { type: integer }
+        questionTypeDistribution:
+          type: object
+          additionalProperties:
+            type: integer
+        weakAnswerQuestionIds:
+          type: array
+          items: { type: integer, format: int64 }
+        topicTags:
+          type: array
+          items: { type: string }
+        overallSummary: { type: string, nullable: true }
+    InterviewerProfileDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        sourceInterviewRecordId: { type: integer, format: int64 }
+        styleTags:
+          type: array
+          items: { type: string }
+        toneProfile: { type: string }
+        pressureLevel: { type: string }
+        depthPreference: { type: string }
+        followUpPatterns:
+          type: array
+          items: { type: string }
+        favoriteTopics:
+          type: array
+          items: { type: string }
+        openingPattern: { type: string, nullable: true }
+        closingPattern: { type: string, nullable: true }
     ArchivedQuestionDto:
       type: object
       properties:

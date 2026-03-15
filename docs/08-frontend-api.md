@@ -166,13 +166,37 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - AI-generated question text may be English
   - resume evidence snippets may still be Korean original text
 
-Planned full-scope practical interview replay support:
-- add real-interview resources for upload, transcript review, structured question review, and interviewer-profile reads
+Implemented practical interview record foundation:
+- real-interview records now have dedicated resources:
+  - `POST /api/interview-records`
+  - `GET /api/interview-records`
+  - `GET /api/interview-records/{recordId}`
+  - `GET /api/interview-records/{recordId}/transcript`
+  - `PATCH /api/interview-records/{recordId}/transcript/segments/{segmentId}`
+  - `GET /api/interview-records/{recordId}/questions`
+  - `GET /api/interview-records/{recordId}/analysis`
+  - `GET /api/interview-records/{recordId}/interviewer-profile`
 - keep imported real-interview records distinct from interactive mock-session resources
-- when `replay_mock` is introduced, frontend should reuse the interview session UI shell where possible, but start the session from a selected `sourceInterviewRecordId`
-- transcript review screens should expose raw transcript, cleaned transcript, and confirmed transcript separately
-- imported real-interview questions should behave like question-level study assets and may later appear in archive with additive source metadata such as `Real Interview`
-- replay simulation questions should remain dynamic even when they are seeded from a stored interviewer profile
+- transcript review screens should expose `rawTranscript`, `cleanedTranscript`, `confirmedTranscript`, and ordered `segments`
+- `POST /api/interview-records` is `multipart/form-data` with:
+  - required `file`
+  - optional `companyName`, `roleName`, `interviewDate`, `interviewType`, `linkedResumeVersionId`, `linkedJobPostingId`, `transcriptText`
+- when transcript text is present at upload time, the backend currently performs deterministic structuring immediately and returns completed transcript/analysis status
+- structured question review should consume:
+  - `questionType`
+  - `topicTags`
+  - `intentTags`
+  - nested answer snapshot fields such as `summary`, `confidenceMarkers`, `weaknessTags`, and `strengthTags`
+- interviewer-profile screens can now consume:
+  - `styleTags`
+  - `toneProfile`
+  - `pressureLevel`
+  - `depthPreference`
+  - `followUpPatterns`
+  - `favoriteTopics`
+  - `openingPattern`
+  - `closingPattern`
+- `replay_mock` is still planned, but frontend should already model imported interview records as reusable assets that can later seed replay flows
 
 ## Recommended Frontend Usage
 - During local integration, point Swagger or codegen tooling at `/v3/api-docs`.

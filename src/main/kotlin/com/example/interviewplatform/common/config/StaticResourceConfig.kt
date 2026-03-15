@@ -10,10 +10,15 @@ import java.nio.file.Paths
 class StaticResourceConfig(
     @Value("\${app.storage.profile-image-dir:uploads/profile-images}")
     private val profileImageDir: String,
+    @Value("\${app.storage.interview-audio-dir:uploads/interview-audio}")
+    private val interviewAudioDir: String,
 ) : WebMvcConfigurer {
     override fun addResourceHandlers(registry: ResourceHandlerRegistry) {
-        val absoluteDir = Paths.get(profileImageDir).toAbsolutePath().normalize().toUri().toString()
+        val absoluteProfileDir = Paths.get(profileImageDir).toAbsolutePath().normalize().toUri().toString()
+        val absoluteInterviewAudioDir = Paths.get(interviewAudioDir).toAbsolutePath().normalize().toUri().toString()
         registry.addResourceHandler("/uploads/profile-images/**")
-            .addResourceLocations(absoluteDir)
+            .addResourceLocations(absoluteProfileDir)
+        registry.addResourceHandler("/uploads/interview-audio/**")
+            .addResourceLocations(absoluteInterviewAudioDir)
     }
 }

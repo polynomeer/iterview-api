@@ -1449,12 +1449,12 @@ The following interview features are still intentionally deferred:
 - voice transcription pipeline
 - AI realtime interactions that bypass the standard answer-attempt model
 
-### Planned Full-Scope Practical Interview Replay
+### Implemented Practical Interview Record Foundation
 
 Purpose:
-- ingest one real interview recording, structure it into reusable learning assets, and reuse its interviewer style inside a later replay simulation
+- ingest one real interview recording, structure it into reviewable transcript/question assets, and expose the interviewer-style summary needed for later replay simulation work
 
-Recommended additive resources:
+Implemented resources:
 - `POST /api/interview-records`
 - `GET /api/interview-records`
 - `GET /api/interview-records/{recordId}`
@@ -1463,33 +1463,79 @@ Recommended additive resources:
 - `GET /api/interview-records/{recordId}/questions`
 - `GET /api/interview-records/{recordId}/analysis`
 - `GET /api/interview-records/{recordId}/interviewer-profile`
-- `POST /api/interview-sessions` with `sessionType = replay_mock`
 
-Recommended semantics:
-- audio upload should keep the original asset plus staged transcript artifacts:
-  - raw transcript
-  - cleaned transcript
-  - user-confirmed transcript
-- transcript editing should be additive and auditable; user corrections should not destroy the raw speech-to-text output
-- structured question and answer extraction should produce stable question-level records that can be searched, replayed, and archived
-- imported real-interview questions should be eligible to appear in archive with additive source metadata such as:
-  - `sourceType = real_interview`
-  - `sourceLabel = Real Interview`
-  - `sourceInterviewRecordId`
-- replay simulations should reuse the existing session engine while extending `sessionType` to include `replay_mock`
-- `replay_mock` creation should accept:
-  - `sourceInterviewRecordId`
-  - optional `resumeVersionId`
-  - optional `jobPostingId`
-  - `replayMode`
-- recommended replay modes:
-  - `original_replay`
-  - `pattern_similar`
-  - `pressure_variant`
-- replay simulations should preserve the imported interviewer style and topic ordering tendencies, but still generate dynamic follow-up questions from the user's new answer
-- imported real-interview detail should expose:
-  - transcript segments
-  - structured questions and answers
-  - follow-up edges
-  - interviewer-style summary
-  - resume/JD linkage when available
+Current request and response semantics:
+- `POST /api/interview-records` is `multipart/form-data`
+- current required upload field:
+  - `file`
+- currently supported optional create fields:
+  - `companyName`
+  - `roleName`
+  - `interviewDate`
+  - `interviewType`
+  - `linkedResumeVersionId`
+  - `linkedJobPostingId`
+  - `transcriptText`
+- the uploaded audio asset is stored without mutating the original file name
+- when `transcriptText` is provided, the backend currently performs deterministic structuring immediately and returns:
+  - `transcriptStatus = confirmed`
+  - `analysisStatus = completed`
+- when `transcriptText` is omitted, the record currently remains in:
+  - `transcriptStatus = pending`
+  - `analysisStatus = pending`
+
+Current transcript semantics:
+- transcript resources keep three staged values on the record:
+  - `rawTranscript`
+  - `cleanedTranscript`
+  - `confirmedTranscript`
+- transcript detail also exposes ordered `segments`
+- each segment includes:
+  - `speakerType`
+  - `rawText`
+  - `cleanedText`
+  - `confirmedText`
+  - `confidenceScore`
+  - `sequence`
+- `PATCH /api/interview-records/{recordId}/transcript/segments/{segmentId}` currently accepts additive edits for:
+  - `speakerType`
+  - `cleanedText`
+  - `confirmedText`
+- patching one segment rebuilds the confirmed transcript and re-derives structured questions, answers, follow-up edges, and interviewer profile in the same transaction
+
+Current structured extraction semantics:
+- `GET /api/interview-records/{recordId}/questions` returns ordered imported question assets
+- each question may include:
+  - `questionType`
+  - `topicTags`
+  - `intentTags`
+  - optional derived resume linkage fields
+  - one structured answer snapshot
+- answer snapshots currently expose:
+  - `summary`
+  - `confidenceMarkers`
+  - `weaknessTags`
+  - `strengthTags`
+- `GET /api/interview-records/{recordId}/analysis` currently returns:
+  - `totalQuestions`
+  - `totalAnswers`
+  - `followUpCount`
+  - `questionTypeDistribution`
+  - `weakAnswerQuestionIds`
+  - `topicTags`
+  - `overallSummary`
+- `GET /api/interview-records/{recordId}/interviewer-profile` currently returns a reusable interviewer-style summary including:
+  - `styleTags`
+  - `toneProfile`
+  - `pressureLevel`
+  - `depthPreference`
+  - `followUpPatterns`
+  - `favoriteTopics`
+  - `openingPattern`
+  - `closingPattern`
+
+Current implementation notes:
+- the current structuring pipeline is deterministic and text-based; it does not yet include speech-to-text or LLM transcript cleaning
+- current speaker detection uses prefixes and question-mark heuristics
+- imported real-interview questions are not yet mirrored into archive and do not yet start `replay_mock`
+- replay simulations should still be added as a later additive session type on top of the existing interview session engine
