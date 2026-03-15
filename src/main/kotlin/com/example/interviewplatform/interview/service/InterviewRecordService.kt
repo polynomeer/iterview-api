@@ -44,6 +44,7 @@ class InterviewRecordService(
     private val interviewerProfileRepository: InterviewerProfileRepository,
     private val interviewRecordQuestionAssetService: InterviewRecordQuestionAssetService,
     private val interviewAudioStorageService: InterviewAudioStorageService,
+    private val practicalInterviewStructuringEnrichmentService: PracticalInterviewStructuringEnrichmentService,
     private val resumeRepository: ResumeRepository,
     private val resumeVersionRepository: ResumeVersionRepository,
     private val clockService: ClockService,
@@ -290,7 +291,11 @@ class InterviewRecordService(
             interviewTranscriptSegmentRepository.flush()
         }
 
-        val parsed = parseTranscript(transcriptText, now)
+        val parsed = practicalInterviewStructuringEnrichmentService.enrich(
+            record = record,
+            transcriptText = transcriptText,
+            parsedTranscript = parseTranscript(transcriptText, now),
+        )
         val segments = interviewTranscriptSegmentRepository.saveAll(parsed.segments.map { it.toEntity(record.id) })
         val persistedQuestions = mutableListOf<InterviewRecordQuestionEntity>()
         val answersToPersist = mutableListOf<InterviewRecordAnswerEntity>()
@@ -356,8 +361,14 @@ class InterviewRecordService(
             }
         }
 
-        val overallSummary = buildOverallSummary(parsed.questions)
-        val profile = buildInterviewerProfile(record.userId, record.id, parsed.questions, now)
+        val overallSummary = parsed.overallSummaryOverride ?: buildOverallSummary(parsed.questions)
+        val profile = buildInterviewerProfile(
+            userId = record.userId,
+            recordId = record.id,
+            questions = parsed.questions,
+            profileOverride = parsed.interviewerProfileOverride,
+            now = now,
+        )
         interviewerProfileRepository.findBySourceInterviewRecordId(record.id)?.let { existingProfile ->
             interviewRecordRepository.saveAndFlush(
                 InterviewRecordEntity(
@@ -619,6 +630,7 @@ class InterviewRecordService(
         userId: Long,
         recordId: Long,
         questions: List<ParsedQuestion>,
+        profileOverride: PracticalInterviewInterviewerProfileOverride?,
         now: Instant,
     ): InterviewerProfileEntity {
         val favoriteTopics = questions.flatMap { it.topicTags }.groupingBy { it }.eachCount()
@@ -641,23 +653,22 @@ class InterviewRecordService(
             if (questions.any { it.parentOrderIndex != null && "project" in it.topicTags }) add("deep_dive_probe")
             if (questions.zipWithNext().any { (first, second) -> second.parentOrderIndex == first.orderIndex }) add("sequential_probe")
         }.ifEmpty { listOf("sequential_probe") }
+        val styleTags = buildList {
+            add("structured_probe")
+            if (pressureLevel == "high") add("pressure_probe")
+            if (depthPreference == "deep") add("depth_probe")
+        }
         return InterviewerProfileEntity(
             userId = userId,
             sourceInterviewRecordId = recordId,
-            styleTagsJson = objectMapper.writeValueAsString(
-                buildList {
-                    add("structured_probe")
-                    if (pressureLevel == "high") add("pressure_probe")
-                    if (depthPreference == "deep") add("depth_probe")
-                },
-            ),
-            toneProfile = if (pressureLevel == "high") "probing" else "measured",
-            pressureLevel = pressureLevel,
-            depthPreference = depthPreference,
-            followUpPatternJson = objectMapper.writeValueAsString(followUpPatterns),
-            favoriteTopicsJson = objectMapper.writeValueAsString(favoriteTopics),
-            openingPattern = questions.firstOrNull()?.questionType,
-            closingPattern = questions.lastOrNull()?.questionType,
+            styleTagsJson = objectMapper.writeValueAsString(profileOverride?.styleTags ?: styleTags),
+            toneProfile = profileOverride?.toneProfile ?: if (pressureLevel == "high") "probing" else "measured",
+            pressureLevel = profileOverride?.pressureLevel ?: pressureLevel,
+            depthPreference = profileOverride?.depthPreference ?: depthPreference,
+            followUpPatternJson = objectMapper.writeValueAsString(profileOverride?.followUpPatterns ?: followUpPatterns),
+            favoriteTopicsJson = objectMapper.writeValueAsString(profileOverride?.favoriteTopics ?: favoriteTopics),
+            openingPattern = profileOverride?.openingPattern ?: questions.firstOrNull()?.questionType,
+            closingPattern = profileOverride?.closingPattern ?: questions.lastOrNull()?.questionType,
             createdAt = now,
             updatedAt = now,
         )
@@ -800,12 +811,14 @@ class InterviewRecordService(
     }
 }
 
-private data class ParsedInterviewTranscript(
+data class ParsedInterviewTranscript(
     val segments: List<ParsedSegment>,
     val questions: List<ParsedQuestion>,
+    val overallSummaryOverride: String? = null,
+    val interviewerProfileOverride: PracticalInterviewInterviewerProfileOverride? = null,
 )
 
-private data class ParsedSegment(
+data class ParsedSegment(
     val sequence: Int,
     val startMs: Long,
     val endMs: Long,
@@ -832,7 +845,7 @@ private data class ParsedSegment(
     )
 }
 
-private data class ParsedQuestion(
+data class ParsedQuestion(
     val orderIndex: Int,
     val segmentStartSequence: Int,
     val segmentEndSequence: Int,
@@ -848,7 +861,7 @@ private data class ParsedQuestion(
     val answer: ParsedAnswer?,
 )
 
-private data class ParsedAnswer(
+data class ParsedAnswer(
     val segmentStartSequence: Int,
     val segmentEndSequence: Int,
     val text: String,
