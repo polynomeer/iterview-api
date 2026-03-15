@@ -218,6 +218,7 @@ class InterviewRecordService(
     @Transactional(readOnly = true)
     fun getReview(userId: Long, recordId: Long): InterviewRecordReviewDto {
         val record = requireOwnedRecord(userId, recordId)
+        val segments = interviewTranscriptSegmentRepository.findByInterviewRecordIdOrderBySequenceAsc(recordId)
         val questions = interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(recordId)
         val answers = if (questions.isEmpty()) {
             emptyList()
@@ -233,6 +234,12 @@ class InterviewRecordService(
             aiEnrichedSummary = record.aiEnrichedSummary,
             overallSummary = record.overallSummary,
             confirmedAt = record.confirmedAt,
+            totalSegmentCount = segments.size,
+            editedSegmentCount = segments.count(::isEditedSegment),
+            totalQuestionCount = questions.size,
+            changedQuestionCount = questions.count { it.structuringSource != STRUCTURING_STAGE_DETERMINISTIC },
+            weakAnswerCount = answers.count { decodeStringList(it.weaknessTagsJson).isNotEmpty() },
+            followUpQuestionCount = questions.count { it.parentQuestionId != null },
             questionSourceCounts = questions.groupingBy { it.structuringSource }.eachCount().toSortedMap(),
             answerSourceCounts = answers.groupingBy { it.structuringSource }.eachCount().toSortedMap(),
             interviewerProfileSource = interviewerProfile?.structuringSource,
@@ -1037,6 +1044,16 @@ class InterviewRecordService(
     }
 
     private fun normalize(value: String): String = value.replace(Regex("\\s+"), " ").trim()
+
+    private fun isEditedSegment(segment: InterviewTranscriptSegmentEntity): Boolean {
+        val cleaned = segment.cleanedText?.trim().orEmpty()
+        val confirmed = segment.confirmedText?.trim().orEmpty()
+        return confirmed.isNotBlank() && confirmed != cleaned
+    }
+
+    private fun decodeStringList(raw: String): List<String> =
+        runCatching { objectMapper.readValue(raw, object : TypeReference<List<String>>() {}) }
+            .getOrDefault(emptyList())
 
     companion object {
         private const val STRUCTURING_STAGE_DETERMINISTIC = "deterministic"

@@ -1856,6 +1856,12 @@ components:
         aiEnrichedSummary: { type: string, nullable: true }
         overallSummary: { type: string, nullable: true }
         confirmedAt: { type: string, format: date-time, nullable: true }
+        totalSegmentCount: { type: integer }
+        editedSegmentCount: { type: integer }
+        totalQuestionCount: { type: integer }
+        changedQuestionCount: { type: integer }
+        weakAnswerCount: { type: integer }
+        followUpQuestionCount: { type: integer }
         questionSourceCounts:
           type: object
           additionalProperties:

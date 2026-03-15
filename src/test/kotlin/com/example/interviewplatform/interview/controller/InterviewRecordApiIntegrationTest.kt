@@ -159,6 +159,12 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.structuringStage").value("deterministic"))
             .andExpect(jsonPath("$.requiresConfirmation").value(true))
+            .andExpect(jsonPath("$.totalSegmentCount").value(4))
+            .andExpect(jsonPath("$.editedSegmentCount").value(0))
+            .andExpect(jsonPath("$.totalQuestionCount").value(2))
+            .andExpect(jsonPath("$.changedQuestionCount").value(0))
+            .andExpect(jsonPath("$.weakAnswerCount").value(2))
+            .andExpect(jsonPath("$.followUpQuestionCount").value(1))
             .andExpect(jsonPath("$.questionSourceCounts.deterministic").value(2))
             .andExpect(jsonPath("$.answerSourceCounts.deterministic").value(2))
 
@@ -174,6 +180,7 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.structuringStage").value("confirmed"))
             .andExpect(jsonPath("$.requiresConfirmation").value(false))
+            .andExpect(jsonPath("$.changedQuestionCount").value(2))
             .andExpect(jsonPath("$.questionSourceCounts.confirmed").value(2))
             .andExpect(jsonPath("$.answerSourceCounts.confirmed").value(2))
     }
@@ -336,6 +343,8 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.structuringStage").value("confirmed"))
             .andExpect(jsonPath("$.requiresConfirmation").value(false))
+            .andExpect(jsonPath("$.editedSegmentCount").value(0))
+            .andExpect(jsonPath("$.changedQuestionCount").value(2))
             .andExpect(jsonPath("$.questionSourceCounts.confirmed").value(2))
 
         mockMvc.perform(get("/api/interview-records/$recordId/questions").header("Authorization", authHeader))

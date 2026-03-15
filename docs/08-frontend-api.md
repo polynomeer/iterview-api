@@ -244,6 +244,13 @@ Implemented practical interview record foundation:
   - `aiEnrichedSummary`
   - `overallSummary`
   - `confirmedAt`
+  - `totalSegmentCount`
+  - `editedSegmentCount`
+    - this is the current pending diff count against the cleaned baseline; once edits are rebuilt and confirmed it may return to `0`
+  - `totalQuestionCount`
+  - `changedQuestionCount`
+  - `weakAnswerCount`
+  - `followUpQuestionCount`
   - `questionSourceCounts`
   - `answerSourceCounts`
   - `interviewerProfileSource`

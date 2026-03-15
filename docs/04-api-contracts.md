@@ -1572,6 +1572,13 @@ Current structured extraction semantics:
   - `aiEnrichedSummary`
   - `overallSummary`
   - `confirmedAt`
+  - `totalSegmentCount`
+  - `editedSegmentCount`
+    - currently means pending segment-level diff count where `confirmedText` still differs from the cleaned baseline
+  - `totalQuestionCount`
+  - `changedQuestionCount`
+  - `weakAnswerCount`
+  - `followUpQuestionCount`
   - `questionSourceCounts`
   - `answerSourceCounts`
   - `interviewerProfileSource`
