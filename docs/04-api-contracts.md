@@ -1572,8 +1572,13 @@ Current semantics:
   - `sourceType = replay_seed`
   - `generationStatus = replay_imported`
 
-Current limitations:
-- `replay_mock` currently reuses the standard turn-based session engine but does not yet generate interviewer-style follow-up questions from the stored interviewer profile
+Current implemented follow-up behavior:
+- `replay_mock` now reuses the standard turn-based session engine and can generate interviewer-style AI follow-up questions from the stored interviewer profile and imported question/answer examples
+- replay AI follow-up turns use:
+  - `sourceType = replay_ai_follow_up`
+  - `generationStatus = replay_ai_generated`
+- replay-seeded rows may start with `questionId = null`
+- when the user submits an answer for a replay-seeded row, the backend binds that turn to a private generated question record before persisting the answer attempt so the existing answer/archive pipeline can still be reused
 - imported real-interview questions are now exposed from archive as study assets with:
   - `sourceType = real_interview`
   - `sourceLabel = Real Interview`

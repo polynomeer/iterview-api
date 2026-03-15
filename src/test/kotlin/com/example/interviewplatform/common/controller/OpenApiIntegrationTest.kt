@@ -64,6 +64,7 @@ class OpenApiIntegrationTest {
             .andExpect(jsonPath("$.components.schemas.InterviewSessionQuestionDto.properties.bodyText").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewSessionQuestionDto.properties.focusSkillNames").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewSessionQuestionDto.properties.resumeEvidence").exists())
+            .andExpect(jsonPath("$.components.schemas.InterviewSessionQuestionDto.properties.sourceType").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewSessionQuestionDto.properties.generationStatus").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewSessionSummaryDto.properties.skippedQuestions").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewSessionDetailResponseDto.properties.sourceInterviewRecordId").exists())

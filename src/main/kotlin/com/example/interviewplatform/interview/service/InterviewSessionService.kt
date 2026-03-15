@@ -271,10 +271,44 @@ class InterviewSessionService(
             throw ResponseStatusException(HttpStatus.CONFLICT, "Interview session question already skipped: ${row.id}")
         }
 
+        val effectiveQuestionId = row.questionId ?: bindSessionQuestionToGeneratedQuestion(
+            userId = userId,
+            row = row,
+            now = now,
+        ).also { generatedQuestionId ->
+            interviewSessionQuestionRepository.save(
+                InterviewSessionQuestionEntity(
+                    id = row.id,
+                    interviewSessionId = row.interviewSessionId,
+                    questionId = generatedQuestionId,
+                    parentSessionQuestionId = row.parentSessionQuestionId,
+                    promptText = row.promptText,
+                    bodyText = row.bodyText,
+                    questionSourceType = row.questionSourceType,
+                    orderIndex = row.orderIndex,
+                    isFollowUp = row.isFollowUp,
+                    depth = row.depth,
+                    categoryName = row.categoryName,
+                    tagsJson = row.tagsJson,
+                    focusSkillNamesJson = row.focusSkillNamesJson,
+                    resumeContextSummary = row.resumeContextSummary,
+                    resumeEvidenceJson = row.resumeEvidenceJson,
+                    generationRationale = row.generationRationale,
+                    generationStatus = row.generationStatus,
+                    llmModel = row.llmModel,
+                    llmPromptVersion = row.llmPromptVersion,
+                    contentLocale = row.contentLocale,
+                    answerAttemptId = row.answerAttemptId,
+                    skippedAt = row.skippedAt,
+                    createdAt = row.createdAt,
+                    updatedAt = now,
+                ),
+            )
+        }
+
         val submission = answerService.submitAnswer(
             userId = userId,
-            questionId = row.questionId
-                ?: throw ResponseStatusException(HttpStatus.CONFLICT, "Interview session question is not bound to a catalog question: ${row.id}"),
+            questionId = effectiveQuestionId,
             request = SubmitAnswerRequest(
                 answerMode = request.answerMode,
                 contentText = request.contentText,
@@ -292,7 +326,7 @@ class InterviewSessionService(
             InterviewSessionQuestionEntity(
                 id = row.id,
                 interviewSessionId = row.interviewSessionId,
-                questionId = row.questionId,
+                questionId = effectiveQuestionId,
                 parentSessionQuestionId = row.parentSessionQuestionId,
                 promptText = row.promptText,
                 bodyText = row.bodyText,
@@ -379,6 +413,31 @@ class InterviewSessionService(
             nextQuestion = detail.currentQuestion,
             summary = detail.summary,
         )
+    }
+
+    private fun bindSessionQuestionToGeneratedQuestion(
+        userId: Long,
+        row: InterviewSessionQuestionEntity,
+        now: java.time.Instant,
+    ): Long {
+        val categoryId = resolveGeneratedQuestionCategoryId(userId)
+        return questionRepository.save(
+            QuestionEntity(
+                authorUserId = userId,
+                categoryId = categoryId,
+                title = row.promptText ?: "Interview Question",
+                body = row.bodyText ?: row.promptText ?: "Interview Question",
+                questionType = QUESTION_TYPE_BEHAVIORAL,
+                difficultyLevel = QUESTION_DIFFICULTY_MEDIUM,
+                sourceType = QUESTION_SOURCE_TYPE_INTERVIEW_AI,
+                qualityStatus = QUESTION_QUALITY_STATUS_GENERATED,
+                visibility = QUESTION_VISIBILITY_PRIVATE,
+                expectedAnswerSeconds = DEFAULT_EXPECTED_ANSWER_SECONDS,
+                isActive = true,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        ).id
     }
 
     @Transactional
@@ -836,7 +895,6 @@ class InterviewSessionService(
         if (answeredRow.depth >= maxFollowUpDepth) {
             return false
         }
-        val parentQuestionId = answeredRow.questionId ?: return false
         val existingRows = interviewSessionQuestionRepository.findByInterviewSessionIdOrderByOrderIndexAsc(sessionId)
         if (existingRows.any { it.parentSessionQuestionId == answeredRow.id }) {
             return false
@@ -863,7 +921,8 @@ class InterviewSessionService(
                 insertGeneratedFollowUp(
                     userId = userId,
                     session = session,
-                    parentQuestionId = parentQuestionId,
+                    sourceType = SOURCE_TYPE_AI_FOLLOW_UP,
+                    generationStatus = GENERATION_STATUS_AI_GENERATED,
                     generated = generated,
                     answeredRow = answeredRow,
                     existingRows = existingRows,
@@ -872,6 +931,33 @@ class InterviewSessionService(
                 return true
             }
         }
+
+        if (session.sessionType == SESSION_TYPE_REPLAY_MOCK && session.sourceInterviewRecordId != null) {
+            val generated = interviewFollowUpGenerationService.generateReplayFollowUp(
+                session = session,
+                answeredRow = answeredRow,
+                answerText = answerText,
+                answerScore = answerScore,
+                parentTags = decodeJsonArray(answeredRow.tagsJson),
+                parentFocusSkillNames = decodeJsonArray(answeredRow.focusSkillNamesJson),
+                sourceInterviewRecordId = session.sourceInterviewRecordId,
+            )
+            if (generated != null) {
+                insertGeneratedFollowUp(
+                    userId = userId,
+                    session = session,
+                    sourceType = SOURCE_TYPE_REPLAY_AI_FOLLOW_UP,
+                    generationStatus = GENERATION_STATUS_REPLAY_AI_GENERATED,
+                    generated = generated,
+                    answeredRow = answeredRow,
+                    existingRows = existingRows,
+                    now = now,
+                )
+                return true
+            }
+        }
+
+        val parentQuestionId = answeredRow.questionId ?: return false
 
         val edge = questionRelationshipRepository.findByParentQuestionIdOrderByDisplayOrderAscIdAsc(parentQuestionId)
             .firstOrNull { it.relationshipType.lowercase() == RELATIONSHIP_TYPE_FOLLOW_UP }
@@ -917,29 +1003,33 @@ class InterviewSessionService(
     private fun insertGeneratedFollowUp(
         userId: Long,
         session: InterviewSessionEntity,
-        parentQuestionId: Long,
+        sourceType: String,
+        generationStatus: String,
         generated: GeneratedInterviewFollowUp,
         answeredRow: InterviewSessionQuestionEntity,
         existingRows: List<InterviewSessionQuestionEntity>,
         now: java.time.Instant,
     ) {
-        val parentQuestion = questionRepository.findByIdAndIsActiveTrue(parentQuestionId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Parent interview question not found: $parentQuestionId")
+        val parentQuestion = answeredRow.questionId?.let { questionRepository.findByIdAndIsActiveTrue(it) }
+        val generatedCategoryId = parentQuestion?.categoryId ?: resolveGeneratedQuestionCategoryId(userId)
+        val generatedQuestionType = parentQuestion?.questionType ?: QUESTION_TYPE_BEHAVIORAL
+        val generatedDifficulty = parentQuestion?.difficultyLevel ?: QUESTION_DIFFICULTY_MEDIUM
+        val generatedExpectedAnswerSeconds = parentQuestion?.expectedAnswerSeconds ?: DEFAULT_EXPECTED_ANSWER_SECONDS
 
         shiftRowsForInsertion(existingRows, answeredRow.orderIndex, now)
 
         val generatedQuestion = questionRepository.save(
             QuestionEntity(
                 authorUserId = userId,
-                categoryId = parentQuestion.categoryId,
+                categoryId = generatedCategoryId,
                 title = generated.promptText,
                 body = generated.bodyText ?: generated.promptText,
-                questionType = parentQuestion.questionType,
-                difficultyLevel = parentQuestion.difficultyLevel,
+                questionType = generatedQuestionType,
+                difficultyLevel = generatedDifficulty,
                 sourceType = QUESTION_SOURCE_TYPE_INTERVIEW_AI,
                 qualityStatus = QUESTION_QUALITY_STATUS_GENERATED,
                 visibility = QUESTION_VISIBILITY_PRIVATE,
-                expectedAnswerSeconds = parentQuestion.expectedAnswerSeconds,
+                expectedAnswerSeconds = generatedExpectedAnswerSeconds,
                 isActive = true,
                 createdAt = now,
                 updatedAt = now,
@@ -952,7 +1042,7 @@ class InterviewSessionService(
                 parentSessionQuestionId = answeredRow.id,
                 promptText = generated.promptText,
                 bodyText = generated.bodyText,
-                questionSourceType = SOURCE_TYPE_AI_FOLLOW_UP,
+                questionSourceType = sourceType,
                 orderIndex = answeredRow.orderIndex + 1,
                 isFollowUp = true,
                 depth = answeredRow.depth + 1,
@@ -962,7 +1052,7 @@ class InterviewSessionService(
                 resumeContextSummary = generated.resumeContextSummary,
                 resumeEvidenceJson = encodeResumeEvidence(generated.resumeEvidence),
                 generationRationale = generated.generationRationale,
-                generationStatus = GENERATION_STATUS_AI_GENERATED,
+                generationStatus = generationStatus,
                 llmModel = generated.llmModel,
                 llmPromptVersion = generated.llmPromptVersion,
                 contentLocale = generated.contentLocale,
@@ -1915,11 +2005,13 @@ class InterviewSessionService(
         const val SOURCE_TYPE_CATALOG_FOLLOW_UP = "catalog_follow_up"
         const val SOURCE_TYPE_AI_OPENING = "ai_opening"
         const val SOURCE_TYPE_AI_FOLLOW_UP = "ai_follow_up"
+        const val SOURCE_TYPE_REPLAY_AI_FOLLOW_UP = "replay_ai_follow_up"
         const val SOURCE_TYPE_COVERAGE_PLANNER = "coverage_planner"
         const val SOURCE_TYPE_REPLAY_SEED = "replay_seed"
         const val GENERATION_STATUS_SEEDED = "seeded"
         const val GENERATION_STATUS_CATALOG_FOLLOW_UP = "catalog_follow_up"
         const val GENERATION_STATUS_AI_GENERATED = "ai_generated"
+        const val GENERATION_STATUS_REPLAY_AI_GENERATED = "replay_ai_generated"
         const val GENERATION_STATUS_COVERAGE_PLANNED = "coverage_planned"
         const val GENERATION_STATUS_COVERAGE_EXTENDED = "coverage_extended"
         const val GENERATION_STATUS_REPLAY_IMPORTED = "replay_imported"

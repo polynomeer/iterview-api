@@ -120,6 +120,11 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `sourceType = replay_seed`
   - `generationStatus = replay_imported`
   - replay-oriented `bodyText` that summarizes the imported answer/interviewer tone
+- after a replay-seeded question is answered, the backend may return AI-generated interviewer-style follow-up turns with:
+  - `sourceType = replay_ai_follow_up`
+  - `generationStatus = replay_ai_generated`
+  - `questionId` populated from a private generated question asset even if the original replay seed started with `questionId = null`
+  - `bodyText` and `generationRationale` aligned to the imported interviewer profile and imported interview examples
 - Recommended rendering fallback for session questions:
   - use `title` as the primary visible prompt
   - use `bodyText` as supporting interviewer framing when present

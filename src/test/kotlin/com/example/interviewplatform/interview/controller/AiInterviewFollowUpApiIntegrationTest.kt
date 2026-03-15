@@ -136,6 +136,76 @@ class AiInterviewFollowUpApiIntegrationTest {
             .andExpect(jsonPath("$.questions[1].contentLocale").value("en"))
     }
 
+    @Test
+    fun `replay mock session creates interviewer-profile-based ai follow up`() {
+        val sourceInterviewRecordId = insertInterviewRecord()
+        insertInterviewerProfile(sourceInterviewRecordId)
+        insertInterviewRecordQuestion(
+            sourceInterviewRecordId = sourceInterviewRecordId,
+            orderIndex = 1,
+            text = "How did you decide rollback timing during the outage?",
+            questionType = "technical_depth",
+        )
+        insertInterviewRecordAnswer(
+            sourceInterviewRecordId = sourceInterviewRecordId,
+            interviewRecordQuestionOrderIndex = 1,
+            summary = "The original interviewer kept pushing on rollback thresholds and communication timing.",
+        )
+
+        val sessionResponse = mockMvc.perform(
+            post("/api/interview-sessions")
+                .header("Authorization", authHeader)
+                .header("X-App-Locale", "en")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "sessionType" to "replay_mock",
+                            "questionCount" to 1,
+                            "sourceInterviewRecordId" to sourceInterviewRecordId,
+                            "replayMode" to "pressure_variant",
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.sourceInterviewRecordId").value(sourceInterviewRecordId))
+            .andExpect(jsonPath("$.replayMode").value("pressure_variant"))
+            .andExpect(jsonPath("$.currentQuestion.sourceType").value("replay_seed"))
+            .andReturn()
+            .response.contentAsString.let(objectMapper::readTree)
+
+        val sessionId = sessionResponse.get("id").asLong()
+        val sessionQuestionId = sessionResponse.get("currentQuestion").get("id").asLong()
+
+        mockMvc.perform(
+            post("/api/interview-sessions/$sessionId/answers")
+                .header("Authorization", authHeader)
+                .header("X-App-Locale", "en")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "sessionQuestionId" to sessionQuestionId,
+                            "answerMode" to "text",
+                            "contentText" to "I rolled back carefully after checking errors, but I did not explain the threshold in detail.\n".repeat(4),
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.nextQuestion.sourceType").value("replay_ai_follow_up"))
+            .andExpect(jsonPath("$.nextQuestion.generationStatus").value("replay_ai_generated"))
+            .andExpect(jsonPath("$.nextQuestion.bodyText").value("Stay close to the imported interviewer style: push on rollback thresholds, communication timing, and operational pressure."))
+            .andExpect(jsonPath("$.nextQuestion.generationRationale").value("The imported interviewer style was high-pressure and the answer still left rollback thresholds vague."))
+            .andExpect(jsonPath("$.nextQuestion.contentLocale").value("en"))
+
+        mockMvc.perform(get("/api/interview-sessions/$sessionId").header("Authorization", authHeader).header("X-App-Locale", "en"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.questions[1].sourceType").value("replay_ai_follow_up"))
+            .andExpect(jsonPath("$.questions[1].generationStatus").value("replay_ai_generated"))
+    }
+
     private fun insertCategory(name: String): Long =
         jdbcTemplate.queryForObject(
             """
@@ -218,6 +288,88 @@ class AiInterviewFollowUpApiIntegrationTest {
         }
     }
 
+    private fun insertInterviewRecord(): Long =
+        jdbcTemplate.queryForObject(
+            """
+            INSERT INTO interview_records (
+                user_id, company_name, role_name, interview_date, interview_type, source_audio_file_url, source_audio_file_name,
+                transcript_status, analysis_status, overall_summary, created_at, updated_at
+            ) VALUES (
+                1, 'Replay Corp', 'Platform Engineer', current_date, 'onsite', '/uploads/interview-audio/replay.m4a', 'replay.m4a',
+                'confirmed', 'completed', 'High-pressure outage interview focused on rollback timing.', now(), now()
+            )
+            RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+        )!!
+
+    private fun insertInterviewerProfile(sourceInterviewRecordId: Long): Long =
+        jdbcTemplate.queryForObject(
+            """
+            INSERT INTO interviewer_profiles (
+                user_id, source_interview_record_id, style_tags_json, tone_profile, pressure_level, depth_preference,
+                follow_up_pattern_json, favorite_topics_json, opening_pattern, closing_pattern, created_at, updated_at
+            ) VALUES (
+                1, ?, '["pressure_probe","rollback_focus"]', 'probing', 'high', 'deep',
+                '["threshold_probe","communication_probe"]', '["reliability","incident"]', 'technical_depth', 'technical_depth', now(), now()
+            )
+            RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            sourceInterviewRecordId,
+        )!!
+
+    private fun insertInterviewRecordQuestion(
+        sourceInterviewRecordId: Long,
+        orderIndex: Int,
+        text: String,
+        questionType: String,
+    ): Long =
+        jdbcTemplate.queryForObject(
+            """
+            INSERT INTO interview_record_questions (
+                interview_record_id, segment_start_id, segment_end_id, text, normalized_text, question_type,
+                topic_tags_json, intent_tags_json, derived_from_resume_section, derived_from_resume_record_type,
+                derived_from_resume_record_id, derived_from_job_posting_section, parent_question_id, order_index, created_at, updated_at
+            ) VALUES (
+                ?, NULL, NULL, ?, ?, ?, '["incident"]', '["threshold_probe"]',
+                NULL, NULL, NULL, NULL, NULL, ?, now(), now()
+            )
+            RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            sourceInterviewRecordId,
+            text,
+            text.lowercase(),
+            questionType,
+            orderIndex,
+        )!!
+
+    private fun insertInterviewRecordAnswer(
+        sourceInterviewRecordId: Long,
+        interviewRecordQuestionOrderIndex: Int,
+        summary: String,
+    ): Long =
+        jdbcTemplate.queryForObject(
+            """
+            INSERT INTO interview_record_answers (
+                interview_record_question_id, segment_start_id, segment_end_id, text, normalized_text, summary,
+                confidence_markers_json, weakness_tags_json, strength_tags_json, analysis_json, order_index, created_at, updated_at
+            ) VALUES (
+                (SELECT id FROM interview_record_questions WHERE interview_record_id = ? AND order_index = ?),
+                NULL, NULL, ?, ?, ?, '[]', '["missing_thresholds"]', '[]', '{}', ?, now(), now()
+            )
+            RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            sourceInterviewRecordId,
+            interviewRecordQuestionOrderIndex,
+            "$summary raw answer",
+            summary.lowercase(),
+            summary,
+            interviewRecordQuestionOrderIndex,
+        )!!
+
     @TestConfiguration
     class FakeInterviewLlmConfig {
         @Bean
@@ -230,6 +382,12 @@ class AiInterviewFollowUpApiIntegrationTest {
                         "{\"promptText\":\"Tell me about the payments migration you led and the trade-offs you had to manage.\",\"bodyText\":\"Focus on the migration scope, trade-offs, and how you measured success.\",\"tags\":[\"payments\",\"migration\"],\"focusSkillNames\":[\"System Design\",\"Ownership\"],\"resumeContextSummary\":\"Resume highlights ownership of a payments platform migration.\",\"resumeEvidence\":[{\"type\":\"resume_sentence\",\"section\":\"project\",\"label\":\"Payments migration\",\"snippet\":\"Led phased rollout of the payments migration with rollback safeguards.\",\"sourceRecordType\":\"resume_project_snapshot\",\"sourceRecordId\":1,\"confidence\":0.94,\"startOffset\":null,\"endOffset\":null}],\"generationRationale\":\"The resume shows a high-impact migration, so the opener should start from the strongest concrete project.\"}"
                     } else {
                         "{\"promptText\":\"주도했던 결제 마이그레이션과 그 과정의 트레이드오프를 설명해 주세요.\",\"bodyText\":\"마이그레이션 범위, 트레이드오프, 그리고 성공을 어떻게 측정했는지 중심으로 설명해 주세요.\",\"tags\":[\"결제\",\"마이그레이션\"],\"focusSkillNames\":[\"시스템 설계\",\"오너십\"],\"resumeContextSummary\":\"이력서에는 결제 플랫폼 마이그레이션을 주도한 경험이 강조되어 있습니다.\",\"resumeEvidence\":[{\"type\":\"resume_sentence\",\"section\":\"project\",\"label\":\"Payments migration\",\"snippet\":\"Led phased rollout of the payments migration with rollback safeguards.\",\"sourceRecordType\":\"resume_project_snapshot\",\"sourceRecordId\":1,\"confidence\":0.94,\"startOffset\":null,\"endOffset\":null}],\"generationRationale\":\"영향도가 큰 프로젝트가 보여서 가장 강한 근거부터 여는 질문으로 선택했습니다.\"}"
+                    }
+                } else if (body.contains("Replay mode:")) {
+                    if (english) {
+                        "{\"promptText\":\"What exact rollback threshold would you commit to before escalating?\",\"bodyText\":\"Stay close to the imported interviewer style: push on rollback thresholds, communication timing, and operational pressure.\",\"tags\":[\"incident\",\"rollback\"],\"focusSkillNames\":[\"Incident Response\",\"Operational Judgment\"],\"resumeContextSummary\":null,\"resumeEvidence\":[],\"generationRationale\":\"The imported interviewer style was high-pressure and the answer still left rollback thresholds vague.\"}"
+                    } else {
+                        "{\"promptText\":\"에스컬레이션 전에 어떤 롤백 임계치를 기준으로 삼았나요?\",\"bodyText\":\"가져온 면접관 스타일을 유지해서 롤백 임계치, 커뮤니케이션 타이밍, 운영 압박을 더 집요하게 확인해 주세요.\",\"tags\":[\"장애\",\"롤백\"],\"focusSkillNames\":[\"장애 대응\",\"운영 판단\"],\"resumeContextSummary\":null,\"resumeEvidence\":[],\"generationRationale\":\"가져온 면접관 스타일이 압박형이고 답변에서도 롤백 임계치가 아직 모호했습니다.\"}"
                     }
                 } else {
                     if (english) {

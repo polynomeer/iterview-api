@@ -1581,7 +1581,9 @@ components:
         difficulty: { type: string }
         orderIndex: { type: integer }
         status: { type: string }
-        sourceType: { type: string }
+        sourceType:
+          type: string
+          description: Session turn source such as replay_seed, replay_ai_follow_up, ai_opening, ai_follow_up, coverage_planner, or catalog_follow_up.
         parentSessionQuestionId: { type: integer, format: int64, nullable: true }
         isFollowUp: { type: boolean }
         depth: { type: integer }
@@ -1598,7 +1600,9 @@ components:
           items:
             $ref: "#/components/schemas/InterviewResumeEvidenceDto"
         generationRationale: { type: string, nullable: true }
-        generationStatus: { type: string }
+        generationStatus:
+          type: string
+          description: Generation marker such as replay_imported, replay_ai_generated, ai_generated, coverage_planned, coverage_extended, or fallback.
         llmModel: { type: string, nullable: true }
         llmPromptVersion: { type: string, nullable: true }
         answerAttemptId:

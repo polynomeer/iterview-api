@@ -17,6 +17,15 @@ data class InterviewFollowUpGenerationInput(
     val usedFacetsForPreferredRecord: List<String>,
     val parentTags: List<String>,
     val parentFocusSkillNames: List<String>,
+    val replayMode: String? = null,
+    val importedRecordSummary: String? = null,
+    val interviewerToneProfile: String? = null,
+    val interviewerPressureLevel: String? = null,
+    val interviewerDepthPreference: String? = null,
+    val interviewerStyleTags: List<String> = emptyList(),
+    val interviewerFavoriteTopics: List<String> = emptyList(),
+    val interviewerFollowUpPatterns: List<String> = emptyList(),
+    val importedQuestionExamples: List<String> = emptyList(),
 )
 
 data class GeneratedInterviewFollowUp(

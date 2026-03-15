@@ -89,6 +89,15 @@ class OpenAiInterviewFollowUpGenerationClientTest {
                 usedFacetsForPreferredRecord = listOf("problem", "tradeoff"),
                 parentTags = listOf("payments"),
                 parentFocusSkillNames = listOf("Distributed Systems"),
+                replayMode = "pressure_variant",
+                importedRecordSummary = "High-pressure outage interview focused on rollback timing.",
+                interviewerToneProfile = "probing",
+                interviewerPressureLevel = "high",
+                interviewerDepthPreference = "deep",
+                interviewerStyleTags = listOf("pressure_probe", "rollback_focus"),
+                interviewerFavoriteTopics = listOf("reliability", "incident"),
+                interviewerFollowUpPatterns = listOf("threshold_probe"),
+                importedQuestionExamples = listOf("Q: How did you decide rollback timing? | A summary: The interviewer pushed on rollback thresholds."),
             ),
         )
 
@@ -114,6 +123,10 @@ class OpenAiInterviewFollowUpGenerationClientTest {
         assertTrue(transport.capturedBody.orEmpty().contains("Already covered facets for this record: problem, tradeoff"))
         assertTrue(transport.capturedBody.orEmpty().contains("tradeoff=alternatives and accepted downside"))
         assertTrue(transport.capturedBody.orEmpty().contains("weak=evidence challenge or STAR deepening"))
+        assertTrue(transport.capturedBody.orEmpty().contains("Replay mode: pressure_variant"))
+        assertTrue(transport.capturedBody.orEmpty().contains("Imported interviewer profile:"))
+        assertTrue(transport.capturedBody.orEmpty().contains("styleTags=pressure_probe, rollback_focus"))
+        assertTrue(transport.capturedBody.orEmpty().contains("Imported interview examples:"))
     }
 
     private class FakeTransport(

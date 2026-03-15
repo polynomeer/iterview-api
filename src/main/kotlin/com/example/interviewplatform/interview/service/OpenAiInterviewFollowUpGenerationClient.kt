@@ -88,6 +88,8 @@ class OpenAiInterviewFollowUpGenerationClient(
         Do not ask multiple questions.
         The follow-up should feel like a real interviewer noticed a gap, weak reasoning step, vague claim, missing metric, unexplained trade-off, or shallow technical explanation.
         If the resume evidence candidates include facets such as problem, action, result, metric, or tradeoff, prefer a follow-up that attacks a different unresolved facet from the parent question instead of repeating the same high-level summary angle.
+        If replay interview metadata is provided, preserve the imported interviewer style, pressure level, depth preference, and follow-up patterns instead of sounding like a generic coach.
+        In replay mode, use the imported question and answer examples as style references, not as text to copy verbatim.
         Prefer one of these follow-up styles:
         1. STAR deepening: ask for the missing situation, task, action, result, metric, or decision point.
         2. Evidence challenge: ask the candidate to justify a claim from the answer or the resume with specific evidence.
@@ -184,6 +186,30 @@ class OpenAiInterviewFollowUpGenerationClient(
             appendLine()
             appendLine("Parent focus skills: ${input.parentFocusSkillNames.joinToString(", ")}")
         }
+        input.replayMode?.let {
+            appendLine()
+            appendLine("Replay mode: $it")
+        }
+        input.importedRecordSummary?.takeIf { it.isNotBlank() }?.let {
+            appendLine()
+            appendLine("Imported interview summary:")
+            appendLine(it)
+        }
+        if (input.interviewerStyleTags.isNotEmpty() || input.interviewerToneProfile != null || input.interviewerPressureLevel != null || input.interviewerDepthPreference != null) {
+            appendLine()
+            appendLine("Imported interviewer profile:")
+            input.interviewerToneProfile?.let { appendLine("- tone=$it") }
+            input.interviewerPressureLevel?.let { appendLine("- pressure=$it") }
+            input.interviewerDepthPreference?.let { appendLine("- depth=$it") }
+            if (input.interviewerStyleTags.isNotEmpty()) appendLine("- styleTags=${input.interviewerStyleTags.joinToString(", ")}")
+            if (input.interviewerFavoriteTopics.isNotEmpty()) appendLine("- favoriteTopics=${input.interviewerFavoriteTopics.joinToString(", ")}")
+            if (input.interviewerFollowUpPatterns.isNotEmpty()) appendLine("- followUpPatterns=${input.interviewerFollowUpPatterns.joinToString(", ")}")
+        }
+        if (input.importedQuestionExamples.isNotEmpty()) {
+            appendLine()
+            appendLine("Imported interview examples:")
+            input.importedQuestionExamples.forEach { appendLine("- $it") }
+        }
         appendLine()
         appendLine("Follow-up generation goal:")
         appendLine("Use the answer quality and resume evidence to ask the next most revealing single question, not just a keyword-adjacent question.")
@@ -194,6 +220,7 @@ class OpenAiInterviewFollowUpGenerationClient(
         appendLine("Map the drill-down to the chosen facet when possible: problem=context and constraints, action=implementation and choices, result=validation and impact, metric=measurement and thresholds, tradeoff=alternatives and accepted downside.")
         appendLine("Avoid reusing an already-covered facet when another unresolved facet from the same record is available.")
         appendLine("Prefer drilling into one concrete claim or sentence from the same project rather than asking for another broad project overview.")
+        appendLine("If replay interviewer profile metadata is present, keep the follow-up style aligned with that imported interviewer instead of producing a neutral generic question.")
     }
 
     private fun responseSchema(): Map<String, Any> = mapOf(
