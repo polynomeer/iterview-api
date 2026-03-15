@@ -1574,4 +1574,8 @@ Current semantics:
 
 Current limitations:
 - `replay_mock` currently reuses the standard turn-based session engine but does not yet generate interviewer-style follow-up questions from the stored interviewer profile
-- imported real-interview archive mirroring is still deferred
+- imported real-interview questions are now exposed from archive as study assets with:
+  - `sourceType = real_interview`
+  - `sourceLabel = Real Interview`
+  - `sourceInterviewRecordId`
+  - `sourceInterviewQuestionId`

@@ -74,6 +74,11 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - required `sourceInterviewRecordId`
   - optional `replayMode`
 - Archive payloads now include additive source fields so the frontend can render `Practice` and `Interview` badges without changing archive list semantics.
+- Archive now also includes imported practical interview question assets with:
+  - `sourceType = real_interview`
+  - `sourceLabel = Real Interview`
+  - `sourceInterviewRecordId`
+  - `sourceInterviewQuestionId`
 - Asked interview turns are now mirrored into archive as question-level records, while interview history remains session-level.
 - Session question payloads now include follow-up metadata:
   - `sourceType`
@@ -128,6 +133,7 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 - Recommended archive badge mapping:
   - `sourceType = practice` -> `Practice`
   - `sourceType = interview` -> `Interview`
+  - `sourceType = real_interview` -> `Real Interview`
   - `isFollowUp = true` may be rendered as a secondary follow-up badge, not a replacement for source type
 - For interview-originated archive rows, use `sourceSessionId` as the backlink anchor and `sourceSessionQuestionId` as the stable turn identifier.
 - Recommended interview timeline rendering:

@@ -26,6 +26,10 @@ data class ArchivedQuestionDto(
     val sourceSessionId: Long?,
     @field:Schema(description = "Interview session question id when archived from interview", nullable = true)
     val sourceSessionQuestionId: Long?,
+    @field:Schema(description = "Imported interview record id when archived from a real interview asset", nullable = true)
+    val sourceInterviewRecordId: Long? = null,
+    @field:Schema(description = "Imported interview question id when archived from a real interview asset", nullable = true)
+    val sourceInterviewQuestionId: Long? = null,
     @field:Schema(description = "Whether the archived question was a follow-up")
     val isFollowUp: Boolean,
 )

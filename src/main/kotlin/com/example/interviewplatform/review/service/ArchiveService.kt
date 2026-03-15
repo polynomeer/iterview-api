@@ -2,6 +2,9 @@ package com.example.interviewplatform.review.service
 
 import com.example.interviewplatform.answer.repository.AnswerScoreRepository
 import com.example.interviewplatform.interview.entity.InterviewSessionQuestionEntity
+import com.example.interviewplatform.interview.repository.InterviewRecordAnswerRepository
+import com.example.interviewplatform.interview.repository.InterviewRecordQuestionRepository
+import com.example.interviewplatform.interview.repository.InterviewRecordRepository
 import com.example.interviewplatform.interview.repository.InterviewSessionQuestionRepository
 import com.example.interviewplatform.interview.repository.InterviewSessionRepository
 import com.example.interviewplatform.question.repository.QuestionRepository
@@ -16,6 +19,9 @@ class ArchiveService(
     private val questionRepository: QuestionRepository,
     private val interviewSessionRepository: InterviewSessionRepository,
     private val interviewSessionQuestionRepository: InterviewSessionQuestionRepository,
+    private val interviewRecordRepository: InterviewRecordRepository,
+    private val interviewRecordQuestionRepository: InterviewRecordQuestionRepository,
+    private val interviewRecordAnswerRepository: InterviewRecordAnswerRepository,
     private val answerScoreRepository: AnswerScoreRepository,
 ) {
     @Transactional(readOnly = true)
@@ -23,12 +29,20 @@ class ArchiveService(
         val progressRows = userQuestionProgressRepository
             .findByUserIdAndCurrentStatusOrderByArchivedAtDesc(userId, STATUS_ARCHIVED)
         val sessions = interviewSessionRepository.findByUserIdOrderByStartedAtDesc(userId)
+        val interviewRecords = interviewRecordRepository.findByUserIdOrderByCreatedAtDesc(userId)
         val sessionRows = if (sessions.isEmpty()) {
             emptyList()
         } else {
             interviewSessionQuestionRepository.findByInterviewSessionIdInOrderByInterviewSessionIdAscOrderIndexAsc(sessions.map { it.id })
         }
-        if (progressRows.isEmpty() && sessionRows.isEmpty()) {
+        val importedQuestionsByRecordId = if (interviewRecords.isEmpty()) {
+            emptyMap()
+        } else {
+            interviewRecords.associate { record ->
+                record.id to interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(record.id)
+            }
+        }
+        if (progressRows.isEmpty() && sessionRows.isEmpty() && importedQuestionsByRecordId.values.flatten().isEmpty()) {
             return emptyList()
         }
 
@@ -82,7 +96,34 @@ class ArchiveService(
                 }
             }
 
-        return (progressItems + sessionItems)
+        val importedQuestionIds = importedQuestionsByRecordId.values.flatten().map { it.id }
+        val importedAnswerByQuestionId = if (importedQuestionIds.isEmpty()) {
+            emptyMap()
+        } else {
+            interviewRecordAnswerRepository.findByInterviewRecordQuestionIdIn(importedQuestionIds)
+                .associateBy { it.interviewRecordQuestionId }
+        }
+        val realInterviewItems = interviewRecords.flatMap { record ->
+            importedQuestionsByRecordId[record.id].orEmpty().map { question ->
+                ArchivedQuestionDto(
+                    questionId = question.id,
+                    title = question.text,
+                    difficulty = question.questionType.uppercase(),
+                    archivedAt = question.updatedAt,
+                    bestScore = null,
+                    totalAttemptCount = if (importedAnswerByQuestionId.containsKey(question.id)) 1 else 0,
+                    sourceType = SOURCE_TYPE_REAL_INTERVIEW,
+                    sourceLabel = SOURCE_LABEL_REAL_INTERVIEW,
+                    sourceSessionId = null,
+                    sourceSessionQuestionId = null,
+                    sourceInterviewRecordId = record.id,
+                    sourceInterviewQuestionId = question.id,
+                    isFollowUp = question.parentQuestionId != null,
+                )
+            }
+        }
+
+        return (progressItems + sessionItems + realInterviewItems)
             .sortedByDescending { it.archivedAt }
     }
 
@@ -102,6 +143,8 @@ class ArchiveService(
         const val STATUS_COMPLETED = "completed"
         const val SOURCE_TYPE_INTERVIEW = "interview"
         const val SOURCE_LABEL_INTERVIEW = "Interview"
+        const val SOURCE_TYPE_REAL_INTERVIEW = "real_interview"
+        const val SOURCE_LABEL_REAL_INTERVIEW = "Real Interview"
         const val UNKNOWN_DIFFICULTY = "UNKNOWN"
     }
 }

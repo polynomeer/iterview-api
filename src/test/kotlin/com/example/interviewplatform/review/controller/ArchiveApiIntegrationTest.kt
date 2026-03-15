@@ -122,9 +122,11 @@ class ArchiveApiIntegrationTest {
         jdbcTemplate.update(
             """
             INSERT INTO interview_sessions (
-                id, user_id, resume_version_id, session_type, status, started_at, ended_at, created_at, updated_at
+                id, user_id, resume_version_id, source_interview_record_id, session_type, replay_mode, interview_mode,
+                status, started_at, ended_at, created_at, updated_at
             ) VALUES (
-                77, 1, NULL, 'resume_mock', 'completed', now() - interval '10 minute', now(), now(), now()
+                77, 1, NULL, NULL, 'resume_mock', NULL, 'free_interview',
+                'completed', now() - interval '10 minute', now(), now(), now()
             )
             """.trimIndent(),
         )
@@ -173,9 +175,11 @@ class ArchiveApiIntegrationTest {
         jdbcTemplate.update(
             """
             INSERT INTO interview_sessions (
-                id, user_id, resume_version_id, session_type, status, started_at, ended_at, created_at, updated_at
+                id, user_id, resume_version_id, source_interview_record_id, session_type, replay_mode, interview_mode,
+                status, started_at, ended_at, created_at, updated_at
             ) VALUES (
-                91, 1, NULL, 'resume_mock', 'completed', now() - interval '20 minute', now(), now(), now()
+                91, 1, NULL, NULL, 'resume_mock', NULL, 'free_interview',
+                'completed', now() - interval '20 minute', now(), now(), now()
             )
             """.trimIndent(),
         )
@@ -203,6 +207,56 @@ class ArchiveApiIntegrationTest {
             .andExpect(jsonPath("$[1].sourceType").value("interview"))
             .andExpect(jsonPath("$[1].sourceSessionId").value(91))
             .andExpect(jsonPath("$[1].sourceSessionQuestionId").value(101))
+            .andExpect(jsonPath("$[1].isFollowUp").value(false))
+    }
+
+    @Test
+    fun `archive endpoint includes imported real interview questions as study assets`() {
+        jdbcTemplate.update(
+            """
+            INSERT INTO interview_records (
+                id, user_id, company_name, role_name, interview_date, interview_type, source_audio_file_url, source_audio_file_name,
+                transcript_status, analysis_status, overall_summary, created_at, updated_at
+            ) VALUES (
+                201, 1, 'Example Corp', 'Backend Engineer', current_date, 'onsite', '/uploads/interview-audio/example.m4a', 'example.m4a',
+                'confirmed', 'completed', 'Imported interview summary', now() - interval '5 minute', now() - interval '5 minute'
+            )
+            """.trimIndent(),
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO interview_record_questions (
+                id, interview_record_id, segment_start_id, segment_end_id, text, normalized_text, question_type,
+                topic_tags_json, intent_tags_json, derived_from_resume_section, derived_from_resume_record_type,
+                derived_from_resume_record_id, derived_from_job_posting_section, parent_question_id, order_index, created_at, updated_at
+            ) VALUES
+                (301, 201, NULL, NULL, '실제 장애 대응에서 어떤 지표를 먼저 봤나요?', 'normalized', 'technical_depth', '[]', '[]', NULL, NULL, NULL, NULL, NULL, 1, now() - interval '4 minute', now() - interval '4 minute'),
+                (302, 201, NULL, NULL, '롤백과 완화 조치 중 어떤 기준으로 결정했나요?', 'normalized', 'system_design', '[]', '[]', NULL, NULL, NULL, NULL, 301, 2, now() - interval '3 minute', now() - interval '3 minute')
+            """.trimIndent(),
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO interview_record_answers (
+                interview_record_question_id, segment_start_id, segment_end_id, text, normalized_text, summary,
+                confidence_markers_json, weakness_tags_json, strength_tags_json, analysis_json, order_index, created_at, updated_at
+            ) VALUES (
+                301, NULL, NULL, '원문 답변', 'normalized', '지표와 경보를 먼저 확인했습니다.',
+                '[]', '[]', '["detailed"]', '{}', 1, now() - interval '4 minute', now() - interval '4 minute'
+            )
+            """.trimIndent(),
+        )
+
+        mockMvc.perform(get("/api/archive").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].sourceType").value("real_interview"))
+            .andExpect(jsonPath("$[0].sourceLabel").value("Real Interview"))
+            .andExpect(jsonPath("$[0].sourceInterviewRecordId").value(201))
+            .andExpect(jsonPath("$[0].sourceInterviewQuestionId").value(302))
+            .andExpect(jsonPath("$[0].isFollowUp").value(true))
+            .andExpect(jsonPath("$[1].sourceType").value("real_interview"))
+            .andExpect(jsonPath("$[1].sourceInterviewRecordId").value(201))
+            .andExpect(jsonPath("$[1].sourceInterviewQuestionId").value(301))
+            .andExpect(jsonPath("$[1].totalAttemptCount").value(1))
             .andExpect(jsonPath("$[1].isFollowUp").value(false))
     }
 

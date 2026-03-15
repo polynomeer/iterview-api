@@ -1899,6 +1899,8 @@ components:
         sourceLabel: { type: string, nullable: true }
         sourceSessionId: { type: integer, format: int64, nullable: true }
         sourceSessionQuestionId: { type: integer, format: int64, nullable: true }
+        sourceInterviewRecordId: { type: integer, format: int64, nullable: true }
+        sourceInterviewQuestionId: { type: integer, format: int64, nullable: true }
         isFollowUp: { type: boolean }
     InterviewSessionSummaryDto:
       type: object
