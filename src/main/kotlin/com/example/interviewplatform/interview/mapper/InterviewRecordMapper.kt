@@ -57,6 +57,7 @@ object InterviewRecordMapper {
         aiEnrichedSummary = entity.aiEnrichedSummary,
         overallSummary = entity.overallSummary,
         structuringStage = entity.structuringStage,
+        confirmedAt = entity.confirmedAt,
         questionCount = questionCount,
         answerCount = answerCount,
         createdAt = entity.createdAt,

@@ -5,6 +5,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordAnalysisDto
 import com.example.interviewplatform.interview.dto.InterviewRecordDetailDto
 import com.example.interviewplatform.interview.dto.InterviewRecordListItemDto
 import com.example.interviewplatform.interview.dto.InterviewRecordQuestionsResponseDto
+import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptDto
 import com.example.interviewplatform.interview.dto.UpdateInterviewTranscriptSegmentRequest
 import com.example.interviewplatform.interview.dto.InterviewerProfileDto
@@ -100,6 +101,7 @@ class InterviewRecordService(
                 aiEnrichedSummary = null,
                 overallSummary = null,
                 structuringStage = STRUCTURING_STAGE_DETERMINISTIC,
+                confirmedAt = null,
                 createdAt = now,
                 updatedAt = now,
             ),
@@ -184,6 +186,7 @@ class InterviewRecordService(
                 aiEnrichedSummary = record.aiEnrichedSummary,
                 overallSummary = record.overallSummary,
                 structuringStage = record.structuringStage,
+                confirmedAt = record.confirmedAt,
                 createdAt = record.createdAt,
                 updatedAt = now,
             ),
@@ -208,6 +211,30 @@ class InterviewRecordService(
         return InterviewRecordQuestionsResponseDto(
             interviewRecordId = recordId,
             items = questions.map { InterviewRecordMapper.toQuestionDto(it, answersByQuestionId[it.id], objectMapper) },
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getReview(userId: Long, recordId: Long): InterviewRecordReviewDto {
+        val record = requireOwnedRecord(userId, recordId)
+        val questions = interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(recordId)
+        val answers = if (questions.isEmpty()) {
+            emptyList()
+        } else {
+            interviewRecordAnswerRepository.findByInterviewRecordQuestionIdIn(questions.map { it.id })
+        }
+        val interviewerProfile = interviewerProfileRepository.findBySourceInterviewRecordId(recordId)
+        return InterviewRecordReviewDto(
+            interviewRecordId = record.id,
+            structuringStage = record.structuringStage,
+            requiresConfirmation = record.structuringStage != STRUCTURING_STAGE_CONFIRMED,
+            deterministicSummary = record.deterministicSummary,
+            aiEnrichedSummary = record.aiEnrichedSummary,
+            overallSummary = record.overallSummary,
+            confirmedAt = record.confirmedAt,
+            questionSourceCounts = questions.groupingBy { it.structuringSource }.eachCount().toSortedMap(),
+            answerSourceCounts = answers.groupingBy { it.structuringSource }.eachCount().toSortedMap(),
+            interviewerProfileSource = interviewerProfile?.structuringSource,
         )
     }
 
@@ -240,6 +267,118 @@ class InterviewRecordService(
         val profile = interviewerProfileRepository.findBySourceInterviewRecordId(recordId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Interviewer profile not found for record: $recordId")
         return InterviewRecordMapper.toInterviewerProfileDto(profile, objectMapper)
+    }
+
+    @Transactional
+    fun confirmRecord(userId: Long, recordId: Long): InterviewRecordDetailDto {
+        val record = requireOwnedRecord(userId, recordId)
+        val now = clockService.now()
+        val questions = interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(recordId)
+        val answers = if (questions.isEmpty()) {
+            emptyList()
+        } else {
+            interviewRecordAnswerRepository.findByInterviewRecordQuestionIdIn(questions.map { it.id })
+        }
+        if (questions.isNotEmpty()) {
+            interviewRecordQuestionRepository.saveAll(
+                questions.map {
+                    InterviewRecordQuestionEntity(
+                        id = it.id,
+                        interviewRecordId = it.interviewRecordId,
+                        segmentStartId = it.segmentStartId,
+                        segmentEndId = it.segmentEndId,
+                        text = it.text,
+                        normalizedText = it.normalizedText,
+                        questionType = it.questionType,
+                        topicTagsJson = it.topicTagsJson,
+                        intentTagsJson = it.intentTagsJson,
+                        derivedFromResumeSection = it.derivedFromResumeSection,
+                        derivedFromResumeRecordType = it.derivedFromResumeRecordType,
+                        derivedFromResumeRecordId = it.derivedFromResumeRecordId,
+                        derivedFromJobPostingSection = it.derivedFromJobPostingSection,
+                        linkedQuestionId = it.linkedQuestionId,
+                        parentQuestionId = it.parentQuestionId,
+                        structuringSource = STRUCTURING_STAGE_CONFIRMED,
+                        orderIndex = it.orderIndex,
+                        createdAt = it.createdAt,
+                        updatedAt = now,
+                    )
+                },
+            )
+        }
+        if (answers.isNotEmpty()) {
+            interviewRecordAnswerRepository.saveAll(
+                answers.map {
+                    InterviewRecordAnswerEntity(
+                        id = it.id,
+                        interviewRecordQuestionId = it.interviewRecordQuestionId,
+                        segmentStartId = it.segmentStartId,
+                        segmentEndId = it.segmentEndId,
+                        text = it.text,
+                        normalizedText = it.normalizedText,
+                        summary = it.summary,
+                        confidenceMarkersJson = it.confidenceMarkersJson,
+                        weaknessTagsJson = it.weaknessTagsJson,
+                        strengthTagsJson = it.strengthTagsJson,
+                        analysisJson = it.analysisJson,
+                        structuringSource = STRUCTURING_STAGE_CONFIRMED,
+                        orderIndex = it.orderIndex,
+                        createdAt = it.createdAt,
+                        updatedAt = now,
+                    )
+                },
+            )
+        }
+        interviewerProfileRepository.findBySourceInterviewRecordId(recordId)?.let {
+            interviewerProfileRepository.save(
+                InterviewerProfileEntity(
+                    id = it.id,
+                    userId = it.userId,
+                    sourceInterviewRecordId = it.sourceInterviewRecordId,
+                    styleTagsJson = it.styleTagsJson,
+                    toneProfile = it.toneProfile,
+                    pressureLevel = it.pressureLevel,
+                    depthPreference = it.depthPreference,
+                    followUpPatternJson = it.followUpPatternJson,
+                    favoriteTopicsJson = it.favoriteTopicsJson,
+                    openingPattern = it.openingPattern,
+                    closingPattern = it.closingPattern,
+                    structuringSource = STRUCTURING_STAGE_CONFIRMED,
+                    createdAt = it.createdAt,
+                    updatedAt = now,
+                ),
+            )
+        }
+        val updated = interviewRecordRepository.save(
+            InterviewRecordEntity(
+                id = record.id,
+                userId = record.userId,
+                companyName = record.companyName,
+                roleName = record.roleName,
+                interviewDate = record.interviewDate,
+                interviewType = record.interviewType,
+                sourceAudioFileUrl = record.sourceAudioFileUrl,
+                sourceAudioFileName = record.sourceAudioFileName,
+                sourceAudioDurationMs = record.sourceAudioDurationMs,
+                sourceAudioContentType = record.sourceAudioContentType,
+                rawTranscript = record.rawTranscript,
+                cleanedTranscript = record.cleanedTranscript,
+                confirmedTranscript = record.confirmedTranscript,
+                transcriptStatus = record.transcriptStatus,
+                analysisStatus = record.analysisStatus,
+                linkedResumeVersionId = record.linkedResumeVersionId,
+                linkedJobPostingId = record.linkedJobPostingId,
+                interviewerProfileId = record.interviewerProfileId,
+                deterministicSummary = record.deterministicSummary,
+                aiEnrichedSummary = record.aiEnrichedSummary,
+                overallSummary = record.aiEnrichedSummary ?: record.overallSummary,
+                structuringStage = STRUCTURING_STAGE_CONFIRMED,
+                confirmedAt = now,
+                createdAt = record.createdAt,
+                updatedAt = now,
+            ),
+        )
+        return toDetailDto(updated)
     }
 
     private fun toDetailDto(record: InterviewRecordEntity): InterviewRecordDetailDto {

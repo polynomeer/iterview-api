@@ -203,8 +203,10 @@ Implemented practical interview record foundation:
   - `GET /api/interview-records/{recordId}/transcript`
   - `PATCH /api/interview-records/{recordId}/transcript/segments/{segmentId}`
   - `GET /api/interview-records/{recordId}/questions`
+  - `GET /api/interview-records/{recordId}/review`
   - `GET /api/interview-records/{recordId}/analysis`
   - `GET /api/interview-records/{recordId}/interviewer-profile`
+  - `POST /api/interview-records/{recordId}/confirm`
 - keep imported real-interview records distinct from interactive mock-session resources
 - transcript review screens should expose `rawTranscript`, `cleanedTranscript`, `confirmedTranscript`, and ordered `segments`
 - `POST /api/interview-records` is `multipart/form-data` with:
@@ -234,6 +236,17 @@ Implemented practical interview record foundation:
   - `closingPattern`
   - `structuringSource`
 - `GET /api/interview-records/{recordId}/analysis` now also exposes `structuringStage`
+- `GET /api/interview-records/{recordId}/review` exposes review provenance:
+  - `structuringStage`
+  - `requiresConfirmation`
+  - `deterministicSummary`
+  - `aiEnrichedSummary`
+  - `overallSummary`
+  - `confirmedAt`
+  - `questionSourceCounts`
+  - `answerSourceCounts`
+  - `interviewerProfileSource`
+- `POST /api/interview-records/{recordId}/confirm` finalizes the currently reviewed structured output as the confirmed version
 - current provenance values:
   - `deterministic`
   - `ai_enriched`

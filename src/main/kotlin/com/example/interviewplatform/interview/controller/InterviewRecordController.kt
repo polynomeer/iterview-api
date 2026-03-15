@@ -5,6 +5,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordAnalysisDto
 import com.example.interviewplatform.interview.dto.InterviewRecordDetailDto
 import com.example.interviewplatform.interview.dto.InterviewRecordListItemDto
 import com.example.interviewplatform.interview.dto.InterviewRecordQuestionsResponseDto
+import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptDto
 import com.example.interviewplatform.interview.dto.UpdateInterviewTranscriptSegmentRequest
 import com.example.interviewplatform.interview.dto.InterviewerProfileDto
@@ -88,6 +89,11 @@ class InterviewRecordController(
     fun getQuestions(@PathVariable recordId: Long): InterviewRecordQuestionsResponseDto =
         interviewRecordService.listQuestions(currentUserProvider.currentUserId(), recordId)
 
+    @GetMapping("/{recordId}/review")
+    @Operation(summary = "Get practical interview review provenance")
+    fun getReview(@PathVariable recordId: Long): InterviewRecordReviewDto =
+        interviewRecordService.getReview(currentUserProvider.currentUserId(), recordId)
+
     @GetMapping("/{recordId}/analysis")
     @Operation(summary = "Get imported interview analysis")
     fun getAnalysis(@PathVariable recordId: Long): InterviewRecordAnalysisDto =
@@ -97,4 +103,9 @@ class InterviewRecordController(
     @Operation(summary = "Get inferred interviewer profile")
     fun getInterviewerProfile(@PathVariable recordId: Long): InterviewerProfileDto =
         interviewRecordService.getInterviewerProfile(currentUserProvider.currentUserId(), recordId)
+
+    @PostMapping("/{recordId}/confirm")
+    @Operation(summary = "Confirm practical interview structuring review")
+    fun confirmRecord(@PathVariable recordId: Long): InterviewRecordDetailDto =
+        interviewRecordService.confirmRecord(currentUserProvider.currentUserId(), recordId)
 }

@@ -153,6 +153,28 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.sourceInterviewRecordId").value(recordId))
             .andExpect(jsonPath("$.structuringSource").value("deterministic"))
             .andExpect(jsonPath("$.pressureLevel").exists())
+
+        mockMvc.perform(get("/api/interview-records/$recordId/review").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.structuringStage").value("deterministic"))
+            .andExpect(jsonPath("$.requiresConfirmation").value(true))
+            .andExpect(jsonPath("$.questionSourceCounts.deterministic").value(2))
+            .andExpect(jsonPath("$.answerSourceCounts.deterministic").value(2))
+
+        mockMvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/interview-records/$recordId/confirm")
+                .header("Authorization", authHeader),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.structuringStage").value("confirmed"))
+            .andExpect(jsonPath("$.confirmedAt").exists())
+
+        mockMvc.perform(get("/api/interview-records/$recordId/review").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.structuringStage").value("confirmed"))
+            .andExpect(jsonPath("$.requiresConfirmation").value(false))
+            .andExpect(jsonPath("$.questionSourceCounts.confirmed").value(2))
+            .andExpect(jsonPath("$.answerSourceCounts.confirmed").value(2))
     }
 
     @Test

@@ -1491,8 +1491,10 @@ Implemented resources:
 - `GET /api/interview-records/{recordId}/transcript`
 - `PATCH /api/interview-records/{recordId}/transcript/segments/{segmentId}`
 - `GET /api/interview-records/{recordId}/questions`
+- `GET /api/interview-records/{recordId}/review`
 - `GET /api/interview-records/{recordId}/analysis`
 - `GET /api/interview-records/{recordId}/interviewer-profile`
+- `POST /api/interview-records/{recordId}/confirm`
 
 Current request and response semantics:
 - `POST /api/interview-records` is `multipart/form-data`
@@ -1562,6 +1564,16 @@ Current structured extraction semantics:
   - `topicTags`
   - `structuringStage`
   - `overallSummary`
+- `GET /api/interview-records/{recordId}/review` currently returns review provenance for the practical-interview workflow:
+  - `structuringStage`
+  - `requiresConfirmation`
+  - `deterministicSummary`
+  - `aiEnrichedSummary`
+  - `overallSummary`
+  - `confirmedAt`
+  - `questionSourceCounts`
+  - `answerSourceCounts`
+  - `interviewerProfileSource`
 - `GET /api/interview-records/{recordId}/interviewer-profile` currently returns a reusable interviewer-style summary including:
   - `styleTags`
   - `toneProfile`
@@ -1579,6 +1591,7 @@ Current implementation notes:
   - `deterministic`
   - `ai_enriched`
   - `confirmed`
+- `POST /api/interview-records/{recordId}/confirm` promotes the current practical-interview structuring result to `confirmed` without re-parsing transcript text
 - current speaker detection uses prefixes and question-mark heuristics
 - imported real-interview questions are not yet mirrored into archive
 

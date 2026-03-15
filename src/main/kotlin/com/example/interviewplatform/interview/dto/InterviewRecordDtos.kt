@@ -36,10 +36,24 @@ data class InterviewRecordDetailDto(
     val aiEnrichedSummary: String?,
     val overallSummary: String?,
     val structuringStage: String,
+    val confirmedAt: Instant?,
     val questionCount: Int,
     val answerCount: Int,
     val createdAt: Instant,
     val updatedAt: Instant,
+)
+
+data class InterviewRecordReviewDto(
+    val interviewRecordId: Long,
+    val structuringStage: String,
+    val requiresConfirmation: Boolean,
+    val deterministicSummary: String?,
+    val aiEnrichedSummary: String?,
+    val overallSummary: String?,
+    val confirmedAt: Instant?,
+    val questionSourceCounts: Map<String, Int>,
+    val answerSourceCounts: Map<String, Int>,
+    val interviewerProfileSource: String?,
 )
 
 data class InterviewTranscriptSegmentDto(

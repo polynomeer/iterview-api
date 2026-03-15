@@ -628,6 +628,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InterviewRecordQuestionsResponseDto"
+  /api/interview-records/{recordId}/review:
+    get:
+      tags: [Interview Records]
+      summary: Get practical interview review provenance
+      parameters:
+        - $ref: "#/components/parameters/RecordId"
+      responses:
+        "200":
+          description: Practical interview review payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewRecordReviewDto"
   /api/interview-records/{recordId}/analysis:
     get:
       tags: [Interview Records]
@@ -654,6 +667,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InterviewerProfileDto"
+  /api/interview-records/{recordId}/confirm:
+    post:
+      tags: [Interview Records]
+      summary: Confirm practical interview structuring review
+      parameters:
+        - $ref: "#/components/parameters/RecordId"
+      responses:
+        "200":
+          description: Confirmed imported interview record detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewRecordDetailDto"
   /api/interview-sessions:
     get:
       tags: [Interview Sessions]
@@ -1797,10 +1823,30 @@ components:
         aiEnrichedSummary: { type: string, nullable: true }
         overallSummary: { type: string, nullable: true }
         structuringStage: { type: string }
+        confirmedAt: { type: string, format: date-time, nullable: true }
         questionCount: { type: integer }
         answerCount: { type: integer }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    InterviewRecordReviewDto:
+      type: object
+      properties:
+        interviewRecordId: { type: integer, format: int64 }
+        structuringStage: { type: string }
+        requiresConfirmation: { type: boolean }
+        deterministicSummary: { type: string, nullable: true }
+        aiEnrichedSummary: { type: string, nullable: true }
+        overallSummary: { type: string, nullable: true }
+        confirmedAt: { type: string, format: date-time, nullable: true }
+        questionSourceCounts:
+          type: object
+          additionalProperties:
+            type: integer
+        answerSourceCounts:
+          type: object
+          additionalProperties:
+            type: integer
+        interviewerProfileSource: { type: string, nullable: true }
     InterviewTranscriptSegmentDto:
       type: object
       properties:

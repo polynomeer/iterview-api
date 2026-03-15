@@ -57,6 +57,8 @@ class InterviewRecordEntity(
     val overallSummary: String? = null,
     @Column(name = "structuring_stage", nullable = false)
     val structuringStage: String = "deterministic",
+    @Column(name = "confirmed_at")
+    val confirmedAt: Instant? = null,
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant,
     @Column(name = "updated_at", nullable = false)
