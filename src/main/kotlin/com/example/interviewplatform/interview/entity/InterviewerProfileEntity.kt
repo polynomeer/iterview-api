@@ -34,6 +34,8 @@ class InterviewerProfileEntity(
     val openingPattern: String? = null,
     @Column(name = "closing_pattern")
     val closingPattern: String? = null,
+    @Column(name = "structuring_source", nullable = false)
+    val structuringSource: String = "deterministic",
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant,
     @Column(name = "updated_at", nullable = false)

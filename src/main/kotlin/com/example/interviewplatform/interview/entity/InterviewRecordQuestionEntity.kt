@@ -42,6 +42,8 @@ class InterviewRecordQuestionEntity(
     val linkedQuestionId: Long? = null,
     @Column(name = "parent_question_id")
     val parentQuestionId: Long? = null,
+    @Column(name = "structuring_source", nullable = false)
+    val structuringSource: String = "deterministic",
     @Column(name = "order_index", nullable = false)
     val orderIndex: Int,
     @Column(name = "created_at", nullable = false)

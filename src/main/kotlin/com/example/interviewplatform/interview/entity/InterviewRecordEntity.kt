@@ -49,8 +49,14 @@ class InterviewRecordEntity(
     val linkedJobPostingId: Long? = null,
     @Column(name = "interviewer_profile_id")
     val interviewerProfileId: Long? = null,
+    @Column(name = "deterministic_summary")
+    val deterministicSummary: String? = null,
+    @Column(name = "ai_enriched_summary")
+    val aiEnrichedSummary: String? = null,
     @Column(name = "overall_summary")
     val overallSummary: String? = null,
+    @Column(name = "structuring_stage", nullable = false)
+    val structuringStage: String = "deterministic",
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant,
     @Column(name = "updated_at", nullable = false)

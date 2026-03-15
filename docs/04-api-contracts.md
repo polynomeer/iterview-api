@@ -1507,7 +1507,7 @@ Current request and response semantics:
   - `linkedJobPostingId`
   - `transcriptText`
 - the uploaded audio asset is stored without mutating the original file name
-- when `transcriptText` is provided, the backend currently performs deterministic structuring immediately and returns:
+- when `transcriptText` is provided, the backend currently performs deterministic structuring immediately, optionally applies AI refinement when interview LLM settings are configured, and returns:
   - `transcriptStatus = confirmed`
   - `analysisStatus = completed`
 - when `transcriptText` is omitted, the record currently remains in:
@@ -1520,6 +1520,11 @@ Current transcript semantics:
   - `cleanedTranscript`
   - `confirmedTranscript`
 - transcript detail also exposes ordered `segments`
+- record detail now also exposes structuring provenance:
+  - `deterministicSummary`
+  - `aiEnrichedSummary`
+  - `overallSummary`
+  - `structuringStage`
 - each segment includes:
   - `speakerType`
   - `rawText`
@@ -1539,6 +1544,7 @@ Current structured extraction semantics:
   - `questionType`
   - `topicTags`
   - `intentTags`
+  - `structuringSource`
   - optional derived resume linkage fields
   - one structured answer snapshot
 - answer snapshots currently expose:
@@ -1546,6 +1552,7 @@ Current structured extraction semantics:
   - `confidenceMarkers`
   - `weaknessTags`
   - `strengthTags`
+  - `structuringSource`
 - `GET /api/interview-records/{recordId}/analysis` currently returns:
   - `totalQuestions`
   - `totalAnswers`
@@ -1553,6 +1560,7 @@ Current structured extraction semantics:
   - `questionTypeDistribution`
   - `weakAnswerQuestionIds`
   - `topicTags`
+  - `structuringStage`
   - `overallSummary`
 - `GET /api/interview-records/{recordId}/interviewer-profile` currently returns a reusable interviewer-style summary including:
   - `styleTags`
@@ -1563,9 +1571,14 @@ Current structured extraction semantics:
   - `favoriteTopics`
   - `openingPattern`
   - `closingPattern`
+  - `structuringSource`
 
 Current implementation notes:
-- the current structuring pipeline is deterministic and text-based; it does not yet include speech-to-text or LLM transcript cleaning
+- the current structuring pipeline is deterministic-first and text-based, with optional LLM refinement for summaries/tags/follow-up linkage/interviewer-profile when interview LLM settings are configured
+- `structuringStage` values currently used by the backend:
+  - `deterministic`
+  - `ai_enriched`
+  - `confirmed`
 - current speaker detection uses prefixes and question-mark heuristics
 - imported real-interview questions are not yet mirrored into archive
 

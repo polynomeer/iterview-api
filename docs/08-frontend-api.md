@@ -210,12 +210,19 @@ Implemented practical interview record foundation:
 - `POST /api/interview-records` is `multipart/form-data` with:
   - required `file`
   - optional `companyName`, `roleName`, `interviewDate`, `interviewType`, `linkedResumeVersionId`, `linkedJobPostingId`, `transcriptText`
-- when transcript text is present at upload time, the backend currently performs deterministic structuring immediately and returns completed transcript/analysis status
+- when transcript text is present at upload time, the backend currently performs deterministic structuring immediately and may also apply optional AI refinement before returning completed transcript/analysis status
+- record detail now exposes provenance fields for review UIs:
+  - `deterministicSummary`
+  - `aiEnrichedSummary`
+  - `overallSummary`
+  - `structuringStage`
 - structured question review should consume:
   - `questionType`
   - `topicTags`
   - `intentTags`
+  - `structuringSource`
   - nested answer snapshot fields such as `summary`, `confidenceMarkers`, `weaknessTags`, and `strengthTags`
+- answer snapshots also expose `structuringSource`
 - interviewer-profile screens can now consume:
   - `styleTags`
   - `toneProfile`
@@ -225,6 +232,12 @@ Implemented practical interview record foundation:
   - `favoriteTopics`
   - `openingPattern`
   - `closingPattern`
+  - `structuringSource`
+- `GET /api/interview-records/{recordId}/analysis` now also exposes `structuringStage`
+- current provenance values:
+  - `deterministic`
+  - `ai_enriched`
+  - `confirmed`
 - `replay_mock` is still planned, but frontend should already model imported interview records as reusable assets that can later seed replay flows
 - the initial replay seeding flow is now implemented, but interviewer-profile-driven dynamic replay follow-ups are still planned
 

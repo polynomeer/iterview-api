@@ -34,6 +34,8 @@ class InterviewRecordAnswerEntity(
     val strengthTagsJson: String,
     @Column(name = "analysis_json")
     val analysisJson: String? = null,
+    @Column(name = "structuring_source", nullable = false)
+    val structuringSource: String = "deterministic",
     @Column(name = "order_index", nullable = false)
     val orderIndex: Int,
     @Column(name = "created_at", nullable = false)

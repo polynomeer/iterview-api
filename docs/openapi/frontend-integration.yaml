@@ -1793,7 +1793,10 @@ components:
         linkedResumeVersionId: { type: integer, format: int64, nullable: true }
         linkedJobPostingId: { type: integer, format: int64, nullable: true }
         interviewerProfileId: { type: integer, format: int64, nullable: true }
+        deterministicSummary: { type: string, nullable: true }
+        aiEnrichedSummary: { type: string, nullable: true }
         overallSummary: { type: string, nullable: true }
+        structuringStage: { type: string }
         questionCount: { type: integer }
         answerCount: { type: integer }
         createdAt: { type: string, format: date-time }
@@ -1845,6 +1848,7 @@ components:
         strengthTags:
           type: array
           items: { type: string }
+        structuringSource: { type: string }
         orderIndex: { type: integer }
     InterviewRecordQuestionDto:
       type: object
@@ -1865,6 +1869,7 @@ components:
         derivedFromResumeRecordId: { type: integer, format: int64, nullable: true }
         derivedFromJobPostingSection: { type: string, nullable: true }
         parentQuestionId: { type: integer, format: int64, nullable: true }
+        structuringSource: { type: string }
         orderIndex: { type: integer }
         answer:
           allOf:
@@ -1895,6 +1900,7 @@ components:
         topicTags:
           type: array
           items: { type: string }
+        structuringStage: { type: string }
         overallSummary: { type: string, nullable: true }
     InterviewerProfileDto:
       type: object
@@ -1915,6 +1921,7 @@ components:
           items: { type: string }
         openingPattern: { type: string, nullable: true }
         closingPattern: { type: string, nullable: true }
+        structuringSource: { type: string }
     ArchivedQuestionDto:
       type: object
       properties:

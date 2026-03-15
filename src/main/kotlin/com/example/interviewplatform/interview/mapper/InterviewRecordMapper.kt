@@ -53,7 +53,10 @@ object InterviewRecordMapper {
         linkedResumeVersionId = entity.linkedResumeVersionId,
         linkedJobPostingId = entity.linkedJobPostingId,
         interviewerProfileId = entity.interviewerProfileId,
+        deterministicSummary = entity.deterministicSummary,
+        aiEnrichedSummary = entity.aiEnrichedSummary,
         overallSummary = entity.overallSummary,
+        structuringStage = entity.structuringStage,
         questionCount = questionCount,
         answerCount = answerCount,
         createdAt = entity.createdAt,
@@ -90,6 +93,7 @@ object InterviewRecordMapper {
         derivedFromResumeRecordId = entity.derivedFromResumeRecordId,
         derivedFromJobPostingSection = entity.derivedFromJobPostingSection,
         parentQuestionId = entity.parentQuestionId,
+        structuringSource = entity.structuringSource,
         orderIndex = entity.orderIndex,
         answer = answer?.let { toAnswerDto(it, objectMapper) },
     )
@@ -103,6 +107,7 @@ object InterviewRecordMapper {
             confidenceMarkers = decodeStringList(entity.confidenceMarkersJson, objectMapper),
             weaknessTags = decodeStringList(entity.weaknessTagsJson, objectMapper),
             strengthTags = decodeStringList(entity.strengthTagsJson, objectMapper),
+            structuringSource = entity.structuringSource,
             orderIndex = entity.orderIndex,
         )
 
@@ -115,6 +120,7 @@ object InterviewRecordMapper {
         )
 
     fun toAnalysisDto(
+        record: InterviewRecordEntity,
         interviewRecordId: Long,
         questions: List<InterviewRecordQuestionEntity>,
         answers: List<InterviewRecordAnswerEntity>,
@@ -130,6 +136,7 @@ object InterviewRecordMapper {
         questionTypeDistribution = questions.groupingBy { it.questionType }.eachCount().toSortedMap(),
         weakAnswerQuestionIds = answers.filter { decodeStringList(it.weaknessTagsJson, objectMapper).isNotEmpty() }.map { it.interviewRecordQuestionId },
         topicTags = topicTags,
+        structuringStage = record.structuringStage,
         overallSummary = overallSummary,
     )
 
@@ -145,6 +152,7 @@ object InterviewRecordMapper {
             favoriteTopics = decodeStringList(entity.favoriteTopicsJson, objectMapper),
             openingPattern = entity.openingPattern,
             closingPattern = entity.closingPattern,
+            structuringSource = entity.structuringSource,
         )
 
     private fun decodeStringList(raw: String, objectMapper: ObjectMapper): List<String> =

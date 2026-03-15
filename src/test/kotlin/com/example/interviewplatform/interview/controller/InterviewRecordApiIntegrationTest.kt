@@ -103,6 +103,8 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.transcriptStatus").value("confirmed"))
             .andExpect(jsonPath("$.analysisStatus").value("completed"))
             .andExpect(jsonPath("$.linkedResumeVersionId").value(20))
+            .andExpect(jsonPath("$.structuringStage").value("deterministic"))
+            .andExpect(jsonPath("$.deterministicSummary").isString)
             .andExpect(jsonPath("$.questionCount").value(2))
             .andExpect(jsonPath("$.answerCount").value(2))
             .andReturn()
@@ -128,6 +130,7 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.items.length()").value(2))
             .andExpect(jsonPath("$.items[0].linkedQuestionId").isNumber)
             .andExpect(jsonPath("$.items[0].questionType").value("technical_depth"))
+            .andExpect(jsonPath("$.items[0].structuringSource").value("deterministic"))
             .andExpect(jsonPath("$.items[0].answer.strengthTags[0]").value("quantified"))
             .andReturn()
             .response
@@ -142,11 +145,13 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.totalQuestions").value(2))
             .andExpect(jsonPath("$.followUpCount").value(1))
+            .andExpect(jsonPath("$.structuringStage").value("deterministic"))
             .andExpect(jsonPath("$.topicTags[0]").exists())
 
         mockMvc.perform(get("/api/interview-records/$recordId/interviewer-profile").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.sourceInterviewRecordId").value(recordId))
+            .andExpect(jsonPath("$.structuringSource").value("deterministic"))
             .andExpect(jsonPath("$.pressureLevel").exists())
     }
 
@@ -199,7 +204,13 @@ class InterviewRecordApiIntegrationTest {
         mockMvc.perform(get("/api/interview-records/$recordId/questions").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.items[0].text").value("Tell me about the migration project and rollout metrics?"))
+            .andExpect(jsonPath("$.items[0].structuringSource").value("confirmed"))
             .andExpect(jsonPath("$.items[0].topicTags[0]").exists())
+
+        mockMvc.perform(get("/api/interview-records/$recordId").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.structuringStage").value("confirmed"))
+            .andExpect(jsonPath("$.deterministicSummary").isString)
     }
 
     @Test

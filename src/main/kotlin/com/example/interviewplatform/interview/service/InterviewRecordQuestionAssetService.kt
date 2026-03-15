@@ -66,6 +66,7 @@ class InterviewRecordQuestionAssetService(
                         derivedFromJobPostingSection = question.derivedFromJobPostingSection,
                         linkedQuestionId = linkedQuestion.id,
                         parentQuestionId = question.parentQuestionId,
+                        structuringSource = question.structuringSource,
                         orderIndex = question.orderIndex,
                         createdAt = question.createdAt,
                         updatedAt = now,

@@ -96,7 +96,10 @@ class InterviewRecordService(
                 linkedResumeVersionId = linkedResumeVersionId,
                 linkedJobPostingId = linkedJobPostingId,
                 interviewerProfileId = null,
+                deterministicSummary = null,
+                aiEnrichedSummary = null,
                 overallSummary = null,
+                structuringStage = STRUCTURING_STAGE_DETERMINISTIC,
                 createdAt = now,
                 updatedAt = now,
             ),
@@ -177,12 +180,15 @@ class InterviewRecordService(
                 linkedResumeVersionId = record.linkedResumeVersionId,
                 linkedJobPostingId = record.linkedJobPostingId,
                 interviewerProfileId = record.interviewerProfileId,
+                deterministicSummary = record.deterministicSummary,
+                aiEnrichedSummary = record.aiEnrichedSummary,
                 overallSummary = record.overallSummary,
+                structuringStage = record.structuringStage,
                 createdAt = record.createdAt,
                 updatedAt = now,
             ),
         )
-        rebuildStructuredData(updatedRecord, rebuiltTranscript, now)
+        rebuildStructuredData(updatedRecord, rebuiltTranscript, now, isUserConfirmed = true)
         return getTranscript(userId, record.id)
     }
 
@@ -217,6 +223,7 @@ class InterviewRecordService(
             }.getOrDefault(emptyList())
         }.distinct()
         return InterviewRecordMapper.toAnalysisDto(
+            record = record,
             interviewRecordId = record.id,
             questions = questions,
             answers = answers,
@@ -266,7 +273,12 @@ class InterviewRecordService(
 
     private fun buildInterviewAudioFileUrl(storageKey: String): String = "/uploads/interview-audio/$storageKey"
 
-    private fun rebuildStructuredData(record: InterviewRecordEntity, transcriptText: String, now: Instant) {
+    private fun rebuildStructuredData(
+        record: InterviewRecordEntity,
+        transcriptText: String,
+        now: Instant,
+        isUserConfirmed: Boolean = false,
+    ) {
         val existingQuestions = interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(record.id)
         val existingQuestionIds = existingQuestions.map { it.id }
         val existingAnswers = if (existingQuestionIds.isEmpty()) {
@@ -291,11 +303,19 @@ class InterviewRecordService(
             interviewTranscriptSegmentRepository.flush()
         }
 
+        val deterministicParsed = parseTranscript(transcriptText, now)
         val parsed = practicalInterviewStructuringEnrichmentService.enrich(
             record = record,
             transcriptText = transcriptText,
-            parsedTranscript = parseTranscript(transcriptText, now),
+            parsedTranscript = deterministicParsed,
         )
+        val deterministicSummary = buildOverallSummary(deterministicParsed.questions)
+        val aiEnrichedSummary = when {
+            parsed.structuringSource == STRUCTURING_STAGE_AI_ENRICHED && !parsed.overallSummaryOverride.isNullOrBlank() -> parsed.overallSummaryOverride
+            parsed.structuringSource == STRUCTURING_STAGE_AI_ENRICHED -> buildOverallSummary(parsed.questions)
+            else -> null
+        }
+        val persistedStructuringSource = if (isUserConfirmed) STRUCTURING_STAGE_CONFIRMED else parsed.structuringSource
         val segments = interviewTranscriptSegmentRepository.saveAll(parsed.segments.map { it.toEntity(record.id) })
         val persistedQuestions = mutableListOf<InterviewRecordQuestionEntity>()
         val answersToPersist = mutableListOf<InterviewRecordAnswerEntity>()
@@ -318,6 +338,7 @@ class InterviewRecordService(
                     derivedFromResumeRecordId = parsedQuestion.derivedFromResumeRecordId,
                     derivedFromJobPostingSection = null,
                     parentQuestionId = parsedQuestion.parentOrderIndex?.let(persistedQuestionIdByOrderIndex::get),
+                    structuringSource = persistedStructuringSource,
                     orderIndex = parsedQuestion.orderIndex,
                     createdAt = now,
                     updatedAt = now,
@@ -337,6 +358,7 @@ class InterviewRecordService(
                     weaknessTagsJson = objectMapper.writeValueAsString(parsedAnswer.weaknessTags),
                     strengthTagsJson = objectMapper.writeValueAsString(parsedAnswer.strengthTags),
                     analysisJson = objectMapper.writeValueAsString(parsedAnswer.analysis),
+                    structuringSource = persistedStructuringSource,
                     orderIndex = parsedQuestion.orderIndex,
                     createdAt = now,
                     updatedAt = now,
@@ -361,12 +383,17 @@ class InterviewRecordService(
             }
         }
 
-        val overallSummary = parsed.overallSummaryOverride ?: buildOverallSummary(parsed.questions)
+        val overallSummary = if (isUserConfirmed) {
+            aiEnrichedSummary ?: buildOverallSummary(parsed.questions)
+        } else {
+            parsed.overallSummaryOverride ?: buildOverallSummary(parsed.questions)
+        }
         val profile = buildInterviewerProfile(
             userId = record.userId,
             recordId = record.id,
             questions = parsed.questions,
             profileOverride = parsed.interviewerProfileOverride,
+            structuringSource = persistedStructuringSource,
             now = now,
         )
         interviewerProfileRepository.findBySourceInterviewRecordId(record.id)?.let { existingProfile ->
@@ -390,7 +417,10 @@ class InterviewRecordService(
                     linkedResumeVersionId = record.linkedResumeVersionId,
                     linkedJobPostingId = record.linkedJobPostingId,
                     interviewerProfileId = null,
+                    deterministicSummary = deterministicSummary,
+                    aiEnrichedSummary = aiEnrichedSummary,
                     overallSummary = overallSummary,
+                    structuringStage = persistedStructuringSource,
                     createdAt = record.createdAt,
                     updatedAt = now,
                 ),
@@ -419,7 +449,10 @@ class InterviewRecordService(
                 linkedResumeVersionId = record.linkedResumeVersionId,
                 linkedJobPostingId = record.linkedJobPostingId,
                 interviewerProfileId = savedProfile.id,
+                deterministicSummary = deterministicSummary,
+                aiEnrichedSummary = aiEnrichedSummary,
                 overallSummary = overallSummary,
+                structuringStage = persistedStructuringSource,
                 createdAt = record.createdAt,
                 updatedAt = now,
             ),
@@ -631,6 +664,7 @@ class InterviewRecordService(
         recordId: Long,
         questions: List<ParsedQuestion>,
         profileOverride: PracticalInterviewInterviewerProfileOverride?,
+        structuringSource: String,
         now: Instant,
     ): InterviewerProfileEntity {
         val favoriteTopics = questions.flatMap { it.topicTags }.groupingBy { it }.eachCount()
@@ -669,6 +703,7 @@ class InterviewRecordService(
             favoriteTopicsJson = objectMapper.writeValueAsString(profileOverride?.favoriteTopics ?: favoriteTopics),
             openingPattern = profileOverride?.openingPattern ?: questions.firstOrNull()?.questionType,
             closingPattern = profileOverride?.closingPattern ?: questions.lastOrNull()?.questionType,
+            structuringSource = structuringSource,
             createdAt = now,
             updatedAt = now,
         )
@@ -793,6 +828,9 @@ class InterviewRecordService(
     private fun normalize(value: String): String = value.replace(Regex("\\s+"), " ").trim()
 
     companion object {
+        private const val STRUCTURING_STAGE_DETERMINISTIC = "deterministic"
+        private const val STRUCTURING_STAGE_AI_ENRICHED = "ai_enriched"
+        private const val STRUCTURING_STAGE_CONFIRMED = "confirmed"
         private const val INTERVIEW_TYPE_GENERAL = "general"
         private const val TRANSCRIPT_STATUS_PENDING = "pending"
         private const val TRANSCRIPT_STATUS_CONFIRMED = "confirmed"
@@ -816,6 +854,7 @@ data class ParsedInterviewTranscript(
     val questions: List<ParsedQuestion>,
     val overallSummaryOverride: String? = null,
     val interviewerProfileOverride: PracticalInterviewInterviewerProfileOverride? = null,
+    val structuringSource: String = "deterministic",
 )
 
 data class ParsedSegment(

@@ -32,7 +32,10 @@ data class InterviewRecordDetailDto(
     val linkedResumeVersionId: Long?,
     val linkedJobPostingId: Long?,
     val interviewerProfileId: Long?,
+    val deterministicSummary: String?,
+    val aiEnrichedSummary: String?,
     val overallSummary: String?,
+    val structuringStage: String,
     val questionCount: Int,
     val answerCount: Int,
     val createdAt: Instant,
@@ -75,6 +78,7 @@ data class InterviewRecordQuestionAnswerDto(
     val confidenceMarkers: List<String>,
     val weaknessTags: List<String>,
     val strengthTags: List<String>,
+    val structuringSource: String,
     val orderIndex: Int,
 )
 
@@ -91,6 +95,7 @@ data class InterviewRecordQuestionDto(
     val derivedFromResumeRecordId: Long?,
     val derivedFromJobPostingSection: String?,
     val parentQuestionId: Long?,
+    val structuringSource: String,
     val orderIndex: Int,
     val answer: InterviewRecordQuestionAnswerDto?,
 )
@@ -115,6 +120,7 @@ data class InterviewRecordAnalysisDto(
     val questionTypeDistribution: Map<String, Int>,
     val weakAnswerQuestionIds: List<Long>,
     val topicTags: List<String>,
+    val structuringStage: String,
     val overallSummary: String?,
 )
 
@@ -129,4 +135,5 @@ data class InterviewerProfileDto(
     val favoriteTopics: List<String>,
     val openingPattern: String?,
     val closingPattern: String?,
+    val structuringSource: String,
 )
