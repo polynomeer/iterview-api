@@ -72,6 +72,7 @@ data class InterviewRecordReviewDto(
     val timelineNavigation: InterviewRecordTimelineNavigationDto,
     val actionRecommendations: InterviewRecordReviewActionRecommendationsDto,
     val replayLaunchPreset: InterviewRecordReplayLaunchPresetDto,
+    val provenanceComparisonSummary: InterviewRecordProvenanceComparisonSummaryDto,
     val questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
     val followUpThreads: List<InterviewRecordReviewFollowUpThreadDto>,
 )
@@ -158,6 +159,17 @@ data class InterviewRecordReplayLaunchPresetDto(
     val recommendedQuestionCount: Int,
     val seedQuestionIds: List<Long>,
     val availableReplayModes: List<String>,
+)
+
+data class InterviewRecordProvenanceComparisonSummaryDto(
+    val aiRefinementApplied: Boolean,
+    val confirmedVersionAvailable: Boolean,
+    val summaryChangedFromDeterministic: Boolean,
+    val changedQuestionCountFromDeterministic: Int,
+    val changedAnswerCountFromDeterministic: Int,
+    val currentQuestionSource: String,
+    val currentAnswerSource: String,
+    val currentInterviewerProfileSource: String?,
 )
 
 data class InterviewRecordReviewQuestionSummaryDto(

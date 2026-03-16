@@ -1662,6 +1662,17 @@ Current structured extraction semantics:
       - `recommendedQuestionCount`
       - `seedQuestionIds[]`
       - `availableReplayModes[]`
+  - `provenanceComparisonSummary`
+    - additive comparison summary for deterministic vs ai_enriched vs confirmed review panels
+    - includes:
+      - `aiRefinementApplied`
+      - `confirmedVersionAvailable`
+      - `summaryChangedFromDeterministic`
+      - `changedQuestionCountFromDeterministic`
+      - `changedAnswerCountFromDeterministic`
+      - `currentQuestionSource`
+      - `currentAnswerSource`
+      - `currentInterviewerProfileSource`
   - `questionSummaries[]`
     - each summary also includes `deepLink`
       - `questionDetailQuestionId`

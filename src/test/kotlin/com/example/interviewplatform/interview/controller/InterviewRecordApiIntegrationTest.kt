@@ -217,6 +217,13 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.replayLaunchPreset.recommendedQuestionCount").value(2))
             .andExpect(jsonPath("$.replayLaunchPreset.seedQuestionIds.length()").value(1))
             .andExpect(jsonPath("$.replayLaunchPreset.availableReplayModes.length()").value(3))
+            .andExpect(jsonPath("$.provenanceComparisonSummary.aiRefinementApplied").value(false))
+            .andExpect(jsonPath("$.provenanceComparisonSummary.confirmedVersionAvailable").value(false))
+            .andExpect(jsonPath("$.provenanceComparisonSummary.summaryChangedFromDeterministic").value(false))
+            .andExpect(jsonPath("$.provenanceComparisonSummary.changedQuestionCountFromDeterministic").value(0))
+            .andExpect(jsonPath("$.provenanceComparisonSummary.changedAnswerCountFromDeterministic").value(0))
+            .andExpect(jsonPath("$.provenanceComparisonSummary.currentQuestionSource").value("deterministic"))
+            .andExpect(jsonPath("$.provenanceComparisonSummary.currentAnswerSource").value("deterministic"))
             .andExpect(jsonPath("$.questionSummaries.length()").value(2))
             .andExpect(jsonPath("$.questionSummaries[0].deepLink.archiveSourceType").value("real_interview"))
             .andExpect(jsonPath("$.questionSummaries[0].deepLink.sourceInterviewRecordId").value(recordId))
@@ -257,6 +264,11 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.actionRecommendations.primaryAction").value("start_replay"))
             .andExpect(jsonPath("$.actionRecommendations.canConfirm").value(false))
             .andExpect(jsonPath("$.replayLaunchPreset.sessionType").value("replay_mock"))
+            .andExpect(jsonPath("$.provenanceComparisonSummary.confirmedVersionAvailable").value(true))
+            .andExpect(jsonPath("$.provenanceComparisonSummary.changedQuestionCountFromDeterministic").value(2))
+            .andExpect(jsonPath("$.provenanceComparisonSummary.changedAnswerCountFromDeterministic").value(2))
+            .andExpect(jsonPath("$.provenanceComparisonSummary.currentQuestionSource").value("confirmed"))
+            .andExpect(jsonPath("$.provenanceComparisonSummary.currentAnswerSource").value("confirmed"))
             .andExpect(jsonPath("$.questionSourceCounts.confirmed").value(2))
             .andExpect(jsonPath("$.answerSourceCounts.confirmed").value(2))
             .andExpect(jsonPath("$.questionSummaries[0].questionStructuringSource").value("confirmed"))
@@ -376,6 +388,7 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.actionRecommendations.blockingReasons[0]").value("pending_transcript_edits"))
             .andExpect(jsonPath("$.actionRecommendations.canConfirm").value(false))
             .andExpect(jsonPath("$.replayLaunchPreset.sourceInterviewRecordId").value(recordId))
+            .andExpect(jsonPath("$.provenanceComparisonSummary.currentQuestionSource").value("deterministic"))
     }
 
     @Test

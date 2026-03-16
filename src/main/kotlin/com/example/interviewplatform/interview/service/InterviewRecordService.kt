@@ -17,6 +17,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordTimelineNaviga
 import com.example.interviewplatform.interview.dto.InterviewRecordTimelineNavigationItemDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewActionRecommendationsDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReplayLaunchPresetDto
+import com.example.interviewplatform.interview.dto.InterviewRecordProvenanceComparisonSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptDto
@@ -307,6 +308,12 @@ class InterviewRecordService(
                 replayReadiness = replayReadiness,
             ),
             replayLaunchPreset = buildReplayLaunchPreset(recordId, questionSummaries, replayReadiness),
+            provenanceComparisonSummary = buildProvenanceComparisonSummary(
+                record = record,
+                questions = questions,
+                answers = answers,
+                interviewerProfileSource = interviewerProfile?.structuringSource,
+            ),
             questionSummaries = questionSummaries,
             followUpThreads = buildReviewFollowUpThreads(questionSummaries),
         )
@@ -505,6 +512,40 @@ class InterviewRecordService(
                 REVIEW_REPLAY_MODE_PRESSURE_VARIANT,
             ),
         )
+    }
+
+    private fun buildProvenanceComparisonSummary(
+        record: InterviewRecordEntity,
+        questions: List<InterviewRecordQuestionEntity>,
+        answers: List<InterviewRecordAnswerEntity>,
+        interviewerProfileSource: String?,
+    ): InterviewRecordProvenanceComparisonSummaryDto {
+        val aiRefinementApplied = record.aiEnrichedSummary != null ||
+            questions.any { it.structuringSource == STRUCTURING_STAGE_AI_ENRICHED } ||
+            answers.any { it.structuringSource == STRUCTURING_STAGE_AI_ENRICHED } ||
+            interviewerProfileSource == STRUCTURING_STAGE_AI_ENRICHED
+        return InterviewRecordProvenanceComparisonSummaryDto(
+            aiRefinementApplied = aiRefinementApplied,
+            confirmedVersionAvailable = record.confirmedAt != null || record.structuringStage == STRUCTURING_STAGE_CONFIRMED,
+            summaryChangedFromDeterministic = hasSummaryChangedFromDeterministic(record),
+            changedQuestionCountFromDeterministic = questions.count { it.structuringSource != STRUCTURING_STAGE_DETERMINISTIC },
+            changedAnswerCountFromDeterministic = answers.count { it.structuringSource != STRUCTURING_STAGE_DETERMINISTIC },
+            currentQuestionSource = resolveCurrentStructuringSource(questions.map { it.structuringSource }),
+            currentAnswerSource = resolveCurrentStructuringSource(answers.map { it.structuringSource }),
+            currentInterviewerProfileSource = interviewerProfileSource,
+        )
+    }
+
+    private fun hasSummaryChangedFromDeterministic(record: InterviewRecordEntity): Boolean {
+        val deterministicSummary = record.deterministicSummary?.trim().orEmpty()
+        val currentSummary = (record.aiEnrichedSummary ?: record.overallSummary)?.trim().orEmpty()
+        return deterministicSummary.isNotBlank() && currentSummary.isNotBlank() && deterministicSummary != currentSummary
+    }
+
+    private fun resolveCurrentStructuringSource(sources: List<String>): String = when {
+        sources.any { it == STRUCTURING_STAGE_CONFIRMED } -> STRUCTURING_STAGE_CONFIRMED
+        sources.any { it == STRUCTURING_STAGE_AI_ENRICHED } -> STRUCTURING_STAGE_AI_ENRICHED
+        else -> STRUCTURING_STAGE_DETERMINISTIC
     }
 
     private fun hasSpeakerOverride(segment: InterviewTranscriptSegmentEntity): Boolean {

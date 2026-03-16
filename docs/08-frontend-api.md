@@ -272,6 +272,8 @@ Implemented practical interview record foundation:
     - use this for primary CTA selection and disabled-state messaging in practical interview review
   - `replayLaunchPreset`
     - use this to prefill the replay-start modal or direct `POST /api/interview-sessions` call for `replay_mock`
+  - `provenanceComparisonSummary`
+    - use this for deterministic vs AI vs confirmed diff panels without inferring current source precedence on the client
   - `questionSummaries[]`
     - use this for practical interview question review tables instead of recomputing follow-up/weak/confirmed state on the client
     - each summary also carries `deepLink` metadata for direct question-detail, archive-source, and replay-mock actions

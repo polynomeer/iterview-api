@@ -1889,6 +1889,8 @@ components:
           $ref: "#/components/schemas/InterviewRecordReviewActionRecommendationsDto"
         replayLaunchPreset:
           $ref: "#/components/schemas/InterviewRecordReplayLaunchPresetDto"
+        provenanceComparisonSummary:
+          $ref: "#/components/schemas/InterviewRecordProvenanceComparisonSummaryDto"
         questionSummaries:
           type: array
           items:
@@ -2043,6 +2045,17 @@ components:
         availableReplayModes:
           type: array
           items: { type: string }
+    InterviewRecordProvenanceComparisonSummaryDto:
+      type: object
+      properties:
+        aiRefinementApplied: { type: boolean }
+        confirmedVersionAvailable: { type: boolean }
+        summaryChangedFromDeterministic: { type: boolean }
+        changedQuestionCountFromDeterministic: { type: integer }
+        changedAnswerCountFromDeterministic: { type: integer }
+        currentQuestionSource: { type: string }
+        currentAnswerSource: { type: string }
+        currentInterviewerProfileSource: { type: string, nullable: true }
     InterviewRecordReviewFollowUpThreadDto:
       type: object
       properties:
