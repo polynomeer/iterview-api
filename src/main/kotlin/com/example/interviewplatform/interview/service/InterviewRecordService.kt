@@ -426,6 +426,8 @@ class InterviewRecordService(
                     SEGMENT_ISSUE_SPEAKER_OVERRIDE in issueTypes -> SEGMENT_ACTION_JUMP_TO_QUESTION
                     else -> SEGMENT_ACTION_JUMP_TO_THREAD
                 },
+                triageReason = resolveSegmentTriageReason(issueTypes),
+                ctaLabel = resolveSegmentCtaLabel(issueTypes),
                 severity = resolveSegmentIssueSeverity(issueTypes),
                 priority = resolveSegmentIssuePriority(issueTypes),
                 reviewerLane = resolveSegmentReviewerLane(issueTypes, linkedQuestionId, threadRootQuestionId),
@@ -602,6 +604,21 @@ class InterviewRecordService(
         SEGMENT_ISSUE_SPEAKER_OVERRIDE in issueTypes && linkedQuestionId != null -> SEGMENT_REVIEWER_LANE_QUESTION
         threadRootQuestionId != null -> SEGMENT_REVIEWER_LANE_THREAD
         else -> SEGMENT_REVIEWER_LANE_TRANSCRIPT
+    }
+
+    private fun resolveSegmentTriageReason(issueTypes: Set<String>): String = when {
+        SEGMENT_ISSUE_CONFIRMED_OVERRIDE in issueTypes ->
+            "Confirmed transcript text differs from the cleaned baseline and should be reviewed first."
+        SEGMENT_ISSUE_SPEAKER_OVERRIDE in issueTypes ->
+            "Speaker attribution looks inconsistent and may affect question or answer structuring."
+        else ->
+            "This segment has low transcript confidence and should be verified before confirmation."
+    }
+
+    private fun resolveSegmentCtaLabel(issueTypes: Set<String>): String = when {
+        SEGMENT_ISSUE_CONFIRMED_OVERRIDE in issueTypes -> "Review transcript edit"
+        SEGMENT_ISSUE_SPEAKER_OVERRIDE in issueTypes -> "Open linked question"
+        else -> "Inspect follow-up thread"
     }
 
     private fun buildProvenanceComparisonSummary(

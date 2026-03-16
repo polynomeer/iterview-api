@@ -267,6 +267,7 @@ Implemented practical interview record foundation:
     - `segmentActions[]` is additive quick-action metadata for jumping from a flagged transcript row into the related question or follow-up thread without rebuilding anchors on the client
     - each segment action may also carry `deepLink` and `replayLaunchPreset` so transcript-first review UIs can open question detail or replay directly from the issue row
     - `severity`, `priority`, and `reviewerLane` are additive triage metadata for sorting transcript issues and routing them into transcript, question, or thread review lanes
+    - `triageReason` and `ctaLabel` are additive copy helpers for top-priority cards and transcript issue buttons
     - `reviewerLaneCounts` and `topPrioritySegmentActions[]` are additive dashboard aggregates for review-summary headers and `look here first` panels
   - `answerQualitySummary`
     - use this for practical interview answer-quality panels such as `weak`, `quantified`, `structured`, or `trade-off aware`

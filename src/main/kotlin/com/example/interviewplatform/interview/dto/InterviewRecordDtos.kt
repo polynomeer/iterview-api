@@ -125,6 +125,8 @@ data class InterviewRecordTranscriptSegmentActionDto(
     val sequence: Int,
     val issueTypes: List<String>,
     val recommendedAction: String,
+    val triageReason: String,
+    val ctaLabel: String,
     val severity: String,
     val priority: String,
     val reviewerLane: String,

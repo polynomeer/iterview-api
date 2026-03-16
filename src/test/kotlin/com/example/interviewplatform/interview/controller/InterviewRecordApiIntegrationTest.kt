@@ -402,6 +402,8 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.transcriptIssueSummary.segmentActions[0].issueTypes[0]").value("speaker_override"))
             .andExpect(jsonPath("$.transcriptIssueSummary.segmentActions[0].issueTypes[1]").value("confirmed_override"))
             .andExpect(jsonPath("$.transcriptIssueSummary.segmentActions[0].recommendedAction").value("review_now"))
+            .andExpect(jsonPath("$.transcriptIssueSummary.segmentActions[0].triageReason").isString)
+            .andExpect(jsonPath("$.transcriptIssueSummary.segmentActions[0].ctaLabel").value("Review transcript edit"))
             .andExpect(jsonPath("$.transcriptIssueSummary.segmentActions[0].severity").value("high"))
             .andExpect(jsonPath("$.transcriptIssueSummary.segmentActions[0].priority").value("p0"))
             .andExpect(jsonPath("$.transcriptIssueSummary.segmentActions[0].reviewerLane").value("transcript_review"))

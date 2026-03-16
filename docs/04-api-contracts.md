@@ -1629,6 +1629,8 @@ Current structured extraction semantics:
         - `sequence`
         - `issueTypes[]`
         - `recommendedAction`
+        - `triageReason`
+        - `ctaLabel`
         - `severity`
         - `priority`
         - `reviewerLane`

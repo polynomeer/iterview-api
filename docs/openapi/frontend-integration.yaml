@@ -2014,6 +2014,8 @@ components:
           type: array
           items: { type: string }
         recommendedAction: { type: string }
+        triageReason: { type: string }
+        ctaLabel: { type: string }
         severity: { type: string }
         priority: { type: string }
         reviewerLane: { type: string }
