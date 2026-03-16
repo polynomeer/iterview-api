@@ -350,24 +350,64 @@ class InterviewRecordService(
                 (it.answerStructuringSource != null && it.answerStructuringSource != STRUCTURING_STAGE_CONFIRMED)
         }
         val threadNeedsReviewCount = followUpThreads.count { it.recommendedAction != THREAD_ACTION_STABLE_CHAIN }
+        val transcriptBlockingReasons = buildList {
+            if (transcriptIssueSummary.unresolvedIssueCount > 0) {
+                add(REVIEW_BLOCKING_REASON_PENDING_TRANSCRIPT_EDITS)
+            }
+        }
+        val questionBlockingReasons = buildList {
+            if (questionSummaries.any { it.hasWeakAnswer }) {
+                add(REVIEW_BLOCKING_REASON_WEAK_ANSWERS_PRESENT)
+            }
+            if (questionSummaries.any {
+                    it.questionStructuringSource != STRUCTURING_STAGE_CONFIRMED ||
+                        (it.answerStructuringSource != null && it.answerStructuringSource != STRUCTURING_STAGE_CONFIRMED)
+                }
+            ) {
+                add(REVIEW_BLOCKING_REASON_UNCONFIRMED_QUESTIONS_PRESENT)
+            }
+        }
+        val threadBlockingReasons = buildList {
+            if (followUpThreads.any { it.recommendedAction == THREAD_ACTION_REVIEW_WEAK_CHAIN }) {
+                add(REVIEW_BLOCKING_REASON_WEAK_THREADS_PRESENT)
+            }
+            if (followUpThreads.isEmpty()) {
+                add(REVIEW_BLOCKING_REASON_NO_THREADS_AVAILABLE)
+            }
+        }
+        val threadPrimaryAction = when {
+            followUpThreads.any { it.recommendedAction == THREAD_ACTION_REVIEW_WEAK_CHAIN } -> THREAD_ACTION_REVIEW_WEAK_CHAIN
+            followUpThreads.any { it.recommendedAction == THREAD_ACTION_REPLAY_CHAIN } -> THREAD_ACTION_REPLAY_CHAIN
+            else -> THREAD_ACTION_STABLE_CHAIN
+        }
         return InterviewRecordReviewLaneSummaryDto(
             transcript = InterviewRecordReviewLaneItemDto(
                 totalCount = transcriptIssueSummary.segmentActions.size,
                 readyCount = transcriptIssueSummary.resolvedIssueCount,
                 needsReviewCount = transcriptIssueSummary.unresolvedIssueCount,
                 readiness = transcriptIssueSummary.confirmationReadiness,
+                primaryAction = if (transcriptIssueSummary.unresolvedIssueCount > 0) {
+                    REVIEW_ACTION_REVIEW_TRANSCRIPT
+                } else {
+                    REVIEW_ACTION_CONFIRM
+                },
+                blockingReasons = transcriptBlockingReasons.distinct(),
             ),
             question = InterviewRecordReviewLaneItemDto(
                 totalCount = questionSummaries.size,
                 readyCount = (questionSummaries.size - questionNeedsReviewCount).coerceAtLeast(0),
                 needsReviewCount = questionNeedsReviewCount,
                 readiness = if (questionNeedsReviewCount == 0) REVIEW_LANE_READY else REVIEW_LANE_NEEDS_REVIEW,
+                primaryAction = if (questionNeedsReviewCount == 0) REVIEW_ACTION_CONFIRM else REVIEW_ACTION_REVIEW_ANSWERS,
+                blockingReasons = questionBlockingReasons.distinct(),
             ),
             thread = InterviewRecordReviewLaneItemDto(
                 totalCount = followUpThreads.size,
                 readyCount = (followUpThreads.size - threadNeedsReviewCount).coerceAtLeast(0),
                 needsReviewCount = threadNeedsReviewCount,
                 readiness = if (threadNeedsReviewCount == 0) REVIEW_LANE_READY else REVIEW_LANE_NEEDS_REVIEW,
+                primaryAction = threadPrimaryAction,
+                blockingReasons = threadBlockingReasons.distinct(),
             ),
         )
     }
@@ -1729,6 +1769,10 @@ class InterviewRecordService(
         private const val REVIEW_ACTION_CONFIRM = "confirm"
         private const val REVIEW_ACTION_START_REPLAY = "start_replay"
         private const val REVIEW_BLOCKING_REASON_PENDING_TRANSCRIPT_EDITS = "pending_transcript_edits"
+        private const val REVIEW_BLOCKING_REASON_WEAK_ANSWERS_PRESENT = "weak_answers_present"
+        private const val REVIEW_BLOCKING_REASON_UNCONFIRMED_QUESTIONS_PRESENT = "unconfirmed_questions_present"
+        private const val REVIEW_BLOCKING_REASON_WEAK_THREADS_PRESENT = "weak_threads_present"
+        private const val REVIEW_BLOCKING_REASON_NO_THREADS_AVAILABLE = "no_threads_available"
         private const val THREAD_ACTION_REVIEW_WEAK_CHAIN = "review_weak_chain"
         private const val THREAD_ACTION_REPLAY_CHAIN = "replay_chain"
         private const val THREAD_ACTION_STABLE_CHAIN = "stable_chain"

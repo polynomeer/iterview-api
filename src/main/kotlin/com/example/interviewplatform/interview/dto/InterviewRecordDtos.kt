@@ -151,6 +151,8 @@ data class InterviewRecordReviewLaneItemDto(
     val readyCount: Int,
     val needsReviewCount: Int,
     val readiness: String,
+    val primaryAction: String,
+    val blockingReasons: List<String>,
 )
 
 data class InterviewRecordAnswerQualitySummaryDto(

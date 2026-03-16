@@ -1997,6 +1997,10 @@ components:
         readyCount: { type: integer }
         needsReviewCount: { type: integer }
         readiness: { type: string }
+        primaryAction: { type: string }
+        blockingReasons:
+          type: array
+          items: { type: string }
     InterviewRecordTranscriptIssueSummaryDto:
       type: object
       properties:
