@@ -2660,13 +2660,13 @@ class InterviewRecordService(
             .getOrDefault(emptyList())
 
     private fun ensureInterviewerProfile(record: InterviewRecordEntity): InterviewerProfileEntity? {
-        if (record.analysisStatus != ANALYSIS_STATUS_COMPLETED) {
+        val questions = interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(record.id)
+        if (questions.isEmpty() && record.analysisStatus != ANALYSIS_STATUS_COMPLETED) {
             throw ResponseStatusException(
                 HttpStatus.CONFLICT,
                 "Interviewer profile is not available until analysis completes for record: ${record.id}",
             )
         }
-        val questions = interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(record.id)
         if (questions.isEmpty()) {
             return null
         }
