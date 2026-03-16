@@ -11,6 +11,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestion
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionFilterSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionOriginSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReplayReadinessDto
+import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptSegmentActionDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptIssueSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordAnswerQualitySummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTimelineNavigationDto
@@ -241,6 +242,7 @@ class InterviewRecordService(
         }
         val segmentSequenceById = segments.associate { it.id to it.sequence }
         val answerByQuestionId = answers.associateBy { it.interviewRecordQuestionId }
+        val questionById = questions.associateBy { it.id }
         val interviewerProfile = interviewerProfileRepository.findBySourceInterviewRecordId(recordId)
         val questionSummaries = questions.map { question ->
             val answer = answerByQuestionId[question.id]
@@ -300,7 +302,13 @@ class InterviewRecordService(
             questionDistributionSummary = buildReviewQuestionDistributionSummary(questionSummaries),
             questionOriginSummary = buildReviewQuestionOriginSummary(questionSummaries),
             replayReadiness = replayReadiness,
-            transcriptIssueSummary = buildTranscriptIssueSummary(segments),
+            transcriptIssueSummary = buildTranscriptIssueSummary(
+                segments = segments,
+                questions = questions,
+                answers = answers,
+                segmentSequenceById = segmentSequenceById,
+                questionById = questionById,
+            ),
             answerQualitySummary = buildAnswerQualitySummary(answers),
             timelineNavigation = buildTimelineNavigation(questions, answerByQuestionId, segmentSequenceById),
             actionRecommendations = buildActionRecommendations(
@@ -382,10 +390,27 @@ class InterviewRecordService(
 
     private fun buildTranscriptIssueSummary(
         segments: List<InterviewTranscriptSegmentEntity>,
+        questions: List<InterviewRecordQuestionEntity>,
+        answers: List<InterviewRecordAnswerEntity>,
+        segmentSequenceById: Map<Long, Int>,
+        questionById: Map<Long, InterviewRecordQuestionEntity>,
     ): InterviewRecordTranscriptIssueSummaryDto {
         val lowConfidenceSegments = segments.filter { (it.confidenceScore ?: BigDecimal.ONE) < LOW_CONFIDENCE_THRESHOLD }
         val speakerOverrideSegments = segments.filter(::hasSpeakerOverride)
         val editedSegments = segments.filter(::isEditedSegment)
+        val questionIdBySequence = mutableMapOf<Int, Long>()
+        questions.forEach { question ->
+            question.segmentStartId?.let(segmentSequenceById::get)?.let { questionIdBySequence[it] = question.id }
+            question.segmentEndId?.let(segmentSequenceById::get)?.let { questionIdBySequence[it] = question.id }
+        }
+        answers.forEach { answer ->
+            answer.segmentStartId?.let(segmentSequenceById::get)?.let { questionIdBySequence[it] = answer.interviewRecordQuestionId }
+            answer.segmentEndId?.let(segmentSequenceById::get)?.let { questionIdBySequence[it] = answer.interviewRecordQuestionId }
+        }
+        val issueTypesBySequence = linkedMapOf<Int, MutableSet<String>>()
+        lowConfidenceSegments.forEach { issueTypesBySequence.computeIfAbsent(it.sequence) { linkedSetOf() }.add(SEGMENT_ISSUE_LOW_CONFIDENCE) }
+        speakerOverrideSegments.forEach { issueTypesBySequence.computeIfAbsent(it.sequence) { linkedSetOf() }.add(SEGMENT_ISSUE_SPEAKER_OVERRIDE) }
+        editedSegments.forEach { issueTypesBySequence.computeIfAbsent(it.sequence) { linkedSetOf() }.add(SEGMENT_ISSUE_CONFIRMED_OVERRIDE) }
         return InterviewRecordTranscriptIssueSummaryDto(
             lowConfidenceSegmentCount = lowConfidenceSegments.size,
             lowConfidenceSegmentSequences = lowConfidenceSegments.map { it.sequence },
@@ -393,6 +418,21 @@ class InterviewRecordService(
             speakerOverrideSegmentSequences = speakerOverrideSegments.map { it.sequence },
             confirmedTextOverrideCount = editedSegments.size,
             editedSegmentSequences = editedSegments.map { it.sequence },
+            segmentActions = issueTypesBySequence.entries.map { (sequence, issueTypes) ->
+                val linkedQuestionId = questionIdBySequence[sequence]
+                val threadRootQuestionId = linkedQuestionId?.let(questionById::get)?.let { resolveQuestionThreadRootId(it, questionById) }
+                InterviewRecordTranscriptSegmentActionDto(
+                    sequence = sequence,
+                    issueTypes = issueTypes.toList(),
+                    recommendedAction = when {
+                        SEGMENT_ISSUE_CONFIRMED_OVERRIDE in issueTypes -> SEGMENT_ACTION_REVIEW_NOW
+                        SEGMENT_ISSUE_SPEAKER_OVERRIDE in issueTypes -> SEGMENT_ACTION_JUMP_TO_QUESTION
+                        else -> SEGMENT_ACTION_JUMP_TO_THREAD
+                    },
+                    linkedQuestionId = linkedQuestionId,
+                    threadRootQuestionId = threadRootQuestionId,
+                )
+            },
         )
     }
 
@@ -1521,6 +1561,12 @@ class InterviewRecordService(
         private const val REPLAY_BLOCKER_NO_QUESTIONS = "no_questions"
         private const val REPLAY_BLOCKER_NO_INTERVIEWER_PROFILE = "no_interviewer_profile"
         private val LOW_CONFIDENCE_THRESHOLD = BigDecimal("0.80")
+        private const val SEGMENT_ISSUE_LOW_CONFIDENCE = "low_confidence"
+        private const val SEGMENT_ISSUE_SPEAKER_OVERRIDE = "speaker_override"
+        private const val SEGMENT_ISSUE_CONFIRMED_OVERRIDE = "confirmed_override"
+        private const val SEGMENT_ACTION_REVIEW_NOW = "review_now"
+        private const val SEGMENT_ACTION_JUMP_TO_QUESTION = "jump_to_question"
+        private const val SEGMENT_ACTION_JUMP_TO_THREAD = "jump_to_thread"
         private const val REVIEW_ACTION_REVIEW_TRANSCRIPT = "review_transcript"
         private const val REVIEW_ACTION_REVIEW_ANSWERS = "review_answers"
         private const val REVIEW_ACTION_CONFIRM = "confirm"

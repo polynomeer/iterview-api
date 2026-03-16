@@ -1623,6 +1623,12 @@ Current structured extraction semantics:
       - `speakerOverrideSegmentSequences[]`
       - `confirmedTextOverrideCount`
       - `editedSegmentSequences[]`
+      - `segmentActions[]`
+        - `sequence`
+        - `issueTypes[]`
+        - `recommendedAction`
+        - `linkedQuestionId`
+        - `threadRootQuestionId`
   - `answerQualitySummary`
     - additive aggregate for answer-quality overview panels
     - includes:

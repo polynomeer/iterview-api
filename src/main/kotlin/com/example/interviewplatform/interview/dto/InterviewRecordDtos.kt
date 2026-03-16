@@ -116,6 +116,15 @@ data class InterviewRecordTranscriptIssueSummaryDto(
     val speakerOverrideSegmentSequences: List<Int>,
     val confirmedTextOverrideCount: Int,
     val editedSegmentSequences: List<Int>,
+    val segmentActions: List<InterviewRecordTranscriptSegmentActionDto>,
+)
+
+data class InterviewRecordTranscriptSegmentActionDto(
+    val sequence: Int,
+    val issueTypes: List<String>,
+    val recommendedAction: String,
+    val linkedQuestionId: Long?,
+    val threadRootQuestionId: Long?,
 )
 
 data class InterviewRecordAnswerQualitySummaryDto(

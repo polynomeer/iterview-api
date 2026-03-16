@@ -1994,6 +1994,26 @@ components:
         editedSegmentSequences:
           type: array
           items: { type: integer }
+        segmentActions:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewRecordTranscriptSegmentActionDto"
+    InterviewRecordTranscriptSegmentActionDto:
+      type: object
+      properties:
+        sequence: { type: integer }
+        issueTypes:
+          type: array
+          items: { type: string }
+        recommendedAction: { type: string }
+        linkedQuestionId:
+          type: integer
+          format: int64
+          nullable: true
+        threadRootQuestionId:
+          type: integer
+          format: int64
+          nullable: true
     InterviewRecordAnswerQualitySummaryDto:
       type: object
       properties:
