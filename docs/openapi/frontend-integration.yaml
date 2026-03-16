@@ -1883,6 +1883,8 @@ components:
           $ref: "#/components/schemas/InterviewRecordTranscriptIssueSummaryDto"
         answerQualitySummary:
           $ref: "#/components/schemas/InterviewRecordAnswerQualitySummaryDto"
+        timelineNavigation:
+          $ref: "#/components/schemas/InterviewRecordTimelineNavigationDto"
         questionSummaries:
           type: array
           items:
@@ -1994,6 +1996,24 @@ components:
         tradeoffAwareAnswerCount: { type: integer }
         uncertainAnswerCount: { type: integer }
         detailedAnswerCount: { type: integer }
+    InterviewRecordTimelineNavigationDto:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewRecordTimelineNavigationItemDto"
+    InterviewRecordTimelineNavigationItemDto:
+      type: object
+      properties:
+        questionId: { type: integer, format: int64 }
+        orderIndex: { type: integer }
+        parentQuestionId: { type: integer, format: int64, nullable: true }
+        threadRootQuestionId: { type: integer, format: int64 }
+        questionSegmentStartSequence: { type: integer, nullable: true }
+        questionSegmentEndSequence: { type: integer, nullable: true }
+        answerSegmentStartSequence: { type: integer, nullable: true }
+        answerSegmentEndSequence: { type: integer, nullable: true }
     InterviewRecordReviewFollowUpThreadDto:
       type: object
       properties:

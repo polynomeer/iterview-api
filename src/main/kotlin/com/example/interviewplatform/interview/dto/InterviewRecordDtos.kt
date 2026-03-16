@@ -69,6 +69,7 @@ data class InterviewRecordReviewDto(
     val replayReadiness: InterviewRecordReplayReadinessDto,
     val transcriptIssueSummary: InterviewRecordTranscriptIssueSummaryDto,
     val answerQualitySummary: InterviewRecordAnswerQualitySummaryDto,
+    val timelineNavigation: InterviewRecordTimelineNavigationDto,
     val questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
     val followUpThreads: List<InterviewRecordReviewFollowUpThreadDto>,
 )
@@ -123,6 +124,21 @@ data class InterviewRecordAnswerQualitySummaryDto(
     val tradeoffAwareAnswerCount: Int,
     val uncertainAnswerCount: Int,
     val detailedAnswerCount: Int,
+)
+
+data class InterviewRecordTimelineNavigationDto(
+    val items: List<InterviewRecordTimelineNavigationItemDto>,
+)
+
+data class InterviewRecordTimelineNavigationItemDto(
+    val questionId: Long,
+    val orderIndex: Int,
+    val parentQuestionId: Long?,
+    val threadRootQuestionId: Long,
+    val questionSegmentStartSequence: Int?,
+    val questionSegmentEndSequence: Int?,
+    val answerSegmentStartSequence: Int?,
+    val answerSegmentEndSequence: Int?,
 )
 
 data class InterviewRecordReviewQuestionSummaryDto(

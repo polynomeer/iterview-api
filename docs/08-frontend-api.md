@@ -266,6 +266,8 @@ Implemented practical interview record foundation:
     - use this for transcript review priority panels such as `edited`, `speaker override`, or `low confidence`
   - `answerQualitySummary`
     - use this for practical interview answer-quality panels such as `weak`, `quantified`, `structured`, or `trade-off aware`
+  - `timelineNavigation`
+    - use this for transcript viewer, question table, and follow-up thread panel cross-navigation without recomputing anchors on the client
   - `questionSummaries[]`
     - use this for practical interview question review tables instead of recomputing follow-up/weak/confirmed state on the client
     - each summary also carries `deepLink` metadata for direct question-detail, archive-source, and replay-mock actions

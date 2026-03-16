@@ -13,6 +13,8 @@ import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestion
 import com.example.interviewplatform.interview.dto.InterviewRecordReplayReadinessDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptIssueSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordAnswerQualitySummaryDto
+import com.example.interviewplatform.interview.dto.InterviewRecordTimelineNavigationDto
+import com.example.interviewplatform.interview.dto.InterviewRecordTimelineNavigationItemDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptDto
@@ -234,6 +236,7 @@ class InterviewRecordService(
         } else {
             interviewRecordAnswerRepository.findByInterviewRecordQuestionIdIn(questions.map { it.id })
         }
+        val segmentSequenceById = segments.associate { it.id to it.sequence }
         val answerByQuestionId = answers.associateBy { it.interviewRecordQuestionId }
         val interviewerProfile = interviewerProfileRepository.findBySourceInterviewRecordId(recordId)
         val questionSummaries = questions.map { question ->
@@ -293,6 +296,7 @@ class InterviewRecordService(
             replayReadiness = buildReplayReadiness(questionSummaries, interviewerProfile != null),
             transcriptIssueSummary = buildTranscriptIssueSummary(segments),
             answerQualitySummary = buildAnswerQualitySummary(answers),
+            timelineNavigation = buildTimelineNavigation(questions, answerByQuestionId, segmentSequenceById),
             questionSummaries = questionSummaries,
             followUpThreads = buildReviewFollowUpThreads(questionSummaries),
         )
@@ -397,6 +401,29 @@ class InterviewRecordService(
         )
     }
 
+    private fun buildTimelineNavigation(
+        questions: List<InterviewRecordQuestionEntity>,
+        answerByQuestionId: Map<Long, InterviewRecordAnswerEntity>,
+        segmentSequenceById: Map<Long, Int>,
+    ): InterviewRecordTimelineNavigationDto {
+        val questionById = questions.associateBy { it.id }
+        return InterviewRecordTimelineNavigationDto(
+            items = questions.map { question ->
+                val answer = answerByQuestionId[question.id]
+                InterviewRecordTimelineNavigationItemDto(
+                    questionId = question.id,
+                    orderIndex = question.orderIndex,
+                    parentQuestionId = question.parentQuestionId,
+                    threadRootQuestionId = resolveQuestionThreadRootId(question, questionById),
+                    questionSegmentStartSequence = question.segmentStartId?.let(segmentSequenceById::get),
+                    questionSegmentEndSequence = question.segmentEndId?.let(segmentSequenceById::get),
+                    answerSegmentStartSequence = answer?.segmentStartId?.let(segmentSequenceById::get),
+                    answerSegmentEndSequence = answer?.segmentEndId?.let(segmentSequenceById::get),
+                )
+            },
+        )
+    }
+
     private fun hasSpeakerOverride(segment: InterviewTranscriptSegmentEntity): Boolean {
         val rawText = segment.rawText?.trim().orEmpty()
         if (rawText.isBlank()) {
@@ -414,6 +441,22 @@ class InterviewRecordService(
             hasJobPostingLink -> REVIEW_ORIGIN_JOB_POSTING_LINKED
             else -> REVIEW_ORIGIN_GENERAL
         }
+    }
+
+    private fun resolveQuestionThreadRootId(
+        question: InterviewRecordQuestionEntity,
+        questionById: Map<Long, InterviewRecordQuestionEntity>,
+    ): Long {
+        var current = question
+        val visited = linkedSetOf(current.id)
+        while (current.parentQuestionId != null) {
+            val parent = questionById[current.parentQuestionId] ?: break
+            if (!visited.add(parent.id)) {
+                break
+            }
+            current = parent
+        }
+        return current.id
     }
 
     private fun buildReviewFollowUpThreads(

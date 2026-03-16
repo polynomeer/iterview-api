@@ -1634,6 +1634,17 @@ Current structured extraction semantics:
       - `tradeoffAwareAnswerCount`
       - `uncertainAnswerCount`
       - `detailedAnswerCount`
+  - `timelineNavigation`
+    - additive navigation anchors for transcript/question/thread cross-linking
+    - `items[]` includes:
+      - `questionId`
+      - `orderIndex`
+      - `parentQuestionId`
+      - `threadRootQuestionId`
+      - `questionSegmentStartSequence`
+      - `questionSegmentEndSequence`
+      - `answerSegmentStartSequence`
+      - `answerSegmentEndSequence`
   - `questionSummaries[]`
     - each summary also includes `deepLink`
       - `questionDetailQuestionId`
