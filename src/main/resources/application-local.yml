@@ -23,3 +23,7 @@ app:
     allowed-headers: ${APP_CORS_ALLOWED_HEADERS:*}
     allow-credentials: ${APP_CORS_ALLOW_CREDENTIALS:true}
     max-age-seconds: ${APP_CORS_MAX_AGE_SECONDS:3600}
+
+logging:
+  level:
+    com.example.interviewplatform.interview.service.InterviewRecordService: DEBUG
