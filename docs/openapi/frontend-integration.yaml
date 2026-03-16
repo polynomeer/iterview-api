@@ -2003,6 +2003,8 @@ components:
         trackingContext:
           type: object
           additionalProperties: { type: string }
+        emptyStateCtaAction: { type: string, nullable: true }
+        emptyStateCtaLabel: { type: string, nullable: true }
         totalCount: { type: integer }
         readyCount: { type: integer }
         needsReviewCount: { type: integer }
@@ -2014,6 +2016,8 @@ components:
         secondaryAction: { type: string, nullable: true }
         secondaryActionLabel: { type: string, nullable: true }
         emptyStateMessage: { type: string, nullable: true }
+        completionCtaAction: { type: string, nullable: true }
+        completionCtaLabel: { type: string, nullable: true }
         completionMessage: { type: string, nullable: true }
         blockingReasons:
           type: array

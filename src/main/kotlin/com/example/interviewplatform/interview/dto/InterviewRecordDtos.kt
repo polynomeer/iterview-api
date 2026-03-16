@@ -166,7 +166,11 @@ data class InterviewRecordReviewLaneItemDto(
     val secondaryAction: String?,
     val secondaryActionLabel: String?,
     val emptyStateMessage: String?,
+    val emptyStateCtaAction: String?,
+    val emptyStateCtaLabel: String?,
     val completionMessage: String?,
+    val completionCtaAction: String?,
+    val completionCtaLabel: String?,
     val blockingReasons: List<String>,
 )
 

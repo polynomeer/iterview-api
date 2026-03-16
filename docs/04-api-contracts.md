@@ -1629,6 +1629,8 @@ Current structured extraction semantics:
       - `defaultExpanded`
       - `analyticsKey`
       - `trackingContext`
+      - `emptyStateCtaAction`
+      - `emptyStateCtaLabel`
       - `totalCount`
       - `readyCount`
       - `needsReviewCount`
@@ -1640,6 +1642,8 @@ Current structured extraction semantics:
       - `secondaryAction`
       - `secondaryActionLabel`
       - `emptyStateMessage`
+      - `completionCtaAction`
+      - `completionCtaLabel`
       - `completionMessage`
       - `blockingReasons[]`
   - `transcriptIssueSummary`

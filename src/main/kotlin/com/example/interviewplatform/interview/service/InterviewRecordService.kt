@@ -486,11 +486,37 @@ class InterviewRecordService(
                 } else {
                     null
                 },
+                emptyStateCtaAction = if (transcriptIssueSummary.segmentActions.isEmpty()) {
+                    REVIEW_ACTION_START_REPLAY
+                } else {
+                    null
+                },
+                emptyStateCtaLabel = if (transcriptIssueSummary.segmentActions.isEmpty()) {
+                    resolveReviewLaneActionLabel(REVIEW_ACTION_START_REPLAY)
+                } else {
+                    null
+                },
                 completionMessage = if (
                     transcriptIssueSummary.segmentActions.isNotEmpty() &&
                     transcriptIssueSummary.unresolvedIssueCount == 0
                 ) {
                     "Transcript review is ready."
+                } else {
+                    null
+                },
+                completionCtaAction = if (
+                    transcriptIssueSummary.segmentActions.isNotEmpty() &&
+                    transcriptIssueSummary.unresolvedIssueCount == 0
+                ) {
+                    REVIEW_ACTION_START_REPLAY
+                } else {
+                    null
+                },
+                completionCtaLabel = if (
+                    transcriptIssueSummary.segmentActions.isNotEmpty() &&
+                    transcriptIssueSummary.unresolvedIssueCount == 0
+                ) {
+                    resolveReviewLaneActionLabel(REVIEW_ACTION_START_REPLAY)
                 } else {
                     null
                 },
@@ -538,8 +564,28 @@ class InterviewRecordService(
                 } else {
                     null
                 },
+                emptyStateCtaAction = if (questionSummaries.isEmpty()) {
+                    REVIEW_ACTION_REVIEW_TRANSCRIPT
+                } else {
+                    null
+                },
+                emptyStateCtaLabel = if (questionSummaries.isEmpty()) {
+                    resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT)
+                } else {
+                    null
+                },
                 completionMessage = if (questionSummaries.isNotEmpty() && questionNeedsReviewCount == 0) {
                     "Question review is complete."
+                } else {
+                    null
+                },
+                completionCtaAction = if (questionSummaries.isNotEmpty() && questionNeedsReviewCount == 0) {
+                    REVIEW_ACTION_CONFIRM
+                } else {
+                    null
+                },
+                completionCtaLabel = if (questionSummaries.isNotEmpty() && questionNeedsReviewCount == 0) {
+                    resolveReviewLaneActionLabel(REVIEW_ACTION_CONFIRM)
                 } else {
                     null
                 },
@@ -595,8 +641,28 @@ class InterviewRecordService(
                 } else {
                     null
                 },
+                emptyStateCtaAction = if (followUpThreads.isEmpty()) {
+                    REVIEW_ACTION_REVIEW_ANSWERS
+                } else {
+                    null
+                },
+                emptyStateCtaLabel = if (followUpThreads.isEmpty()) {
+                    resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_ANSWERS)
+                } else {
+                    null
+                },
                 completionMessage = if (followUpThreads.isNotEmpty() && threadNeedsReviewCount == 0) {
                     "Thread review is stable."
+                } else {
+                    null
+                },
+                completionCtaAction = if (followUpThreads.isNotEmpty() && threadNeedsReviewCount == 0) {
+                    THREAD_ACTION_REPLAY_CHAIN
+                } else {
+                    null
+                },
+                completionCtaLabel = if (followUpThreads.isNotEmpty() && threadNeedsReviewCount == 0) {
+                    resolveReviewLaneActionLabel(THREAD_ACTION_REPLAY_CHAIN)
                 } else {
                     null
                 },
