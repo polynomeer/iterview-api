@@ -7,6 +7,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordListItemDto
 import com.example.interviewplatform.interview.dto.InterviewRecordQuestionsResponseDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewFollowUpThreadDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionDeepLinkDto
+import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionDistributionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionFilterSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
@@ -235,6 +236,7 @@ class InterviewRecordService(
             val answer = answerByQuestionId[question.id]
             val weaknessTags = answer?.let { decodeStringList(it.weaknessTagsJson) }.orEmpty()
             val strengthTags = answer?.let { decodeStringList(it.strengthTagsJson) }.orEmpty()
+            val topicTags = decodeStringList(question.topicTagsJson)
             InterviewRecordReviewQuestionSummaryDto(
                 questionId = question.id,
                 linkedQuestionId = question.linkedQuestionId,
@@ -249,6 +251,7 @@ class InterviewRecordService(
                 orderIndex = question.orderIndex,
                 text = question.text,
                 questionType = question.questionType,
+                topicTags = topicTags,
                 isFollowUp = question.parentQuestionId != null,
                 parentQuestionId = question.parentQuestionId,
                 hasWeakAnswer = weaknessTags.isNotEmpty(),
@@ -277,6 +280,7 @@ class InterviewRecordService(
             answerSourceCounts = answers.groupingBy { it.structuringSource }.eachCount().toSortedMap(),
             interviewerProfileSource = interviewerProfile?.structuringSource,
             questionFilterSummary = buildReviewQuestionFilterSummary(questionSummaries),
+            questionDistributionSummary = buildReviewQuestionDistributionSummary(questionSummaries),
             questionSummaries = questionSummaries,
             followUpThreads = buildReviewFollowUpThreads(questionSummaries),
         )
@@ -294,6 +298,17 @@ class InterviewRecordService(
             it.questionStructuringSource == STRUCTURING_STAGE_CONFIRMED &&
                 (it.answerStructuringSource == null || it.answerStructuringSource == STRUCTURING_STAGE_CONFIRMED)
         },
+    )
+
+    private fun buildReviewQuestionDistributionSummary(
+        questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
+    ): InterviewRecordReviewQuestionDistributionSummaryDto = InterviewRecordReviewQuestionDistributionSummaryDto(
+        questionTypeCounts = questionSummaries.groupingBy { it.questionType }.eachCount().toSortedMap(),
+        topicTagCounts = questionSummaries
+            .flatMap { it.topicTags }
+            .groupingBy { it }
+            .eachCount()
+            .toSortedMap(),
     )
 
     private fun buildReviewFollowUpThreads(

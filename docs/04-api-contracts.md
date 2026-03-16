@@ -1591,6 +1591,11 @@ Current structured extraction semantics:
       - `weakAnswerQuestions`
       - `weakFollowUpQuestions`
       - `confirmedQuestions`
+  - `questionDistributionSummary`
+    - additive aggregate for review filter chips and distribution panels
+    - includes:
+      - `questionTypeCounts`
+      - `topicTagCounts`
   - `questionSummaries[]`
     - each summary also includes `deepLink`
       - `questionDetailQuestionId`
@@ -1601,6 +1606,7 @@ Current structured extraction semantics:
       - `replaySessionType`
     - `questionId`
     - `linkedQuestionId`
+    - `topicTags`
     - `orderIndex`
     - `text`
     - `questionType`

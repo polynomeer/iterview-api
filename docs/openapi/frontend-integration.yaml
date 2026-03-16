@@ -1873,6 +1873,8 @@ components:
         interviewerProfileSource: { type: string, nullable: true }
         questionFilterSummary:
           $ref: "#/components/schemas/InterviewRecordReviewQuestionFilterSummaryDto"
+        questionDistributionSummary:
+          $ref: "#/components/schemas/InterviewRecordReviewQuestionDistributionSummaryDto"
         questionSummaries:
           type: array
           items:
@@ -1891,6 +1893,9 @@ components:
         orderIndex: { type: integer }
         text: { type: string }
         questionType: { type: string }
+        topicTags:
+          type: array
+          items: { type: string }
         isFollowUp: { type: boolean }
         parentQuestionId: { type: integer, format: int64, nullable: true }
         hasWeakAnswer: { type: boolean }
@@ -1921,6 +1926,17 @@ components:
         weakAnswerQuestions: { type: integer }
         weakFollowUpQuestions: { type: integer }
         confirmedQuestions: { type: integer }
+    InterviewRecordReviewQuestionDistributionSummaryDto:
+      type: object
+      properties:
+        questionTypeCounts:
+          type: object
+          additionalProperties:
+            type: integer
+        topicTagCounts:
+          type: object
+          additionalProperties:
+            type: integer
     InterviewRecordReviewFollowUpThreadDto:
       type: object
       properties:
