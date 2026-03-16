@@ -449,6 +449,13 @@ class InterviewRecordService(
             speakerOverrideSegmentSequences = speakerOverrideSegments.map { it.sequence },
             confirmedTextOverrideCount = editedSegments.size,
             editedSegmentSequences = editedSegments.map { it.sequence },
+            resolvedIssueCount = segmentActions.size - editedSegments.size,
+            unresolvedIssueCount = editedSegments.size,
+            confirmationReadiness = if (editedSegments.isEmpty()) {
+                TRANSCRIPT_CONFIRMATION_READY
+            } else {
+                TRANSCRIPT_CONFIRMATION_NEEDS_REVIEW
+            },
             reviewerLaneCounts = segmentActions.groupingBy { it.reviewerLane }.eachCount().toSortedMap(),
             topPrioritySegmentActions = segmentActions
                 .sortedWith(compareBy<InterviewRecordTranscriptSegmentActionDto>({ segmentPriorityRank(it.priority) }, { it.sequence }))
@@ -1671,6 +1678,8 @@ class InterviewRecordService(
         private const val SEGMENT_REVIEWER_LANE_QUESTION = "question_review"
         private const val SEGMENT_REVIEWER_LANE_THREAD = "thread_review"
         private const val MAX_TOP_PRIORITY_SEGMENT_ACTIONS = 5
+        private const val TRANSCRIPT_CONFIRMATION_READY = "ready"
+        private const val TRANSCRIPT_CONFIRMATION_NEEDS_REVIEW = "needs_review"
         private const val REVIEW_ACTION_REVIEW_TRANSCRIPT = "review_transcript"
         private const val REVIEW_ACTION_REVIEW_ANSWERS = "review_answers"
         private const val REVIEW_ACTION_CONFIRM = "confirm"

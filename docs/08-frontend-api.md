@@ -269,6 +269,7 @@ Implemented practical interview record foundation:
     - `severity`, `priority`, and `reviewerLane` are additive triage metadata for sorting transcript issues and routing them into transcript, question, or thread review lanes
     - `triageReason` and `ctaLabel` are additive copy helpers for top-priority cards and transcript issue buttons
     - `reviewerLaneCounts` and `topPrioritySegmentActions[]` are additive dashboard aggregates for review-summary headers and `look here first` panels
+    - `resolvedIssueCount`, `unresolvedIssueCount`, and `confirmationReadiness` are additive progress fields for transcript review completion banners or confirm gating
   - `answerQualitySummary`
     - use this for practical interview answer-quality panels such as `weak`, `quantified`, `structured`, or `trade-off aware`
   - `timelineNavigation`

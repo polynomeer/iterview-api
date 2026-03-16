@@ -1994,6 +1994,9 @@ components:
         editedSegmentSequences:
           type: array
           items: { type: integer }
+        resolvedIssueCount: { type: integer }
+        unresolvedIssueCount: { type: integer }
+        confirmationReadiness: { type: string }
         reviewerLaneCounts:
           type: object
           additionalProperties:

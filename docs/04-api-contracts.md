@@ -1623,6 +1623,9 @@ Current structured extraction semantics:
       - `speakerOverrideSegmentSequences[]`
       - `confirmedTextOverrideCount`
       - `editedSegmentSequences[]`
+      - `resolvedIssueCount`
+      - `unresolvedIssueCount`
+      - `confirmationReadiness`
       - `reviewerLaneCounts`
       - `topPrioritySegmentActions[]`
       - `segmentActions[]`
