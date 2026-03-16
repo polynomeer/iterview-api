@@ -447,6 +447,16 @@ class InterviewRecordService(
             transcript = InterviewRecordReviewLaneItemDto(
                 sortOrder = laneSortOrderByKey.getValue(REVIEW_LANE_KEY_TRANSCRIPT),
                 highlightVariant = transcriptHighlightVariant,
+                badgeText = resolveReviewLaneBadgeText(
+                    readiness = transcriptIssueSummary.confirmationReadiness,
+                    needsReviewCount = transcriptIssueSummary.unresolvedIssueCount,
+                ),
+                summaryText = buildReviewLaneSummaryText(
+                    laneLabel = "Transcript",
+                    totalCount = transcriptIssueSummary.segmentActions.size,
+                    readyCount = transcriptIssueSummary.resolvedIssueCount,
+                    needsReviewCount = transcriptIssueSummary.unresolvedIssueCount,
+                ),
                 totalCount = transcriptIssueSummary.segmentActions.size,
                 readyCount = transcriptIssueSummary.resolvedIssueCount,
                 needsReviewCount = transcriptIssueSummary.unresolvedIssueCount,
@@ -479,6 +489,16 @@ class InterviewRecordService(
             question = InterviewRecordReviewLaneItemDto(
                 sortOrder = laneSortOrderByKey.getValue(REVIEW_LANE_KEY_QUESTION),
                 highlightVariant = questionHighlightVariant,
+                badgeText = resolveReviewLaneBadgeText(
+                    readiness = if (questionNeedsReviewCount == 0) REVIEW_LANE_READY else REVIEW_LANE_NEEDS_REVIEW,
+                    needsReviewCount = questionNeedsReviewCount,
+                ),
+                summaryText = buildReviewLaneSummaryText(
+                    laneLabel = "Questions",
+                    totalCount = questionSummaries.size,
+                    readyCount = (questionSummaries.size - questionNeedsReviewCount).coerceAtLeast(0),
+                    needsReviewCount = questionNeedsReviewCount,
+                ),
                 totalCount = questionSummaries.size,
                 readyCount = (questionSummaries.size - questionNeedsReviewCount).coerceAtLeast(0),
                 needsReviewCount = questionNeedsReviewCount,
@@ -508,6 +528,16 @@ class InterviewRecordService(
             thread = InterviewRecordReviewLaneItemDto(
                 sortOrder = laneSortOrderByKey.getValue(REVIEW_LANE_KEY_THREAD),
                 highlightVariant = threadHighlightVariant,
+                badgeText = resolveReviewLaneBadgeText(
+                    readiness = if (threadNeedsReviewCount == 0) REVIEW_LANE_READY else REVIEW_LANE_NEEDS_REVIEW,
+                    needsReviewCount = threadNeedsReviewCount,
+                ),
+                summaryText = buildReviewLaneSummaryText(
+                    laneLabel = "Threads",
+                    totalCount = followUpThreads.size,
+                    readyCount = (followUpThreads.size - threadNeedsReviewCount).coerceAtLeast(0),
+                    needsReviewCount = threadNeedsReviewCount,
+                ),
                 totalCount = followUpThreads.size,
                 readyCount = (followUpThreads.size - threadNeedsReviewCount).coerceAtLeast(0),
                 needsReviewCount = threadNeedsReviewCount,
@@ -706,6 +736,26 @@ class InterviewRecordService(
         REVIEW_LANE_KEY_TRANSCRIPT -> 0
         REVIEW_LANE_KEY_QUESTION -> 1
         else -> 2
+    }
+
+    private fun resolveReviewLaneBadgeText(
+        readiness: String,
+        needsReviewCount: Int,
+    ): String = when {
+        needsReviewCount > 0 -> "Needs review"
+        readiness == REVIEW_LANE_READY -> "Ready"
+        else -> "In progress"
+    }
+
+    private fun buildReviewLaneSummaryText(
+        laneLabel: String,
+        totalCount: Int,
+        readyCount: Int,
+        needsReviewCount: Int,
+    ): String = when {
+        totalCount == 0 -> "$laneLabel not available yet."
+        needsReviewCount > 0 -> "$needsReviewCount of $totalCount require review."
+        else -> "$readyCount of $totalCount are ready."
     }
 
     private fun buildAnswerQualitySummary(

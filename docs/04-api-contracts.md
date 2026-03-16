@@ -1623,6 +1623,8 @@ Current structured extraction semantics:
     - each lane item includes:
       - `sortOrder`
       - `highlightVariant`
+      - `badgeText`
+      - `summaryText`
       - `totalCount`
       - `readyCount`
       - `needsReviewCount`

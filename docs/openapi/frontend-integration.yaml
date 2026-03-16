@@ -1995,6 +1995,8 @@ components:
       properties:
         sortOrder: { type: integer }
         highlightVariant: { type: string }
+        badgeText: { type: string }
+        summaryText: { type: string }
         totalCount: { type: integer }
         readyCount: { type: integer }
         needsReviewCount: { type: integer }
