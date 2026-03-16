@@ -260,6 +260,8 @@ Implemented practical interview record foundation:
     - use this for practical interview review chips such as question type and topic tag breakdown without recomputing counts on the client
   - `questionOriginSummary`
     - use this for source-group tabs or badges such as `Resume-linked`, `JD-linked`, `Hybrid`, `General`
+  - `replayReadiness`
+    - use this for practical interview replay CTA state and empty-state messaging without recomputing readiness on the client
   - `questionSummaries[]`
     - use this for practical interview question review tables instead of recomputing follow-up/weak/confirmed state on the client
     - each summary also carries `deepLink` metadata for direct question-detail, archive-source, and replay-mock actions

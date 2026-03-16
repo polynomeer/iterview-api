@@ -1877,6 +1877,8 @@ components:
           $ref: "#/components/schemas/InterviewRecordReviewQuestionDistributionSummaryDto"
         questionOriginSummary:
           $ref: "#/components/schemas/InterviewRecordReviewQuestionOriginSummaryDto"
+        replayReadiness:
+          $ref: "#/components/schemas/InterviewRecordReplayReadinessDto"
         questionSummaries:
           type: array
           items:
@@ -1949,6 +1951,19 @@ components:
         jobPostingLinkedQuestions: { type: integer }
         hybridLinkedQuestions: { type: integer }
         generalQuestions: { type: integer }
+    InterviewRecordReplayReadinessDto:
+      type: object
+      properties:
+        ready: { type: boolean }
+        replayableQuestionCount: { type: integer }
+        linkedQuestionCount: { type: integer }
+        unlinkedQuestionCount: { type: integer }
+        followUpThreadCount: { type: integer }
+        hasInterviewerProfile: { type: boolean }
+        recommendedReplayMode: { type: string }
+        blockers:
+          type: array
+          items: { type: string }
     InterviewRecordReviewFollowUpThreadDto:
       type: object
       properties:

@@ -10,6 +10,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestion
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionDistributionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionFilterSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionOriginSummaryDto
+import com.example.interviewplatform.interview.dto.InterviewRecordReplayReadinessDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptDto
@@ -287,6 +288,7 @@ class InterviewRecordService(
             questionFilterSummary = buildReviewQuestionFilterSummary(questionSummaries),
             questionDistributionSummary = buildReviewQuestionDistributionSummary(questionSummaries),
             questionOriginSummary = buildReviewQuestionOriginSummary(questionSummaries),
+            replayReadiness = buildReplayReadiness(questionSummaries, interviewerProfile != null),
             questionSummaries = questionSummaries,
             followUpThreads = buildReviewFollowUpThreads(questionSummaries),
         )
@@ -325,6 +327,31 @@ class InterviewRecordService(
         hybridLinkedQuestions = questionSummaries.count { it.originType == REVIEW_ORIGIN_HYBRID_LINKED },
         generalQuestions = questionSummaries.count { it.originType == REVIEW_ORIGIN_GENERAL },
     )
+
+    private fun buildReplayReadiness(
+        questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
+        hasInterviewerProfile: Boolean,
+    ): InterviewRecordReplayReadinessDto {
+        val linkedQuestionCount = questionSummaries.count { it.linkedQuestionId != null }
+        val blockers = buildList {
+            if (questionSummaries.isEmpty()) {
+                add(REPLAY_BLOCKER_NO_QUESTIONS)
+            }
+            if (!hasInterviewerProfile) {
+                add(REPLAY_BLOCKER_NO_INTERVIEWER_PROFILE)
+            }
+        }
+        return InterviewRecordReplayReadinessDto(
+            ready = blockers.isEmpty(),
+            replayableQuestionCount = questionSummaries.size,
+            linkedQuestionCount = linkedQuestionCount,
+            unlinkedQuestionCount = questionSummaries.size - linkedQuestionCount,
+            followUpThreadCount = questionSummaries.count { !it.isFollowUp },
+            hasInterviewerProfile = hasInterviewerProfile,
+            recommendedReplayMode = REVIEW_REPLAY_MODE_ORIGINAL,
+            blockers = blockers,
+        )
+    }
 
     private fun resolveReviewQuestionOriginType(question: InterviewRecordQuestionEntity): String {
         val hasResumeLink = question.derivedFromResumeSection != null || question.derivedFromResumeRecordId != null
@@ -1215,6 +1242,9 @@ class InterviewRecordService(
         private const val RELATION_TYPE_FOLLOW_UP = "follow_up"
         private const val TRIGGER_TYPE_INTERVIEWER_PROBE = "interviewer_probe"
         private const val REVIEW_REPLAY_SESSION_TYPE = "replay_mock"
+        private const val REVIEW_REPLAY_MODE_ORIGINAL = "original_replay"
+        private const val REPLAY_BLOCKER_NO_QUESTIONS = "no_questions"
+        private const val REPLAY_BLOCKER_NO_INTERVIEWER_PROFILE = "no_interviewer_profile"
         private const val REVIEW_ORIGIN_RESUME_LINKED = "resume_linked"
         private const val REVIEW_ORIGIN_JOB_POSTING_LINKED = "job_posting_linked"
         private const val REVIEW_ORIGIN_HYBRID_LINKED = "hybrid_linked"

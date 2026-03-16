@@ -1603,6 +1603,17 @@ Current structured extraction semantics:
       - `jobPostingLinkedQuestions`
       - `hybridLinkedQuestions`
       - `generalQuestions`
+  - `replayReadiness`
+    - additive aggregate for replay CTA state
+    - includes:
+      - `ready`
+      - `replayableQuestionCount`
+      - `linkedQuestionCount`
+      - `unlinkedQuestionCount`
+      - `followUpThreadCount`
+      - `hasInterviewerProfile`
+      - `recommendedReplayMode`
+      - `blockers[]`
   - `questionSummaries[]`
     - each summary also includes `deepLink`
       - `questionDetailQuestionId`

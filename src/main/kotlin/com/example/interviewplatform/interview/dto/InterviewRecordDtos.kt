@@ -66,6 +66,7 @@ data class InterviewRecordReviewDto(
     val questionFilterSummary: InterviewRecordReviewQuestionFilterSummaryDto,
     val questionDistributionSummary: InterviewRecordReviewQuestionDistributionSummaryDto,
     val questionOriginSummary: InterviewRecordReviewQuestionOriginSummaryDto,
+    val replayReadiness: InterviewRecordReplayReadinessDto,
     val questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
     val followUpThreads: List<InterviewRecordReviewFollowUpThreadDto>,
 )
@@ -89,6 +90,17 @@ data class InterviewRecordReviewQuestionOriginSummaryDto(
     val jobPostingLinkedQuestions: Int,
     val hybridLinkedQuestions: Int,
     val generalQuestions: Int,
+)
+
+data class InterviewRecordReplayReadinessDto(
+    val ready: Boolean,
+    val replayableQuestionCount: Int,
+    val linkedQuestionCount: Int,
+    val unlinkedQuestionCount: Int,
+    val followUpThreadCount: Int,
+    val hasInterviewerProfile: Boolean,
+    val recommendedReplayMode: String,
+    val blockers: List<String>,
 )
 
 data class InterviewRecordReviewQuestionSummaryDto(
