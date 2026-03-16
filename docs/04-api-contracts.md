@@ -1635,6 +1635,7 @@ Current structured extraction semantics:
       - `screenReaderSummary`
       - `emptyStateCtaAction`
       - `emptyStateCtaLabel`
+      - `emptyStateCtaTarget`
       - `totalCount`
       - `readyCount`
       - `needsReviewCount`
@@ -1643,11 +1644,14 @@ Current structured extraction semantics:
       - `highestPriority`
       - `primaryAction`
       - `primaryActionLabel`
+      - `primaryActionTarget`
       - `secondaryAction`
       - `secondaryActionLabel`
+      - `secondaryActionTarget`
       - `emptyStateMessage`
       - `completionCtaAction`
       - `completionCtaLabel`
+      - `completionCtaTarget`
       - `completionMessage`
       - `blockingReasons[]`
   - `transcriptIssueSummary`

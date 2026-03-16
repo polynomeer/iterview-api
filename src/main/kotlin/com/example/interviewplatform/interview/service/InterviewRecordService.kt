@@ -484,9 +484,21 @@ class InterviewRecordService(
                 highestPriority = transcriptHighestPriority,
                 primaryAction = transcriptPrimaryAction,
                 primaryActionLabel = resolveReviewLaneActionLabel(transcriptPrimaryAction),
+                primaryActionTarget = resolveReviewLaneActionTarget(
+                    laneKey = REVIEW_LANE_KEY_TRANSCRIPT,
+                    action = transcriptPrimaryAction,
+                ),
                 secondaryAction = if (transcriptIssueSummary.unresolvedIssueCount == 0) REVIEW_ACTION_START_REPLAY else null,
                 secondaryActionLabel = if (transcriptIssueSummary.unresolvedIssueCount == 0) {
                     resolveReviewLaneActionLabel(REVIEW_ACTION_START_REPLAY)
+                } else {
+                    null
+                },
+                secondaryActionTarget = if (transcriptIssueSummary.unresolvedIssueCount == 0) {
+                    resolveReviewLaneActionTarget(
+                        laneKey = REVIEW_LANE_KEY_TRANSCRIPT,
+                        action = REVIEW_ACTION_START_REPLAY,
+                    )
                 } else {
                     null
                 },
@@ -502,6 +514,14 @@ class InterviewRecordService(
                 },
                 emptyStateCtaLabel = if (transcriptIssueSummary.segmentActions.isEmpty()) {
                     resolveReviewLaneActionLabel(REVIEW_ACTION_START_REPLAY)
+                } else {
+                    null
+                },
+                emptyStateCtaTarget = if (transcriptIssueSummary.segmentActions.isEmpty()) {
+                    resolveReviewLaneActionTarget(
+                        laneKey = REVIEW_LANE_KEY_TRANSCRIPT,
+                        action = REVIEW_ACTION_START_REPLAY,
+                    )
                 } else {
                     null
                 },
@@ -526,6 +546,17 @@ class InterviewRecordService(
                     transcriptIssueSummary.unresolvedIssueCount == 0
                 ) {
                     resolveReviewLaneActionLabel(REVIEW_ACTION_START_REPLAY)
+                } else {
+                    null
+                },
+                completionCtaTarget = if (
+                    transcriptIssueSummary.segmentActions.isNotEmpty() &&
+                    transcriptIssueSummary.unresolvedIssueCount == 0
+                ) {
+                    resolveReviewLaneActionTarget(
+                        laneKey = REVIEW_LANE_KEY_TRANSCRIPT,
+                        action = REVIEW_ACTION_START_REPLAY,
+                    )
                 } else {
                     null
                 },
@@ -571,9 +602,21 @@ class InterviewRecordService(
                 highestPriority = questionHighestPriority,
                 primaryAction = questionPrimaryAction,
                 primaryActionLabel = resolveReviewLaneActionLabel(questionPrimaryAction),
+                primaryActionTarget = resolveReviewLaneActionTarget(
+                    laneKey = REVIEW_LANE_KEY_QUESTION,
+                    action = questionPrimaryAction,
+                ),
                 secondaryAction = if (questionNeedsReviewCount > 0) REVIEW_ACTION_CONFIRM else null,
                 secondaryActionLabel = if (questionNeedsReviewCount > 0) {
                     resolveReviewLaneActionLabel(REVIEW_ACTION_CONFIRM)
+                } else {
+                    null
+                },
+                secondaryActionTarget = if (questionNeedsReviewCount > 0) {
+                    resolveReviewLaneActionTarget(
+                        laneKey = REVIEW_LANE_KEY_QUESTION,
+                        action = REVIEW_ACTION_CONFIRM,
+                    )
                 } else {
                     null
                 },
@@ -592,6 +635,14 @@ class InterviewRecordService(
                 } else {
                     null
                 },
+                emptyStateCtaTarget = if (questionSummaries.isEmpty()) {
+                    resolveReviewLaneActionTarget(
+                        laneKey = REVIEW_LANE_KEY_QUESTION,
+                        action = REVIEW_ACTION_REVIEW_TRANSCRIPT,
+                    )
+                } else {
+                    null
+                },
                 completionMessage = if (questionSummaries.isNotEmpty() && questionNeedsReviewCount == 0) {
                     "Question review is complete."
                 } else {
@@ -604,6 +655,14 @@ class InterviewRecordService(
                 },
                 completionCtaLabel = if (questionSummaries.isNotEmpty() && questionNeedsReviewCount == 0) {
                     resolveReviewLaneActionLabel(REVIEW_ACTION_CONFIRM)
+                } else {
+                    null
+                },
+                completionCtaTarget = if (questionSummaries.isNotEmpty() && questionNeedsReviewCount == 0) {
+                    resolveReviewLaneActionTarget(
+                        laneKey = REVIEW_LANE_KEY_QUESTION,
+                        action = REVIEW_ACTION_CONFIRM,
+                    )
                 } else {
                     null
                 },
@@ -649,6 +708,10 @@ class InterviewRecordService(
                 highestPriority = threadHighestPriority,
                 primaryAction = threadPrimaryAction,
                 primaryActionLabel = resolveReviewLaneActionLabel(threadPrimaryAction),
+                primaryActionTarget = resolveReviewLaneActionTarget(
+                    laneKey = REVIEW_LANE_KEY_THREAD,
+                    action = threadPrimaryAction,
+                ),
                 secondaryAction = if (threadPrimaryAction == THREAD_ACTION_REVIEW_WEAK_CHAIN &&
                     followUpThreads.any { it.recommendedAction == THREAD_ACTION_REPLAY_CHAIN || it.replayLaunchPreset.seedQuestionIds.isNotEmpty() }
                 ) {
@@ -660,6 +723,16 @@ class InterviewRecordService(
                     followUpThreads.any { it.recommendedAction == THREAD_ACTION_REPLAY_CHAIN || it.replayLaunchPreset.seedQuestionIds.isNotEmpty() }
                 ) {
                     resolveReviewLaneActionLabel(THREAD_ACTION_REPLAY_CHAIN)
+                } else {
+                    null
+                },
+                secondaryActionTarget = if (threadPrimaryAction == THREAD_ACTION_REVIEW_WEAK_CHAIN &&
+                    followUpThreads.any { it.recommendedAction == THREAD_ACTION_REPLAY_CHAIN || it.replayLaunchPreset.seedQuestionIds.isNotEmpty() }
+                ) {
+                    resolveReviewLaneActionTarget(
+                        laneKey = REVIEW_LANE_KEY_THREAD,
+                        action = THREAD_ACTION_REPLAY_CHAIN,
+                    )
                 } else {
                     null
                 },
@@ -678,6 +751,14 @@ class InterviewRecordService(
                 } else {
                     null
                 },
+                emptyStateCtaTarget = if (followUpThreads.isEmpty()) {
+                    resolveReviewLaneActionTarget(
+                        laneKey = REVIEW_LANE_KEY_THREAD,
+                        action = REVIEW_ACTION_REVIEW_ANSWERS,
+                    )
+                } else {
+                    null
+                },
                 completionMessage = if (followUpThreads.isNotEmpty() && threadNeedsReviewCount == 0) {
                     "Thread review is stable."
                 } else {
@@ -690,6 +771,14 @@ class InterviewRecordService(
                 },
                 completionCtaLabel = if (followUpThreads.isNotEmpty() && threadNeedsReviewCount == 0) {
                     resolveReviewLaneActionLabel(THREAD_ACTION_REPLAY_CHAIN)
+                } else {
+                    null
+                },
+                completionCtaTarget = if (followUpThreads.isNotEmpty() && threadNeedsReviewCount == 0) {
+                    resolveReviewLaneActionTarget(
+                        laneKey = REVIEW_LANE_KEY_THREAD,
+                        action = THREAD_ACTION_REPLAY_CHAIN,
+                    )
                 } else {
                     null
                 },
@@ -707,6 +796,20 @@ class InterviewRecordService(
         THREAD_ACTION_REPLAY_CHAIN -> "Replay this chain"
         THREAD_ACTION_STABLE_CHAIN -> "Stable chain"
         else -> action
+    }
+
+    private fun resolveReviewLaneActionTarget(
+        laneKey: String,
+        action: String,
+    ): String = when (action) {
+        REVIEW_ACTION_REVIEW_TRANSCRIPT -> "$laneKey:issues"
+        REVIEW_ACTION_REVIEW_ANSWERS -> "$laneKey:questions"
+        REVIEW_ACTION_CONFIRM -> "review:confirm"
+        REVIEW_ACTION_START_REPLAY -> "review:replay"
+        THREAD_ACTION_REVIEW_WEAK_CHAIN -> "$laneKey:weak_threads"
+        THREAD_ACTION_REPLAY_CHAIN -> "$laneKey:replay"
+        THREAD_ACTION_STABLE_CHAIN -> "$laneKey:overview"
+        else -> "$laneKey:overview"
     }
 
     private fun buildReviewQuestionFilterSummary(
