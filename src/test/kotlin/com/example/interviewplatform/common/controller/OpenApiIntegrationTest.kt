@@ -90,6 +90,7 @@ class OpenApiIntegrationTest {
             .andExpect(jsonPath("$.components.schemas.InterviewRecordReviewDto.properties.followUpThreads").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewRecordReviewQuestionFilterSummaryDto").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewRecordReviewQuestionSummaryDto").exists())
+            .andExpect(jsonPath("$.components.schemas.InterviewRecordReviewQuestionDeepLinkDto").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewRecordReviewFollowUpThreadDto").exists())
             .andExpect(jsonPath("$.components.schemas.BulkUpdateInterviewTranscriptSegmentsRequest").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewSessionCoverageResponseDto").exists())

@@ -80,6 +80,7 @@ data class InterviewRecordReviewQuestionFilterSummaryDto(
 data class InterviewRecordReviewQuestionSummaryDto(
     val questionId: Long,
     val linkedQuestionId: Long?,
+    val deepLink: InterviewRecordReviewQuestionDeepLinkDto,
     val orderIndex: Int,
     val text: String,
     val questionType: String,
@@ -91,6 +92,15 @@ data class InterviewRecordReviewQuestionSummaryDto(
     val strengthTags: List<String>,
     val questionStructuringSource: String,
     val answerStructuringSource: String?,
+)
+
+data class InterviewRecordReviewQuestionDeepLinkDto(
+    val questionDetailQuestionId: Long?,
+    val archiveSourceType: String,
+    val sourceInterviewRecordId: Long,
+    val sourceInterviewQuestionId: Long,
+    val canStartReplayMock: Boolean,
+    val replaySessionType: String,
 )
 
 data class InterviewRecordReviewFollowUpThreadDto(

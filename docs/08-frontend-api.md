@@ -258,6 +258,7 @@ Implemented practical interview record foundation:
     - use this for review-table tabs or filter badges like `All`, `Weak`, `Follow-up`, `Weak Follow-up`, `Confirmed`
   - `questionSummaries[]`
     - use this for practical interview question review tables instead of recomputing follow-up/weak/confirmed state on the client
+    - each summary also carries `deepLink` metadata for direct question-detail, archive-source, and replay-mock actions
   - `followUpThreads[]`
     - use this for threaded review panels or grouped follow-up badges without reconstructing parent-child chains on the client
 - `PATCH /api/interview-records/{recordId}/review` supports bulk review editing:

@@ -1592,6 +1592,13 @@ Current structured extraction semantics:
       - `weakFollowUpQuestions`
       - `confirmedQuestions`
   - `questionSummaries[]`
+    - each summary also includes `deepLink`
+      - `questionDetailQuestionId`
+      - `archiveSourceType`
+      - `sourceInterviewRecordId`
+      - `sourceInterviewQuestionId`
+      - `canStartReplayMock`
+      - `replaySessionType`
     - `questionId`
     - `linkedQuestionId`
     - `orderIndex`

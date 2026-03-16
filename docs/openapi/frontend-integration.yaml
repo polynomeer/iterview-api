@@ -1886,6 +1886,8 @@ components:
       properties:
         questionId: { type: integer, format: int64 }
         linkedQuestionId: { type: integer, format: int64, nullable: true }
+        deepLink:
+          $ref: "#/components/schemas/InterviewRecordReviewQuestionDeepLinkDto"
         orderIndex: { type: integer }
         text: { type: string }
         questionType: { type: string }
@@ -1901,6 +1903,15 @@ components:
           items: { type: string }
         questionStructuringSource: { type: string }
         answerStructuringSource: { type: string, nullable: true }
+    InterviewRecordReviewQuestionDeepLinkDto:
+      type: object
+      properties:
+        questionDetailQuestionId: { type: integer, format: int64, nullable: true }
+        archiveSourceType: { type: string }
+        sourceInterviewRecordId: { type: integer, format: int64 }
+        sourceInterviewQuestionId: { type: integer, format: int64 }
+        canStartReplayMock: { type: boolean }
+        replaySessionType: { type: string }
     InterviewRecordReviewQuestionFilterSummaryDto:
       type: object
       properties:

@@ -6,6 +6,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordDetailDto
 import com.example.interviewplatform.interview.dto.InterviewRecordListItemDto
 import com.example.interviewplatform.interview.dto.InterviewRecordQuestionsResponseDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewFollowUpThreadDto
+import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionDeepLinkDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionFilterSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
@@ -237,6 +238,14 @@ class InterviewRecordService(
             InterviewRecordReviewQuestionSummaryDto(
                 questionId = question.id,
                 linkedQuestionId = question.linkedQuestionId,
+                deepLink = InterviewRecordReviewQuestionDeepLinkDto(
+                    questionDetailQuestionId = question.linkedQuestionId,
+                    archiveSourceType = "real_interview",
+                    sourceInterviewRecordId = recordId,
+                    sourceInterviewQuestionId = question.id,
+                    canStartReplayMock = true,
+                    replaySessionType = REVIEW_REPLAY_SESSION_TYPE,
+                ),
                 orderIndex = question.orderIndex,
                 text = question.text,
                 questionType = question.questionType,
@@ -1164,6 +1173,7 @@ class InterviewRecordService(
         private const val QUESTION_TYPE_GENERAL = "general"
         private const val RELATION_TYPE_FOLLOW_UP = "follow_up"
         private const val TRIGGER_TYPE_INTERVIEWER_PROBE = "interviewer_probe"
+        private const val REVIEW_REPLAY_SESSION_TYPE = "replay_mock"
     }
 }
 
