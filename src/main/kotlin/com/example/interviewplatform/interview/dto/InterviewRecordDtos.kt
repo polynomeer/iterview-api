@@ -67,6 +67,7 @@ data class InterviewRecordReviewDto(
     val questionDistributionSummary: InterviewRecordReviewQuestionDistributionSummaryDto,
     val questionOriginSummary: InterviewRecordReviewQuestionOriginSummaryDto,
     val replayReadiness: InterviewRecordReplayReadinessDto,
+    val transcriptIssueSummary: InterviewRecordTranscriptIssueSummaryDto,
     val questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
     val followUpThreads: List<InterviewRecordReviewFollowUpThreadDto>,
 )
@@ -101,6 +102,15 @@ data class InterviewRecordReplayReadinessDto(
     val hasInterviewerProfile: Boolean,
     val recommendedReplayMode: String,
     val blockers: List<String>,
+)
+
+data class InterviewRecordTranscriptIssueSummaryDto(
+    val lowConfidenceSegmentCount: Int,
+    val lowConfidenceSegmentSequences: List<Int>,
+    val speakerOverrideSegmentCount: Int,
+    val speakerOverrideSegmentSequences: List<Int>,
+    val confirmedTextOverrideCount: Int,
+    val editedSegmentSequences: List<Int>,
 )
 
 data class InterviewRecordReviewQuestionSummaryDto(

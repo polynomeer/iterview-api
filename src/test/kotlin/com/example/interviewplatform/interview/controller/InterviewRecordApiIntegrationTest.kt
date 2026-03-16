@@ -188,6 +188,10 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.replayReadiness.hasInterviewerProfile").value(true))
             .andExpect(jsonPath("$.replayReadiness.recommendedReplayMode").value("original_replay"))
             .andExpect(jsonPath("$.replayReadiness.blockers.length()").value(0))
+            .andExpect(jsonPath("$.transcriptIssueSummary.lowConfidenceSegmentCount").value(0))
+            .andExpect(jsonPath("$.transcriptIssueSummary.speakerOverrideSegmentCount").value(0))
+            .andExpect(jsonPath("$.transcriptIssueSummary.confirmedTextOverrideCount").value(0))
+            .andExpect(jsonPath("$.transcriptIssueSummary.editedSegmentSequences.length()").value(0))
             .andExpect(jsonPath("$.questionSummaries.length()").value(2))
             .andExpect(jsonPath("$.questionSummaries[0].deepLink.archiveSourceType").value("real_interview"))
             .andExpect(jsonPath("$.questionSummaries[0].deepLink.sourceInterviewRecordId").value(recordId))
@@ -222,6 +226,7 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.questionDistributionSummary.questionTypeCounts.project").exists())
             .andExpect(jsonPath("$.questionOriginSummary.generalQuestions").value(2))
             .andExpect(jsonPath("$.replayReadiness.ready").value(true))
+            .andExpect(jsonPath("$.transcriptIssueSummary.confirmedTextOverrideCount").value(0))
             .andExpect(jsonPath("$.questionSourceCounts.confirmed").value(2))
             .andExpect(jsonPath("$.answerSourceCounts.confirmed").value(2))
             .andExpect(jsonPath("$.questionSummaries[0].questionStructuringSource").value("confirmed"))
@@ -284,6 +289,59 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.structuringStage").value("confirmed"))
             .andExpect(jsonPath("$.deterministicSummary").isString)
+    }
+
+    @Test
+    fun `review exposes transcript issue summary for pending transcript overrides`() {
+        val audio = MockMultipartFile("file", "real-interview.wav", "audio/wav", "fake-audio".toByteArray())
+        val created = mockMvc.perform(
+            multipart("/api/interview-records")
+                .file(audio)
+                .param(
+                    "transcriptText",
+                    """
+                    interviewer: Tell me about your migration project?
+                    candidate: I migrated core APIs.
+                    """.trimIndent(),
+                )
+                .header("Authorization", authHeader),
+        )
+            .andExpect(status().isOk)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val recordId = created.get("id").asLong()
+        val transcript = mockMvc.perform(get("/api/interview-records/$recordId/transcript").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+        val firstSegmentId = transcript.get("segments")[0].get("id").asLong()
+
+        mockMvc.perform(
+            patch("/api/interview-records/$recordId/transcript/segments/$firstSegmentId")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "speakerType" to "candidate",
+                            "confirmedText" to "Tell me about the migration project and rollout metrics?",
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+
+        mockMvc.perform(get("/api/interview-records/$recordId/review").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.transcriptIssueSummary.speakerOverrideSegmentCount").value(1))
+            .andExpect(jsonPath("$.transcriptIssueSummary.speakerOverrideSegmentSequences[0]").value(1))
+            .andExpect(jsonPath("$.transcriptIssueSummary.confirmedTextOverrideCount").value(1))
+            .andExpect(jsonPath("$.transcriptIssueSummary.editedSegmentSequences[0]").value(1))
     }
 
     @Test

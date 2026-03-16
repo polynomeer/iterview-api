@@ -262,6 +262,8 @@ Implemented practical interview record foundation:
     - use this for source-group tabs or badges such as `Resume-linked`, `JD-linked`, `Hybrid`, `General`
   - `replayReadiness`
     - use this for practical interview replay CTA state and empty-state messaging without recomputing readiness on the client
+  - `transcriptIssueSummary`
+    - use this for transcript review priority panels such as `edited`, `speaker override`, or `low confidence`
   - `questionSummaries[]`
     - use this for practical interview question review tables instead of recomputing follow-up/weak/confirmed state on the client
     - each summary also carries `deepLink` metadata for direct question-detail, archive-source, and replay-mock actions

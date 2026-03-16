@@ -1879,6 +1879,8 @@ components:
           $ref: "#/components/schemas/InterviewRecordReviewQuestionOriginSummaryDto"
         replayReadiness:
           $ref: "#/components/schemas/InterviewRecordReplayReadinessDto"
+        transcriptIssueSummary:
+          $ref: "#/components/schemas/InterviewRecordTranscriptIssueSummaryDto"
         questionSummaries:
           type: array
           items:
@@ -1964,6 +1966,21 @@ components:
         blockers:
           type: array
           items: { type: string }
+    InterviewRecordTranscriptIssueSummaryDto:
+      type: object
+      properties:
+        lowConfidenceSegmentCount: { type: integer }
+        lowConfidenceSegmentSequences:
+          type: array
+          items: { type: integer }
+        speakerOverrideSegmentCount: { type: integer }
+        speakerOverrideSegmentSequences:
+          type: array
+          items: { type: integer }
+        confirmedTextOverrideCount: { type: integer }
+        editedSegmentSequences:
+          type: array
+          items: { type: integer }
     InterviewRecordReviewFollowUpThreadDto:
       type: object
       properties:

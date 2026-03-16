@@ -11,6 +11,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestion
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionFilterSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionOriginSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReplayReadinessDto
+import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptIssueSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptDto
@@ -289,6 +290,7 @@ class InterviewRecordService(
             questionDistributionSummary = buildReviewQuestionDistributionSummary(questionSummaries),
             questionOriginSummary = buildReviewQuestionOriginSummary(questionSummaries),
             replayReadiness = buildReplayReadiness(questionSummaries, interviewerProfile != null),
+            transcriptIssueSummary = buildTranscriptIssueSummary(segments),
             questionSummaries = questionSummaries,
             followUpThreads = buildReviewFollowUpThreads(questionSummaries),
         )
@@ -351,6 +353,30 @@ class InterviewRecordService(
             recommendedReplayMode = REVIEW_REPLAY_MODE_ORIGINAL,
             blockers = blockers,
         )
+    }
+
+    private fun buildTranscriptIssueSummary(
+        segments: List<InterviewTranscriptSegmentEntity>,
+    ): InterviewRecordTranscriptIssueSummaryDto {
+        val lowConfidenceSegments = segments.filter { (it.confidenceScore ?: BigDecimal.ONE) < LOW_CONFIDENCE_THRESHOLD }
+        val speakerOverrideSegments = segments.filter(::hasSpeakerOverride)
+        val editedSegments = segments.filter(::isEditedSegment)
+        return InterviewRecordTranscriptIssueSummaryDto(
+            lowConfidenceSegmentCount = lowConfidenceSegments.size,
+            lowConfidenceSegmentSequences = lowConfidenceSegments.map { it.sequence },
+            speakerOverrideSegmentCount = speakerOverrideSegments.size,
+            speakerOverrideSegmentSequences = speakerOverrideSegments.map { it.sequence },
+            confirmedTextOverrideCount = editedSegments.size,
+            editedSegmentSequences = editedSegments.map { it.sequence },
+        )
+    }
+
+    private fun hasSpeakerOverride(segment: InterviewTranscriptSegmentEntity): Boolean {
+        val rawText = segment.rawText?.trim().orEmpty()
+        if (rawText.isBlank()) {
+            return false
+        }
+        return classifySpeaker(rawText).first != segment.speakerType
     }
 
     private fun resolveReviewQuestionOriginType(question: InterviewRecordQuestionEntity): String {
@@ -1245,6 +1271,7 @@ class InterviewRecordService(
         private const val REVIEW_REPLAY_MODE_ORIGINAL = "original_replay"
         private const val REPLAY_BLOCKER_NO_QUESTIONS = "no_questions"
         private const val REPLAY_BLOCKER_NO_INTERVIEWER_PROFILE = "no_interviewer_profile"
+        private val LOW_CONFIDENCE_THRESHOLD = BigDecimal("0.80")
         private const val REVIEW_ORIGIN_RESUME_LINKED = "resume_linked"
         private const val REVIEW_ORIGIN_JOB_POSTING_LINKED = "job_posting_linked"
         private const val REVIEW_ORIGIN_HYBRID_LINKED = "hybrid_linked"

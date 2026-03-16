@@ -1614,6 +1614,15 @@ Current structured extraction semantics:
       - `hasInterviewerProfile`
       - `recommendedReplayMode`
       - `blockers[]`
+  - `transcriptIssueSummary`
+    - additive aggregate for review-priority panels
+    - includes:
+      - `lowConfidenceSegmentCount`
+      - `lowConfidenceSegmentSequences[]`
+      - `speakerOverrideSegmentCount`
+      - `speakerOverrideSegmentSequences[]`
+      - `confirmedTextOverrideCount`
+      - `editedSegmentSequences[]`
   - `questionSummaries[]`
     - each summary also includes `deepLink`
       - `questionDetailQuestionId`
