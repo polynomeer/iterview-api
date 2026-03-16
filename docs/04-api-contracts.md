@@ -1636,6 +1636,7 @@ Current structured extraction semantics:
       - `emptyStateCtaAction`
       - `emptyStateCtaLabel`
       - `emptyStateCtaTarget`
+      - `emptyStateCtaTargetPayload`
       - `totalCount`
       - `readyCount`
       - `needsReviewCount`
@@ -1645,13 +1646,16 @@ Current structured extraction semantics:
       - `primaryAction`
       - `primaryActionLabel`
       - `primaryActionTarget`
+      - `primaryActionTargetPayload`
       - `secondaryAction`
       - `secondaryActionLabel`
       - `secondaryActionTarget`
+      - `secondaryActionTargetPayload`
       - `emptyStateMessage`
       - `completionCtaAction`
       - `completionCtaLabel`
       - `completionCtaTarget`
+      - `completionCtaTargetPayload`
       - `completionMessage`
       - `blockingReasons[]`
   - `transcriptIssueSummary`

@@ -488,6 +488,10 @@ class InterviewRecordService(
                     laneKey = REVIEW_LANE_KEY_TRANSCRIPT,
                     action = transcriptPrimaryAction,
                 ),
+                primaryActionTargetPayload = resolveReviewLaneActionTargetPayload(
+                    laneKey = REVIEW_LANE_KEY_TRANSCRIPT,
+                    action = transcriptPrimaryAction,
+                ),
                 secondaryAction = if (transcriptIssueSummary.unresolvedIssueCount == 0) REVIEW_ACTION_START_REPLAY else null,
                 secondaryActionLabel = if (transcriptIssueSummary.unresolvedIssueCount == 0) {
                     resolveReviewLaneActionLabel(REVIEW_ACTION_START_REPLAY)
@@ -496,6 +500,14 @@ class InterviewRecordService(
                 },
                 secondaryActionTarget = if (transcriptIssueSummary.unresolvedIssueCount == 0) {
                     resolveReviewLaneActionTarget(
+                        laneKey = REVIEW_LANE_KEY_TRANSCRIPT,
+                        action = REVIEW_ACTION_START_REPLAY,
+                    )
+                } else {
+                    null
+                },
+                secondaryActionTargetPayload = if (transcriptIssueSummary.unresolvedIssueCount == 0) {
+                    resolveReviewLaneActionTargetPayload(
                         laneKey = REVIEW_LANE_KEY_TRANSCRIPT,
                         action = REVIEW_ACTION_START_REPLAY,
                     )
@@ -519,6 +531,14 @@ class InterviewRecordService(
                 },
                 emptyStateCtaTarget = if (transcriptIssueSummary.segmentActions.isEmpty()) {
                     resolveReviewLaneActionTarget(
+                        laneKey = REVIEW_LANE_KEY_TRANSCRIPT,
+                        action = REVIEW_ACTION_START_REPLAY,
+                    )
+                } else {
+                    null
+                },
+                emptyStateCtaTargetPayload = if (transcriptIssueSummary.segmentActions.isEmpty()) {
+                    resolveReviewLaneActionTargetPayload(
                         laneKey = REVIEW_LANE_KEY_TRANSCRIPT,
                         action = REVIEW_ACTION_START_REPLAY,
                     )
@@ -554,6 +574,17 @@ class InterviewRecordService(
                     transcriptIssueSummary.unresolvedIssueCount == 0
                 ) {
                     resolveReviewLaneActionTarget(
+                        laneKey = REVIEW_LANE_KEY_TRANSCRIPT,
+                        action = REVIEW_ACTION_START_REPLAY,
+                    )
+                } else {
+                    null
+                },
+                completionCtaTargetPayload = if (
+                    transcriptIssueSummary.segmentActions.isNotEmpty() &&
+                    transcriptIssueSummary.unresolvedIssueCount == 0
+                ) {
+                    resolveReviewLaneActionTargetPayload(
                         laneKey = REVIEW_LANE_KEY_TRANSCRIPT,
                         action = REVIEW_ACTION_START_REPLAY,
                     )
@@ -606,6 +637,10 @@ class InterviewRecordService(
                     laneKey = REVIEW_LANE_KEY_QUESTION,
                     action = questionPrimaryAction,
                 ),
+                primaryActionTargetPayload = resolveReviewLaneActionTargetPayload(
+                    laneKey = REVIEW_LANE_KEY_QUESTION,
+                    action = questionPrimaryAction,
+                ),
                 secondaryAction = if (questionNeedsReviewCount > 0) REVIEW_ACTION_CONFIRM else null,
                 secondaryActionLabel = if (questionNeedsReviewCount > 0) {
                     resolveReviewLaneActionLabel(REVIEW_ACTION_CONFIRM)
@@ -614,6 +649,14 @@ class InterviewRecordService(
                 },
                 secondaryActionTarget = if (questionNeedsReviewCount > 0) {
                     resolveReviewLaneActionTarget(
+                        laneKey = REVIEW_LANE_KEY_QUESTION,
+                        action = REVIEW_ACTION_CONFIRM,
+                    )
+                } else {
+                    null
+                },
+                secondaryActionTargetPayload = if (questionNeedsReviewCount > 0) {
+                    resolveReviewLaneActionTargetPayload(
                         laneKey = REVIEW_LANE_KEY_QUESTION,
                         action = REVIEW_ACTION_CONFIRM,
                     )
@@ -643,6 +686,14 @@ class InterviewRecordService(
                 } else {
                     null
                 },
+                emptyStateCtaTargetPayload = if (questionSummaries.isEmpty()) {
+                    resolveReviewLaneActionTargetPayload(
+                        laneKey = REVIEW_LANE_KEY_QUESTION,
+                        action = REVIEW_ACTION_REVIEW_TRANSCRIPT,
+                    )
+                } else {
+                    null
+                },
                 completionMessage = if (questionSummaries.isNotEmpty() && questionNeedsReviewCount == 0) {
                     "Question review is complete."
                 } else {
@@ -660,6 +711,14 @@ class InterviewRecordService(
                 },
                 completionCtaTarget = if (questionSummaries.isNotEmpty() && questionNeedsReviewCount == 0) {
                     resolveReviewLaneActionTarget(
+                        laneKey = REVIEW_LANE_KEY_QUESTION,
+                        action = REVIEW_ACTION_CONFIRM,
+                    )
+                } else {
+                    null
+                },
+                completionCtaTargetPayload = if (questionSummaries.isNotEmpty() && questionNeedsReviewCount == 0) {
+                    resolveReviewLaneActionTargetPayload(
                         laneKey = REVIEW_LANE_KEY_QUESTION,
                         action = REVIEW_ACTION_CONFIRM,
                     )
@@ -712,6 +771,10 @@ class InterviewRecordService(
                     laneKey = REVIEW_LANE_KEY_THREAD,
                     action = threadPrimaryAction,
                 ),
+                primaryActionTargetPayload = resolveReviewLaneActionTargetPayload(
+                    laneKey = REVIEW_LANE_KEY_THREAD,
+                    action = threadPrimaryAction,
+                ),
                 secondaryAction = if (threadPrimaryAction == THREAD_ACTION_REVIEW_WEAK_CHAIN &&
                     followUpThreads.any { it.recommendedAction == THREAD_ACTION_REPLAY_CHAIN || it.replayLaunchPreset.seedQuestionIds.isNotEmpty() }
                 ) {
@@ -730,6 +793,16 @@ class InterviewRecordService(
                     followUpThreads.any { it.recommendedAction == THREAD_ACTION_REPLAY_CHAIN || it.replayLaunchPreset.seedQuestionIds.isNotEmpty() }
                 ) {
                     resolveReviewLaneActionTarget(
+                        laneKey = REVIEW_LANE_KEY_THREAD,
+                        action = THREAD_ACTION_REPLAY_CHAIN,
+                    )
+                } else {
+                    null
+                },
+                secondaryActionTargetPayload = if (threadPrimaryAction == THREAD_ACTION_REVIEW_WEAK_CHAIN &&
+                    followUpThreads.any { it.recommendedAction == THREAD_ACTION_REPLAY_CHAIN || it.replayLaunchPreset.seedQuestionIds.isNotEmpty() }
+                ) {
+                    resolveReviewLaneActionTargetPayload(
                         laneKey = REVIEW_LANE_KEY_THREAD,
                         action = THREAD_ACTION_REPLAY_CHAIN,
                     )
@@ -759,6 +832,14 @@ class InterviewRecordService(
                 } else {
                     null
                 },
+                emptyStateCtaTargetPayload = if (followUpThreads.isEmpty()) {
+                    resolveReviewLaneActionTargetPayload(
+                        laneKey = REVIEW_LANE_KEY_THREAD,
+                        action = REVIEW_ACTION_REVIEW_ANSWERS,
+                    )
+                } else {
+                    null
+                },
                 completionMessage = if (followUpThreads.isNotEmpty() && threadNeedsReviewCount == 0) {
                     "Thread review is stable."
                 } else {
@@ -776,6 +857,14 @@ class InterviewRecordService(
                 },
                 completionCtaTarget = if (followUpThreads.isNotEmpty() && threadNeedsReviewCount == 0) {
                     resolveReviewLaneActionTarget(
+                        laneKey = REVIEW_LANE_KEY_THREAD,
+                        action = THREAD_ACTION_REPLAY_CHAIN,
+                    )
+                } else {
+                    null
+                },
+                completionCtaTargetPayload = if (followUpThreads.isNotEmpty() && threadNeedsReviewCount == 0) {
+                    resolveReviewLaneActionTargetPayload(
                         laneKey = REVIEW_LANE_KEY_THREAD,
                         action = THREAD_ACTION_REPLAY_CHAIN,
                     )
@@ -810,6 +899,48 @@ class InterviewRecordService(
         THREAD_ACTION_REPLAY_CHAIN -> "$laneKey:replay"
         THREAD_ACTION_STABLE_CHAIN -> "$laneKey:overview"
         else -> "$laneKey:overview"
+    }
+
+    private fun resolveReviewLaneActionTargetPayload(
+        laneKey: String,
+        action: String,
+    ): Map<String, String> = when (action) {
+        REVIEW_ACTION_REVIEW_TRANSCRIPT -> mapOf(
+            "tab" to REVIEW_LANE_TAB_ISSUES,
+            "filter" to "open_issues",
+            "focus" to "top_priority_issue",
+        )
+        REVIEW_ACTION_REVIEW_ANSWERS -> mapOf(
+            "tab" to REVIEW_LANE_TAB_QUESTIONS,
+            "filter" to "needs_review",
+            "focus" to if (laneKey == REVIEW_LANE_KEY_THREAD) "thread_answer_gaps" else "weak_answers",
+        )
+        REVIEW_ACTION_CONFIRM -> mapOf(
+            "tab" to REVIEW_LANE_TAB_OVERVIEW,
+            "panel" to "confirm_review",
+            "focus" to "confirmation_cta",
+        )
+        REVIEW_ACTION_START_REPLAY -> mapOf(
+            "tab" to REVIEW_LANE_TAB_OVERVIEW,
+            "panel" to "replay_launch",
+            "focus" to "recommended_replay_mode",
+        )
+        THREAD_ACTION_REVIEW_WEAK_CHAIN -> mapOf(
+            "tab" to REVIEW_LANE_TAB_THREADS,
+            "filter" to "weak",
+            "focus" to "first_weak_thread",
+        )
+        THREAD_ACTION_REPLAY_CHAIN -> mapOf(
+            "tab" to REVIEW_LANE_TAB_THREADS,
+            "filter" to "replay_ready",
+            "focus" to "first_replayable_thread",
+        )
+        THREAD_ACTION_STABLE_CHAIN -> mapOf(
+            "tab" to REVIEW_LANE_TAB_THREADS,
+            "filter" to "stable",
+            "focus" to "thread_overview",
+        )
+        else -> mapOf("tab" to REVIEW_LANE_TAB_OVERVIEW)
     }
 
     private fun buildReviewQuestionFilterSummary(

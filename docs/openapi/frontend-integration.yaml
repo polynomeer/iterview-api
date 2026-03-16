@@ -2010,6 +2010,10 @@ components:
         emptyStateCtaAction: { type: string, nullable: true }
         emptyStateCtaLabel: { type: string, nullable: true }
         emptyStateCtaTarget: { type: string, nullable: true }
+        emptyStateCtaTargetPayload:
+          type: object
+          nullable: true
+          additionalProperties: { type: string }
         totalCount: { type: integer }
         readyCount: { type: integer }
         needsReviewCount: { type: integer }
@@ -2019,13 +2023,24 @@ components:
         primaryAction: { type: string }
         primaryActionLabel: { type: string }
         primaryActionTarget: { type: string }
+        primaryActionTargetPayload:
+          type: object
+          additionalProperties: { type: string }
         secondaryAction: { type: string, nullable: true }
         secondaryActionLabel: { type: string, nullable: true }
         secondaryActionTarget: { type: string, nullable: true }
+        secondaryActionTargetPayload:
+          type: object
+          nullable: true
+          additionalProperties: { type: string }
         emptyStateMessage: { type: string, nullable: true }
         completionCtaAction: { type: string, nullable: true }
         completionCtaLabel: { type: string, nullable: true }
         completionCtaTarget: { type: string, nullable: true }
+        completionCtaTargetPayload:
+          type: object
+          nullable: true
+          additionalProperties: { type: string }
         completionMessage: { type: string, nullable: true }
         blockingReasons:
           type: array
