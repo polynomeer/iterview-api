@@ -10,7 +10,7 @@ import java.time.Duration
 class OpenAiAnswerDeepFeedbackGenerationClient(
     private val objectMapper: ObjectMapper,
     private val transport: InterviewLlmApiTransport,
-    @Value("\${app.answer-feedback.llm.api-key:}")
+    @Value("\${app.answer-feedback.llm.api-key:\${app.interview.llm.api-key:}}")
     private val apiKey: String,
     @Value("\${app.answer-feedback.llm.base-url:https://api.openai.com/v1}")
     private val baseUrl: String,

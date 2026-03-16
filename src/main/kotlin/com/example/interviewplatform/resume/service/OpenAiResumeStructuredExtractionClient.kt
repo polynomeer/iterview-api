@@ -12,7 +12,7 @@ import java.time.LocalDate
 class OpenAiResumeStructuredExtractionClient(
     private val objectMapper: ObjectMapper,
     private val transport: ResumeLlmApiTransport,
-    @Value("\${app.resume.llm.api-key:}")
+    @Value("\${app.resume.llm.api-key:\${app.interview.llm.api-key:}}")
     private val apiKey: String,
     @Value("\${app.resume.llm.base-url:https://api.openai.com/v1}")
     private val baseUrl: String,

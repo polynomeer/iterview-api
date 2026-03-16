@@ -10,7 +10,7 @@ import java.time.Duration
 class OpenAiQuestionReferenceContentGenerationClient(
     private val objectMapper: ObjectMapper,
     private val transport: InterviewLlmApiTransport,
-    @Value("\${app.question-reference.llm.api-key:}")
+    @Value("\${app.question-reference.llm.api-key:\${app.interview.llm.api-key:}}")
     private val apiKey: String,
     @Value("\${app.question-reference.llm.base-url:https://api.openai.com/v1}")
     private val baseUrl: String,
