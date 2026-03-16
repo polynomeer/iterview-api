@@ -47,6 +47,7 @@ import com.example.interviewplatform.resume.repository.ResumeRepository
 import com.example.interviewplatform.resume.repository.ResumeVersionRepository
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -1939,10 +1940,11 @@ class InterviewRecordService(
         )
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     fun getInterviewerProfile(userId: Long, recordId: Long): InterviewerProfileDto {
-        requireOwnedRecord(userId, recordId)
+        val record = requireOwnedRecord(userId, recordId)
         val profile = interviewerProfileRepository.findBySourceInterviewRecordId(recordId)
+            ?: ensureInterviewerProfile(record)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Interviewer profile not found for record: $recordId")
         return InterviewRecordMapper.toInterviewerProfileDto(profile, objectMapper)
     }
@@ -2656,6 +2658,83 @@ class InterviewRecordService(
     private fun decodeStringList(raw: String): List<String> =
         runCatching { objectMapper.readValue(raw, object : TypeReference<List<String>>() {}) }
             .getOrDefault(emptyList())
+
+    private fun ensureInterviewerProfile(record: InterviewRecordEntity): InterviewerProfileEntity? {
+        if (record.analysisStatus != ANALYSIS_STATUS_COMPLETED) {
+            throw ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "Interviewer profile is not available until analysis completes for record: ${record.id}",
+            )
+        }
+        val questions = interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(record.id)
+        if (questions.isEmpty()) {
+            return null
+        }
+        val questionById = questions.associateBy { it.id }
+        val parsedQuestions = questions.map { question ->
+            ParsedQuestion(
+                orderIndex = question.orderIndex,
+                segmentStartSequence = 0,
+                segmentEndSequence = 0,
+                text = question.text,
+                normalizedText = question.normalizedText ?: normalize(question.text),
+                questionType = question.questionType,
+                topicTags = decodeStringList(question.topicTagsJson),
+                intentTags = decodeStringList(question.intentTagsJson),
+                derivedFromResumeSection = question.derivedFromResumeSection,
+                derivedFromResumeRecordType = question.derivedFromResumeRecordType,
+                derivedFromResumeRecordId = question.derivedFromResumeRecordId,
+                parentOrderIndex = question.parentQuestionId?.let { parentId -> questionById[parentId]?.orderIndex },
+                answer = null,
+            )
+        }
+        val now = clockService.now()
+        val generatedProfile = try {
+            interviewerProfileRepository.save(
+                buildInterviewerProfile(
+                    userId = record.userId,
+                    recordId = record.id,
+                    questions = parsedQuestions,
+                    profileOverride = null,
+                    structuringSource = record.structuringStage,
+                    now = now,
+                ),
+            )
+        } catch (_: DataIntegrityViolationException) {
+            // Another request generated the same profile concurrently.
+            return interviewerProfileRepository.findBySourceInterviewRecordId(record.id)
+        }
+        interviewRecordRepository.save(
+            InterviewRecordEntity(
+                id = record.id,
+                userId = record.userId,
+                companyName = record.companyName,
+                roleName = record.roleName,
+                interviewDate = record.interviewDate,
+                interviewType = record.interviewType,
+                sourceAudioFileUrl = record.sourceAudioFileUrl,
+                sourceAudioFileName = record.sourceAudioFileName,
+                sourceAudioDurationMs = record.sourceAudioDurationMs,
+                sourceAudioContentType = record.sourceAudioContentType,
+                rawTranscript = record.rawTranscript,
+                cleanedTranscript = record.cleanedTranscript,
+                confirmedTranscript = record.confirmedTranscript,
+                transcriptStatus = record.transcriptStatus,
+                analysisStatus = record.analysisStatus,
+                linkedResumeVersionId = record.linkedResumeVersionId,
+                linkedJobPostingId = record.linkedJobPostingId,
+                interviewerProfileId = generatedProfile.id,
+                deterministicSummary = record.deterministicSummary,
+                aiEnrichedSummary = record.aiEnrichedSummary,
+                overallSummary = record.overallSummary,
+                structuringStage = record.structuringStage,
+                confirmedAt = record.confirmedAt,
+                createdAt = record.createdAt,
+                updatedAt = now,
+            ),
+        )
+        return generatedProfile
+    }
 
     companion object {
         private const val STRUCTURING_STAGE_DETERMINISTIC = "deterministic"

@@ -429,6 +429,46 @@ class InterviewRecordApiIntegrationTest {
     }
 
     @Test
+    fun `interviewer profile endpoint backfills missing profile`() {
+        val audio = MockMultipartFile("file", "real-interview.wav", "audio/wav", "fake-audio".toByteArray())
+        val created = mockMvc.perform(
+            multipart("/api/interview-records")
+                .file(audio)
+                .param(
+                    "transcriptText",
+                    """
+                    interviewer: Why did you introduce Redis caching?
+                    candidate: To reduce database load and stabilize latency.
+                    interviewer: How did you handle cache invalidation?
+                    candidate: We used TTL and explicit eviction on critical writes.
+                    """.trimIndent(),
+                )
+                .header("Authorization", authHeader),
+        )
+            .andExpect(status().isOk)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val recordId = created["id"].asLong()
+        jdbcTemplate.update("DELETE FROM interviewer_profiles WHERE source_interview_record_id = ?", recordId)
+
+        mockMvc.perform(get("/api/interview-records/$recordId/interviewer-profile").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.sourceInterviewRecordId").value(recordId))
+            .andExpect(jsonPath("$.structuringSource").value("deterministic"))
+            .andExpect(jsonPath("$.toneProfile").exists())
+
+        val profileCount = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM interviewer_profiles WHERE source_interview_record_id = ?",
+            Long::class.java,
+            recordId,
+        )
+        assertEquals(1L, profileCount)
+    }
+
+    @Test
     fun `updating transcript segment rebuilds structured questions`() {
         val audio = MockMultipartFile("file", "real-interview.wav", "audio/wav", "fake-audio".toByteArray())
         val created = mockMvc.perform(
