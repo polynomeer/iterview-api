@@ -1875,6 +1875,8 @@ components:
           $ref: "#/components/schemas/InterviewRecordReviewQuestionFilterSummaryDto"
         questionDistributionSummary:
           $ref: "#/components/schemas/InterviewRecordReviewQuestionDistributionSummaryDto"
+        questionOriginSummary:
+          $ref: "#/components/schemas/InterviewRecordReviewQuestionOriginSummaryDto"
         questionSummaries:
           type: array
           items:
@@ -1896,6 +1898,9 @@ components:
         topicTags:
           type: array
           items: { type: string }
+        originType: { type: string }
+        derivedFromResumeSection: { type: string, nullable: true }
+        derivedFromJobPostingSection: { type: string, nullable: true }
         isFollowUp: { type: boolean }
         parentQuestionId: { type: integer, format: int64, nullable: true }
         hasWeakAnswer: { type: boolean }
@@ -1937,6 +1942,13 @@ components:
           type: object
           additionalProperties:
             type: integer
+    InterviewRecordReviewQuestionOriginSummaryDto:
+      type: object
+      properties:
+        resumeLinkedQuestions: { type: integer }
+        jobPostingLinkedQuestions: { type: integer }
+        hybridLinkedQuestions: { type: integer }
+        generalQuestions: { type: integer }
     InterviewRecordReviewFollowUpThreadDto:
       type: object
       properties:

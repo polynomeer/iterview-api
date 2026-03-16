@@ -65,6 +65,7 @@ data class InterviewRecordReviewDto(
     val interviewerProfileSource: String?,
     val questionFilterSummary: InterviewRecordReviewQuestionFilterSummaryDto,
     val questionDistributionSummary: InterviewRecordReviewQuestionDistributionSummaryDto,
+    val questionOriginSummary: InterviewRecordReviewQuestionOriginSummaryDto,
     val questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
     val followUpThreads: List<InterviewRecordReviewFollowUpThreadDto>,
 )
@@ -83,6 +84,13 @@ data class InterviewRecordReviewQuestionDistributionSummaryDto(
     val topicTagCounts: Map<String, Int>,
 )
 
+data class InterviewRecordReviewQuestionOriginSummaryDto(
+    val resumeLinkedQuestions: Int,
+    val jobPostingLinkedQuestions: Int,
+    val hybridLinkedQuestions: Int,
+    val generalQuestions: Int,
+)
+
 data class InterviewRecordReviewQuestionSummaryDto(
     val questionId: Long,
     val linkedQuestionId: Long?,
@@ -91,6 +99,9 @@ data class InterviewRecordReviewQuestionSummaryDto(
     val text: String,
     val questionType: String,
     val topicTags: List<String>,
+    val originType: String,
+    val derivedFromResumeSection: String?,
+    val derivedFromJobPostingSection: String?,
     val isFollowUp: Boolean,
     val parentQuestionId: Long?,
     val hasWeakAnswer: Boolean,

@@ -9,6 +9,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordReviewFollowUp
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionDeepLinkDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionDistributionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionFilterSummaryDto
+import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionOriginSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptDto
@@ -237,6 +238,7 @@ class InterviewRecordService(
             val weaknessTags = answer?.let { decodeStringList(it.weaknessTagsJson) }.orEmpty()
             val strengthTags = answer?.let { decodeStringList(it.strengthTagsJson) }.orEmpty()
             val topicTags = decodeStringList(question.topicTagsJson)
+            val originType = resolveReviewQuestionOriginType(question)
             InterviewRecordReviewQuestionSummaryDto(
                 questionId = question.id,
                 linkedQuestionId = question.linkedQuestionId,
@@ -252,6 +254,9 @@ class InterviewRecordService(
                 text = question.text,
                 questionType = question.questionType,
                 topicTags = topicTags,
+                originType = originType,
+                derivedFromResumeSection = question.derivedFromResumeSection,
+                derivedFromJobPostingSection = question.derivedFromJobPostingSection,
                 isFollowUp = question.parentQuestionId != null,
                 parentQuestionId = question.parentQuestionId,
                 hasWeakAnswer = weaknessTags.isNotEmpty(),
@@ -281,6 +286,7 @@ class InterviewRecordService(
             interviewerProfileSource = interviewerProfile?.structuringSource,
             questionFilterSummary = buildReviewQuestionFilterSummary(questionSummaries),
             questionDistributionSummary = buildReviewQuestionDistributionSummary(questionSummaries),
+            questionOriginSummary = buildReviewQuestionOriginSummary(questionSummaries),
             questionSummaries = questionSummaries,
             followUpThreads = buildReviewFollowUpThreads(questionSummaries),
         )
@@ -310,6 +316,26 @@ class InterviewRecordService(
             .eachCount()
             .toSortedMap(),
     )
+
+    private fun buildReviewQuestionOriginSummary(
+        questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
+    ): InterviewRecordReviewQuestionOriginSummaryDto = InterviewRecordReviewQuestionOriginSummaryDto(
+        resumeLinkedQuestions = questionSummaries.count { it.originType == REVIEW_ORIGIN_RESUME_LINKED },
+        jobPostingLinkedQuestions = questionSummaries.count { it.originType == REVIEW_ORIGIN_JOB_POSTING_LINKED },
+        hybridLinkedQuestions = questionSummaries.count { it.originType == REVIEW_ORIGIN_HYBRID_LINKED },
+        generalQuestions = questionSummaries.count { it.originType == REVIEW_ORIGIN_GENERAL },
+    )
+
+    private fun resolveReviewQuestionOriginType(question: InterviewRecordQuestionEntity): String {
+        val hasResumeLink = question.derivedFromResumeSection != null || question.derivedFromResumeRecordId != null
+        val hasJobPostingLink = question.derivedFromJobPostingSection != null
+        return when {
+            hasResumeLink && hasJobPostingLink -> REVIEW_ORIGIN_HYBRID_LINKED
+            hasResumeLink -> REVIEW_ORIGIN_RESUME_LINKED
+            hasJobPostingLink -> REVIEW_ORIGIN_JOB_POSTING_LINKED
+            else -> REVIEW_ORIGIN_GENERAL
+        }
+    }
 
     private fun buildReviewFollowUpThreads(
         questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
@@ -1189,6 +1215,10 @@ class InterviewRecordService(
         private const val RELATION_TYPE_FOLLOW_UP = "follow_up"
         private const val TRIGGER_TYPE_INTERVIEWER_PROBE = "interviewer_probe"
         private const val REVIEW_REPLAY_SESSION_TYPE = "replay_mock"
+        private const val REVIEW_ORIGIN_RESUME_LINKED = "resume_linked"
+        private const val REVIEW_ORIGIN_JOB_POSTING_LINKED = "job_posting_linked"
+        private const val REVIEW_ORIGIN_HYBRID_LINKED = "hybrid_linked"
+        private const val REVIEW_ORIGIN_GENERAL = "general"
     }
 }
 

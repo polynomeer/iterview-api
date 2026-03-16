@@ -1596,6 +1596,13 @@ Current structured extraction semantics:
     - includes:
       - `questionTypeCounts`
       - `topicTagCounts`
+  - `questionOriginSummary`
+    - additive aggregate for question-origin badges and filters
+    - includes:
+      - `resumeLinkedQuestions`
+      - `jobPostingLinkedQuestions`
+      - `hybridLinkedQuestions`
+      - `generalQuestions`
   - `questionSummaries[]`
     - each summary also includes `deepLink`
       - `questionDetailQuestionId`
@@ -1607,6 +1614,9 @@ Current structured extraction semantics:
     - `questionId`
     - `linkedQuestionId`
     - `topicTags`
+    - `originType`
+    - `derivedFromResumeSection`
+    - `derivedFromJobPostingSection`
     - `orderIndex`
     - `text`
     - `questionType`
