@@ -1582,6 +1582,15 @@ Current structured extraction semantics:
   - `questionSourceCounts`
   - `answerSourceCounts`
   - `interviewerProfileSource`
+  - `questionFilterSummary`
+    - additive filter counts for practical interview review tables
+    - includes:
+      - `allQuestions`
+      - `primaryQuestions`
+      - `followUpQuestions`
+      - `weakAnswerQuestions`
+      - `weakFollowUpQuestions`
+      - `confirmedQuestions`
   - `questionSummaries[]`
     - `questionId`
     - `linkedQuestionId`

@@ -63,8 +63,18 @@ data class InterviewRecordReviewDto(
     val questionSourceCounts: Map<String, Int>,
     val answerSourceCounts: Map<String, Int>,
     val interviewerProfileSource: String?,
+    val questionFilterSummary: InterviewRecordReviewQuestionFilterSummaryDto,
     val questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
     val followUpThreads: List<InterviewRecordReviewFollowUpThreadDto>,
+)
+
+data class InterviewRecordReviewQuestionFilterSummaryDto(
+    val allQuestions: Int,
+    val primaryQuestions: Int,
+    val followUpQuestions: Int,
+    val weakAnswerQuestions: Int,
+    val weakFollowUpQuestions: Int,
+    val confirmedQuestions: Int,
 )
 
 data class InterviewRecordReviewQuestionSummaryDto(

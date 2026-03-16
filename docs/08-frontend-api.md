@@ -254,6 +254,8 @@ Implemented practical interview record foundation:
   - `questionSourceCounts`
   - `answerSourceCounts`
   - `interviewerProfileSource`
+  - `questionFilterSummary`
+    - use this for review-table tabs or filter badges like `All`, `Weak`, `Follow-up`, `Weak Follow-up`, `Confirmed`
   - `questionSummaries[]`
     - use this for practical interview question review tables instead of recomputing follow-up/weak/confirmed state on the client
   - `followUpThreads[]`

@@ -1871,6 +1871,8 @@ components:
           additionalProperties:
             type: integer
         interviewerProfileSource: { type: string, nullable: true }
+        questionFilterSummary:
+          $ref: "#/components/schemas/InterviewRecordReviewQuestionFilterSummaryDto"
         questionSummaries:
           type: array
           items:
@@ -1899,6 +1901,15 @@ components:
           items: { type: string }
         questionStructuringSource: { type: string }
         answerStructuringSource: { type: string, nullable: true }
+    InterviewRecordReviewQuestionFilterSummaryDto:
+      type: object
+      properties:
+        allQuestions: { type: integer }
+        primaryQuestions: { type: integer }
+        followUpQuestions: { type: integer }
+        weakAnswerQuestions: { type: integer }
+        weakFollowUpQuestions: { type: integer }
+        confirmedQuestions: { type: integer }
     InterviewRecordReviewFollowUpThreadDto:
       type: object
       properties:

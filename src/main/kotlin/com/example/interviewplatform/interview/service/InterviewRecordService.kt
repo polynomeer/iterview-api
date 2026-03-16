@@ -6,6 +6,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordDetailDto
 import com.example.interviewplatform.interview.dto.InterviewRecordListItemDto
 import com.example.interviewplatform.interview.dto.InterviewRecordQuestionsResponseDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewFollowUpThreadDto
+import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionFilterSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptDto
@@ -266,10 +267,25 @@ class InterviewRecordService(
             questionSourceCounts = questions.groupingBy { it.structuringSource }.eachCount().toSortedMap(),
             answerSourceCounts = answers.groupingBy { it.structuringSource }.eachCount().toSortedMap(),
             interviewerProfileSource = interviewerProfile?.structuringSource,
+            questionFilterSummary = buildReviewQuestionFilterSummary(questionSummaries),
             questionSummaries = questionSummaries,
             followUpThreads = buildReviewFollowUpThreads(questionSummaries),
         )
     }
+
+    private fun buildReviewQuestionFilterSummary(
+        questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
+    ): InterviewRecordReviewQuestionFilterSummaryDto = InterviewRecordReviewQuestionFilterSummaryDto(
+        allQuestions = questionSummaries.size,
+        primaryQuestions = questionSummaries.count { !it.isFollowUp },
+        followUpQuestions = questionSummaries.count { it.isFollowUp },
+        weakAnswerQuestions = questionSummaries.count { it.hasWeakAnswer },
+        weakFollowUpQuestions = questionSummaries.count { it.isFollowUp && it.hasWeakAnswer },
+        confirmedQuestions = questionSummaries.count {
+            it.questionStructuringSource == STRUCTURING_STAGE_CONFIRMED &&
+                (it.answerStructuringSource == null || it.answerStructuringSource == STRUCTURING_STAGE_CONFIRMED)
+        },
+    )
 
     private fun buildReviewFollowUpThreads(
         questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
