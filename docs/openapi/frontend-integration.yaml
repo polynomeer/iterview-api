@@ -1998,6 +1998,9 @@ components:
         needsReviewCount: { type: integer }
         readiness: { type: string }
         primaryAction: { type: string }
+        primaryActionLabel: { type: string }
+        secondaryAction: { type: string, nullable: true }
+        secondaryActionLabel: { type: string, nullable: true }
         blockingReasons:
           type: array
           items: { type: string }

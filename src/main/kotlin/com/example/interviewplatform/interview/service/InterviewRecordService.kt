@@ -380,16 +380,25 @@ class InterviewRecordService(
             followUpThreads.any { it.recommendedAction == THREAD_ACTION_REPLAY_CHAIN } -> THREAD_ACTION_REPLAY_CHAIN
             else -> THREAD_ACTION_STABLE_CHAIN
         }
+        val transcriptPrimaryAction = if (transcriptIssueSummary.unresolvedIssueCount > 0) {
+            REVIEW_ACTION_REVIEW_TRANSCRIPT
+        } else {
+            REVIEW_ACTION_CONFIRM
+        }
+        val questionPrimaryAction = if (questionNeedsReviewCount == 0) REVIEW_ACTION_CONFIRM else REVIEW_ACTION_REVIEW_ANSWERS
         return InterviewRecordReviewLaneSummaryDto(
             transcript = InterviewRecordReviewLaneItemDto(
                 totalCount = transcriptIssueSummary.segmentActions.size,
                 readyCount = transcriptIssueSummary.resolvedIssueCount,
                 needsReviewCount = transcriptIssueSummary.unresolvedIssueCount,
                 readiness = transcriptIssueSummary.confirmationReadiness,
-                primaryAction = if (transcriptIssueSummary.unresolvedIssueCount > 0) {
-                    REVIEW_ACTION_REVIEW_TRANSCRIPT
+                primaryAction = transcriptPrimaryAction,
+                primaryActionLabel = resolveReviewLaneActionLabel(transcriptPrimaryAction),
+                secondaryAction = if (transcriptIssueSummary.unresolvedIssueCount == 0) REVIEW_ACTION_START_REPLAY else null,
+                secondaryActionLabel = if (transcriptIssueSummary.unresolvedIssueCount == 0) {
+                    resolveReviewLaneActionLabel(REVIEW_ACTION_START_REPLAY)
                 } else {
-                    REVIEW_ACTION_CONFIRM
+                    null
                 },
                 blockingReasons = transcriptBlockingReasons.distinct(),
             ),
@@ -398,7 +407,14 @@ class InterviewRecordService(
                 readyCount = (questionSummaries.size - questionNeedsReviewCount).coerceAtLeast(0),
                 needsReviewCount = questionNeedsReviewCount,
                 readiness = if (questionNeedsReviewCount == 0) REVIEW_LANE_READY else REVIEW_LANE_NEEDS_REVIEW,
-                primaryAction = if (questionNeedsReviewCount == 0) REVIEW_ACTION_CONFIRM else REVIEW_ACTION_REVIEW_ANSWERS,
+                primaryAction = questionPrimaryAction,
+                primaryActionLabel = resolveReviewLaneActionLabel(questionPrimaryAction),
+                secondaryAction = if (questionNeedsReviewCount > 0) REVIEW_ACTION_CONFIRM else null,
+                secondaryActionLabel = if (questionNeedsReviewCount > 0) {
+                    resolveReviewLaneActionLabel(REVIEW_ACTION_CONFIRM)
+                } else {
+                    null
+                },
                 blockingReasons = questionBlockingReasons.distinct(),
             ),
             thread = InterviewRecordReviewLaneItemDto(
@@ -407,9 +423,35 @@ class InterviewRecordService(
                 needsReviewCount = threadNeedsReviewCount,
                 readiness = if (threadNeedsReviewCount == 0) REVIEW_LANE_READY else REVIEW_LANE_NEEDS_REVIEW,
                 primaryAction = threadPrimaryAction,
+                primaryActionLabel = resolveReviewLaneActionLabel(threadPrimaryAction),
+                secondaryAction = if (threadPrimaryAction == THREAD_ACTION_REVIEW_WEAK_CHAIN &&
+                    followUpThreads.any { it.recommendedAction == THREAD_ACTION_REPLAY_CHAIN || it.replayLaunchPreset.seedQuestionIds.isNotEmpty() }
+                ) {
+                    THREAD_ACTION_REPLAY_CHAIN
+                } else {
+                    null
+                },
+                secondaryActionLabel = if (threadPrimaryAction == THREAD_ACTION_REVIEW_WEAK_CHAIN &&
+                    followUpThreads.any { it.recommendedAction == THREAD_ACTION_REPLAY_CHAIN || it.replayLaunchPreset.seedQuestionIds.isNotEmpty() }
+                ) {
+                    resolveReviewLaneActionLabel(THREAD_ACTION_REPLAY_CHAIN)
+                } else {
+                    null
+                },
                 blockingReasons = threadBlockingReasons.distinct(),
             ),
         )
+    }
+
+    private fun resolveReviewLaneActionLabel(action: String): String = when (action) {
+        REVIEW_ACTION_REVIEW_TRANSCRIPT -> "Review transcript"
+        REVIEW_ACTION_REVIEW_ANSWERS -> "Review answers"
+        REVIEW_ACTION_CONFIRM -> "Confirm review"
+        REVIEW_ACTION_START_REPLAY -> "Start replay"
+        THREAD_ACTION_REVIEW_WEAK_CHAIN -> "Review weak chain"
+        THREAD_ACTION_REPLAY_CHAIN -> "Replay this chain"
+        THREAD_ACTION_STABLE_CHAIN -> "Stable chain"
+        else -> action
     }
 
     private fun buildReviewQuestionFilterSummary(

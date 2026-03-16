@@ -1626,6 +1626,9 @@ Current structured extraction semantics:
       - `needsReviewCount`
       - `readiness`
       - `primaryAction`
+      - `primaryActionLabel`
+      - `secondaryAction`
+      - `secondaryActionLabel`
       - `blockingReasons[]`
   - `transcriptIssueSummary`
     - additive aggregate for review-priority panels
