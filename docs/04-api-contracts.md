@@ -1544,10 +1544,14 @@ Current request and response semantics:
   - `linkedJobPostingId`
   - `transcriptText`
 - the uploaded audio asset is stored without mutating the original file name
-- when `transcriptText` is provided, the backend currently performs deterministic structuring immediately, optionally applies AI refinement when interview LLM settings are configured, and returns:
+- when `transcriptText` is provided, the backend performs deterministic structuring immediately, optionally applies AI refinement when interview LLM settings are configured, and returns:
   - `transcriptStatus = confirmed`
   - `analysisStatus = completed`
-- when `transcriptText` is omitted, the record currently remains in:
+- when `transcriptText` is omitted, the backend now attempts automatic transcript extraction from the uploaded audio
+- when automatic extraction succeeds, the backend runs the same structuring pipeline and returns:
+  - `transcriptStatus = confirmed`
+  - `analysisStatus = completed`
+- when automatic extraction is unavailable or fails before a transcript is produced, the record remains in:
   - `transcriptStatus = pending`
   - `analysisStatus = pending`
 

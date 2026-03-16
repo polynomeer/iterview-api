@@ -5,10 +5,10 @@ import org.springframework.stereotype.Service
 import org.springframework.util.StringUtils
 import org.springframework.web.multipart.MultipartFile
 import java.nio.file.Files
-import java.nio.file.Path
 import java.nio.file.Paths
 import java.security.MessageDigest
 import java.time.Instant
+import java.nio.file.Path
 
 @Service
 class InterviewAudioStorageService(
@@ -30,6 +30,7 @@ class InterviewAudioStorageService(
             fileName = originalName,
             fileSizeBytes = Files.size(targetPath),
             checksumSha256 = sha256(targetPath),
+            absolutePath = targetPath,
         )
     }
 
@@ -59,4 +60,5 @@ data class StoredInterviewAudioFile(
     val fileName: String,
     val fileSizeBytes: Long,
     val checksumSha256: String,
+    val absolutePath: Path,
 )

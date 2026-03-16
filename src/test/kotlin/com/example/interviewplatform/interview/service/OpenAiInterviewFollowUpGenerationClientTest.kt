@@ -138,5 +138,12 @@ class OpenAiInterviewFollowUpGenerationClientTest {
             capturedBody = body
             return response
         }
+
+        override fun postMultipart(
+            url: String,
+            apiKey: String,
+            parts: Map<String, InterviewLlmMultipartPart>,
+            timeout: Duration,
+        ): String = throw UnsupportedOperationException("multipart transport not used in this test")
     }
 }

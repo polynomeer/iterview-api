@@ -235,7 +235,9 @@ Implemented practical interview record foundation:
 - `POST /api/interview-records` is `multipart/form-data` with:
   - required `file`
   - optional `companyName`, `roleName`, `interviewDate`, `interviewType`, `linkedResumeVersionId`, `linkedJobPostingId`, `transcriptText`
-- when transcript text is present at upload time, the backend currently performs deterministic structuring immediately and may also apply optional AI refinement before returning completed transcript/analysis status
+- when transcript text is present at upload time, the backend performs deterministic structuring immediately and may also apply optional AI refinement before returning completed transcript/analysis status
+- when transcript text is omitted, the backend now attempts automatic transcript extraction from the uploaded audio before running the same structuring pipeline
+- if automatic extraction is not available in the runtime environment, the created record may still come back as `transcriptStatus = pending`
 - record detail now exposes provenance fields for review UIs:
   - `deterministicSummary`
   - `aiEnrichedSummary`

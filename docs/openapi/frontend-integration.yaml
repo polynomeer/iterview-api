@@ -592,6 +592,9 @@ paths:
     post:
       tags: [Interview Records]
       summary: Upload and create imported interview record
+      description: |
+        Uploads interview audio and creates an imported interview record.
+        If transcriptText is omitted, the backend attempts automatic transcript extraction before structuring.
       requestBody:
         required: true
         content:

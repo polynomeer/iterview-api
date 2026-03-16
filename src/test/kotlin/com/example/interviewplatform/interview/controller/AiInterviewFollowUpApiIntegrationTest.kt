@@ -1,6 +1,7 @@
 package com.example.interviewplatform.interview.controller
 
 import com.example.interviewplatform.auth.service.TokenService
+import com.example.interviewplatform.interview.service.InterviewLlmMultipartPart
 import com.example.interviewplatform.interview.service.InterviewLlmApiTransport
 import com.example.interviewplatform.support.TestDatabaseCleaner
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -403,6 +404,13 @@ class AiInterviewFollowUpApiIntegrationTest {
                     }
                 """.trimIndent()
             }
+
+            override fun postMultipart(
+                url: String,
+                apiKey: String,
+                parts: Map<String, InterviewLlmMultipartPart>,
+                timeout: Duration,
+            ): String = throw UnsupportedOperationException("multipart transport not used in this test")
         }
     }
 }

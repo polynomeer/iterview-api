@@ -69,6 +69,7 @@ class InterviewRecordService(
     private val interviewerProfileRepository: InterviewerProfileRepository,
     private val interviewRecordQuestionAssetService: InterviewRecordQuestionAssetService,
     private val interviewAudioStorageService: InterviewAudioStorageService,
+    private val practicalInterviewTranscriptExtractionService: PracticalInterviewTranscriptExtractionService,
     private val practicalInterviewStructuringEnrichmentService: PracticalInterviewStructuringEnrichmentService,
     private val resumeRepository: ResumeRepository,
     private val resumeVersionRepository: ResumeVersionRepository,
@@ -103,13 +104,22 @@ class InterviewRecordService(
         val now = clockService.now()
         val storedFile = interviewAudioStorageService.store(userId, file, now)
         val normalizedTranscript = transcriptText?.trim()?.takeIf { it.isNotEmpty() }
+            ?: practicalInterviewTranscriptExtractionService.extractOrNull(
+                audioFilePath = storedFile.absolutePath,
+                fileName = storedFile.fileName,
+                contentType = file.contentType,
+            )
         logger.debug(
-            "Creating interview record userId={}, audioFileName={}, contentType={}, fileSize={}, hasTranscriptText={}, transcriptLength={}",
+            "Creating interview record userId={}, audioFileName={}, contentType={}, fileSize={}, transcriptSource={}, transcriptLength={}",
             userId,
             file.originalFilename,
             file.contentType,
             file.size,
-            normalizedTranscript != null,
+            when {
+                transcriptText?.trim()?.isNotEmpty() == true -> "request"
+                normalizedTranscript != null -> "audio_transcription"
+                else -> "none"
+            },
             normalizedTranscript?.length ?: 0,
         )
 
