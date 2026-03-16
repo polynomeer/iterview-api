@@ -16,6 +16,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordAnswerQualityS
 import com.example.interviewplatform.interview.dto.InterviewRecordTimelineNavigationDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTimelineNavigationItemDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewActionRecommendationsDto
+import com.example.interviewplatform.interview.dto.InterviewRecordReplayLaunchPresetDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptDto
@@ -305,6 +306,7 @@ class InterviewRecordService(
                 weakAnswerCount = answers.count { decodeStringList(it.weaknessTagsJson).isNotEmpty() },
                 replayReadiness = replayReadiness,
             ),
+            replayLaunchPreset = buildReplayLaunchPreset(recordId, questionSummaries, replayReadiness),
             questionSummaries = questionSummaries,
             followUpThreads = buildReviewFollowUpThreads(questionSummaries),
         )
@@ -475,6 +477,33 @@ class InterviewRecordService(
             blockingReasons = blockingReasons.distinct(),
             canConfirm = editedSegmentCount == 0 && recordStructuringStage != STRUCTURING_STAGE_CONFIRMED,
             canReplay = replayReadiness.ready,
+        )
+    }
+
+    private fun buildReplayLaunchPreset(
+        recordId: Long,
+        questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
+        replayReadiness: InterviewRecordReplayReadinessDto,
+    ): InterviewRecordReplayLaunchPresetDto {
+        val rootSeedQuestionIds = questionSummaries
+            .filter { !it.isFollowUp }
+            .mapNotNull { it.linkedQuestionId }
+            .take(DEFAULT_REPLAY_SEED_COUNT)
+        val recommendedQuestionCount = when {
+            replayReadiness.replayableQuestionCount <= 3 -> replayReadiness.replayableQuestionCount.coerceAtLeast(1)
+            else -> DEFAULT_REPLAY_QUESTION_COUNT
+        }
+        return InterviewRecordReplayLaunchPresetDto(
+            sessionType = REVIEW_REPLAY_SESSION_TYPE,
+            sourceInterviewRecordId = recordId,
+            replayMode = replayReadiness.recommendedReplayMode,
+            recommendedQuestionCount = recommendedQuestionCount,
+            seedQuestionIds = rootSeedQuestionIds,
+            availableReplayModes = listOf(
+                REVIEW_REPLAY_MODE_ORIGINAL,
+                REVIEW_REPLAY_MODE_PATTERN_SIMILAR,
+                REVIEW_REPLAY_MODE_PRESSURE_VARIANT,
+            ),
         )
     }
 
@@ -1392,6 +1421,10 @@ class InterviewRecordService(
         private const val TRIGGER_TYPE_INTERVIEWER_PROBE = "interviewer_probe"
         private const val REVIEW_REPLAY_SESSION_TYPE = "replay_mock"
         private const val REVIEW_REPLAY_MODE_ORIGINAL = "original_replay"
+        private const val REVIEW_REPLAY_MODE_PATTERN_SIMILAR = "pattern_similar"
+        private const val REVIEW_REPLAY_MODE_PRESSURE_VARIANT = "pressure_variant"
+        private const val DEFAULT_REPLAY_QUESTION_COUNT = 3
+        private const val DEFAULT_REPLAY_SEED_COUNT = 3
         private const val REPLAY_BLOCKER_NO_QUESTIONS = "no_questions"
         private const val REPLAY_BLOCKER_NO_INTERVIEWER_PROFILE = "no_interviewer_profile"
         private val LOW_CONFIDENCE_THRESHOLD = BigDecimal("0.80")

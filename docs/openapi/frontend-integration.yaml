@@ -1887,6 +1887,8 @@ components:
           $ref: "#/components/schemas/InterviewRecordTimelineNavigationDto"
         actionRecommendations:
           $ref: "#/components/schemas/InterviewRecordReviewActionRecommendationsDto"
+        replayLaunchPreset:
+          $ref: "#/components/schemas/InterviewRecordReplayLaunchPresetDto"
         questionSummaries:
           type: array
           items:
@@ -2028,6 +2030,19 @@ components:
           items: { type: string }
         canConfirm: { type: boolean }
         canReplay: { type: boolean }
+    InterviewRecordReplayLaunchPresetDto:
+      type: object
+      properties:
+        sessionType: { type: string }
+        sourceInterviewRecordId: { type: integer, format: int64 }
+        replayMode: { type: string }
+        recommendedQuestionCount: { type: integer }
+        seedQuestionIds:
+          type: array
+          items: { type: integer, format: int64 }
+        availableReplayModes:
+          type: array
+          items: { type: string }
     InterviewRecordReviewFollowUpThreadDto:
       type: object
       properties:

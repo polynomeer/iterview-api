@@ -211,6 +211,12 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.actionRecommendations.canConfirm").value(true))
             .andExpect(jsonPath("$.actionRecommendations.canReplay").value(true))
             .andExpect(jsonPath("$.actionRecommendations.blockingReasons.length()").value(0))
+            .andExpect(jsonPath("$.replayLaunchPreset.sessionType").value("replay_mock"))
+            .andExpect(jsonPath("$.replayLaunchPreset.sourceInterviewRecordId").value(recordId))
+            .andExpect(jsonPath("$.replayLaunchPreset.replayMode").value("original_replay"))
+            .andExpect(jsonPath("$.replayLaunchPreset.recommendedQuestionCount").value(2))
+            .andExpect(jsonPath("$.replayLaunchPreset.seedQuestionIds.length()").value(1))
+            .andExpect(jsonPath("$.replayLaunchPreset.availableReplayModes.length()").value(3))
             .andExpect(jsonPath("$.questionSummaries.length()").value(2))
             .andExpect(jsonPath("$.questionSummaries[0].deepLink.archiveSourceType").value("real_interview"))
             .andExpect(jsonPath("$.questionSummaries[0].deepLink.sourceInterviewRecordId").value(recordId))
@@ -250,6 +256,7 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.timelineNavigation.items.length()").value(2))
             .andExpect(jsonPath("$.actionRecommendations.primaryAction").value("start_replay"))
             .andExpect(jsonPath("$.actionRecommendations.canConfirm").value(false))
+            .andExpect(jsonPath("$.replayLaunchPreset.sessionType").value("replay_mock"))
             .andExpect(jsonPath("$.questionSourceCounts.confirmed").value(2))
             .andExpect(jsonPath("$.answerSourceCounts.confirmed").value(2))
             .andExpect(jsonPath("$.questionSummaries[0].questionStructuringSource").value("confirmed"))
@@ -368,6 +375,7 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.actionRecommendations.primaryAction").value("review_transcript"))
             .andExpect(jsonPath("$.actionRecommendations.blockingReasons[0]").value("pending_transcript_edits"))
             .andExpect(jsonPath("$.actionRecommendations.canConfirm").value(false))
+            .andExpect(jsonPath("$.replayLaunchPreset.sourceInterviewRecordId").value(recordId))
     }
 
     @Test

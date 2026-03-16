@@ -71,6 +71,7 @@ data class InterviewRecordReviewDto(
     val answerQualitySummary: InterviewRecordAnswerQualitySummaryDto,
     val timelineNavigation: InterviewRecordTimelineNavigationDto,
     val actionRecommendations: InterviewRecordReviewActionRecommendationsDto,
+    val replayLaunchPreset: InterviewRecordReplayLaunchPresetDto,
     val questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
     val followUpThreads: List<InterviewRecordReviewFollowUpThreadDto>,
 )
@@ -148,6 +149,15 @@ data class InterviewRecordReviewActionRecommendationsDto(
     val blockingReasons: List<String>,
     val canConfirm: Boolean,
     val canReplay: Boolean,
+)
+
+data class InterviewRecordReplayLaunchPresetDto(
+    val sessionType: String,
+    val sourceInterviewRecordId: Long,
+    val replayMode: String,
+    val recommendedQuestionCount: Int,
+    val seedQuestionIds: List<Long>,
+    val availableReplayModes: List<String>,
 )
 
 data class InterviewRecordReviewQuestionSummaryDto(

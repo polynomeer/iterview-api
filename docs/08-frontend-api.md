@@ -270,6 +270,8 @@ Implemented practical interview record foundation:
     - use this for transcript viewer, question table, and follow-up thread panel cross-navigation without recomputing anchors on the client
   - `actionRecommendations`
     - use this for primary CTA selection and disabled-state messaging in practical interview review
+  - `replayLaunchPreset`
+    - use this to prefill the replay-start modal or direct `POST /api/interview-sessions` call for `replay_mock`
   - `questionSummaries[]`
     - use this for practical interview question review tables instead of recomputing follow-up/weak/confirmed state on the client
     - each summary also carries `deepLink` metadata for direct question-detail, archive-source, and replay-mock actions

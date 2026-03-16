@@ -1653,6 +1653,15 @@ Current structured extraction semantics:
       - `blockingReasons[]`
       - `canConfirm`
       - `canReplay`
+  - `replayLaunchPreset`
+    - additive preset for `POST /api/interview-sessions` with `sessionType = replay_mock`
+    - includes:
+      - `sessionType`
+      - `sourceInterviewRecordId`
+      - `replayMode`
+      - `recommendedQuestionCount`
+      - `seedQuestionIds[]`
+      - `availableReplayModes[]`
   - `questionSummaries[]`
     - each summary also includes `deepLink`
       - `questionDetailQuestionId`
