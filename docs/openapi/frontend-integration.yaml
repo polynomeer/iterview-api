@@ -1999,6 +1999,10 @@ components:
         summaryText: { type: string }
         recommendedTab: { type: string }
         defaultExpanded: { type: boolean }
+        analyticsKey: { type: string }
+        trackingContext:
+          type: object
+          additionalProperties: { type: string }
         totalCount: { type: integer }
         readyCount: { type: integer }
         needsReviewCount: { type: integer }

@@ -459,6 +459,14 @@ class InterviewRecordService(
                 ),
                 recommendedTab = resolveReviewLaneRecommendedTab(REVIEW_LANE_KEY_TRANSCRIPT),
                 defaultExpanded = laneSortOrderByKey.getValue(REVIEW_LANE_KEY_TRANSCRIPT) == 1,
+                analyticsKey = buildReviewLaneAnalyticsKey(REVIEW_LANE_KEY_TRANSCRIPT),
+                trackingContext = buildReviewLaneTrackingContext(
+                    laneKey = REVIEW_LANE_KEY_TRANSCRIPT,
+                    sortOrder = laneSortOrderByKey.getValue(REVIEW_LANE_KEY_TRANSCRIPT),
+                    highlightVariant = transcriptHighlightVariant,
+                    readiness = transcriptIssueSummary.confirmationReadiness,
+                    primaryAction = transcriptPrimaryAction,
+                ),
                 totalCount = transcriptIssueSummary.segmentActions.size,
                 readyCount = transcriptIssueSummary.resolvedIssueCount,
                 needsReviewCount = transcriptIssueSummary.unresolvedIssueCount,
@@ -503,6 +511,14 @@ class InterviewRecordService(
                 ),
                 recommendedTab = resolveReviewLaneRecommendedTab(REVIEW_LANE_KEY_QUESTION),
                 defaultExpanded = laneSortOrderByKey.getValue(REVIEW_LANE_KEY_QUESTION) == 1,
+                analyticsKey = buildReviewLaneAnalyticsKey(REVIEW_LANE_KEY_QUESTION),
+                trackingContext = buildReviewLaneTrackingContext(
+                    laneKey = REVIEW_LANE_KEY_QUESTION,
+                    sortOrder = laneSortOrderByKey.getValue(REVIEW_LANE_KEY_QUESTION),
+                    highlightVariant = questionHighlightVariant,
+                    readiness = if (questionNeedsReviewCount == 0) REVIEW_LANE_READY else REVIEW_LANE_NEEDS_REVIEW,
+                    primaryAction = questionPrimaryAction,
+                ),
                 totalCount = questionSummaries.size,
                 readyCount = (questionSummaries.size - questionNeedsReviewCount).coerceAtLeast(0),
                 needsReviewCount = questionNeedsReviewCount,
@@ -544,6 +560,14 @@ class InterviewRecordService(
                 ),
                 recommendedTab = resolveReviewLaneRecommendedTab(REVIEW_LANE_KEY_THREAD),
                 defaultExpanded = laneSortOrderByKey.getValue(REVIEW_LANE_KEY_THREAD) == 1,
+                analyticsKey = buildReviewLaneAnalyticsKey(REVIEW_LANE_KEY_THREAD),
+                trackingContext = buildReviewLaneTrackingContext(
+                    laneKey = REVIEW_LANE_KEY_THREAD,
+                    sortOrder = laneSortOrderByKey.getValue(REVIEW_LANE_KEY_THREAD),
+                    highlightVariant = threadHighlightVariant,
+                    readiness = if (threadNeedsReviewCount == 0) REVIEW_LANE_READY else REVIEW_LANE_NEEDS_REVIEW,
+                    primaryAction = threadPrimaryAction,
+                ),
                 totalCount = followUpThreads.size,
                 readyCount = (followUpThreads.size - threadNeedsReviewCount).coerceAtLeast(0),
                 needsReviewCount = threadNeedsReviewCount,
@@ -770,6 +794,22 @@ class InterviewRecordService(
         REVIEW_LANE_KEY_THREAD -> REVIEW_LANE_TAB_THREADS
         else -> REVIEW_LANE_TAB_OVERVIEW
     }
+
+    private fun buildReviewLaneAnalyticsKey(laneKey: String): String = "practical_review_lane_$laneKey"
+
+    private fun buildReviewLaneTrackingContext(
+        laneKey: String,
+        sortOrder: Int,
+        highlightVariant: String,
+        readiness: String,
+        primaryAction: String,
+    ): Map<String, String> = mapOf(
+        "laneKey" to laneKey,
+        "sortOrder" to sortOrder.toString(),
+        "highlightVariant" to highlightVariant,
+        "readiness" to readiness,
+        "primaryAction" to primaryAction,
+    )
 
     private fun buildAnswerQualitySummary(
         answers: List<InterviewRecordAnswerEntity>,

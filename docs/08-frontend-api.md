@@ -264,7 +264,7 @@ Implemented practical interview record foundation:
     - use this for practical interview replay CTA state and empty-state messaging without recomputing readiness on the client
   - `reviewLaneSummary`
     - use this for top-level transcript/question/thread dashboard cards without recomputing lane progress on the client
-    - each lane also carries additive `sortOrder`, `highlightVariant`, `badgeText`, `summaryText`, `recommendedTab`, `defaultExpanded`, `severity`, `highestPriority`, `primaryAction`, `primaryActionLabel`, `secondaryAction`, `secondaryActionLabel`, `emptyStateMessage`, `completionMessage`, and `blockingReasons[]` so lane cards can render CTA buttons, header copy, initial expansion state, initial tab focus, empty states, completion copy, disabled-state explanations, and lane ordering without duplicating backend rules
+    - each lane also carries additive `sortOrder`, `highlightVariant`, `badgeText`, `summaryText`, `recommendedTab`, `defaultExpanded`, `analyticsKey`, `trackingContext`, `severity`, `highestPriority`, `primaryAction`, `primaryActionLabel`, `secondaryAction`, `secondaryActionLabel`, `emptyStateMessage`, `completionMessage`, and `blockingReasons[]` so lane cards can render CTA buttons, header copy, initial expansion state, initial tab focus, analytics payloads, empty states, completion copy, disabled-state explanations, and lane ordering without duplicating backend rules
   - `transcriptIssueSummary`
     - use this for transcript review priority panels such as `edited`, `speaker override`, or `low confidence`
     - `segmentActions[]` is additive quick-action metadata for jumping from a flagged transcript row into the related question or follow-up thread without rebuilding anchors on the client

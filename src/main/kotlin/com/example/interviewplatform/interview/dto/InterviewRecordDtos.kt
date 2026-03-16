@@ -153,6 +153,8 @@ data class InterviewRecordReviewLaneItemDto(
     val summaryText: String,
     val recommendedTab: String,
     val defaultExpanded: Boolean,
+    val analyticsKey: String,
+    val trackingContext: Map<String, String>,
     val totalCount: Int,
     val readyCount: Int,
     val needsReviewCount: Int,

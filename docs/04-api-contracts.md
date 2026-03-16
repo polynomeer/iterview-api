@@ -1627,6 +1627,8 @@ Current structured extraction semantics:
       - `summaryText`
       - `recommendedTab`
       - `defaultExpanded`
+      - `analyticsKey`
+      - `trackingContext`
       - `totalCount`
       - `readyCount`
       - `needsReviewCount`
