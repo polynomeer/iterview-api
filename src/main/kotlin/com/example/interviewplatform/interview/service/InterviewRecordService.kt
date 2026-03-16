@@ -47,6 +47,7 @@ import com.example.interviewplatform.resume.repository.ResumeRepository
 import com.example.interviewplatform.resume.repository.ResumeVersionRepository
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.slf4j.LoggerFactory
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
@@ -102,6 +103,15 @@ class InterviewRecordService(
         val now = clockService.now()
         val storedFile = interviewAudioStorageService.store(userId, file, now)
         val normalizedTranscript = transcriptText?.trim()?.takeIf { it.isNotEmpty() }
+        logger.debug(
+            "Creating interview record userId={}, audioFileName={}, contentType={}, fileSize={}, hasTranscriptText={}, transcriptLength={}",
+            userId,
+            file.originalFilename,
+            file.contentType,
+            file.size,
+            normalizedTranscript != null,
+            normalizedTranscript?.length ?: 0,
+        )
 
         var record = interviewRecordRepository.save(
             InterviewRecordEntity(
@@ -131,10 +141,36 @@ class InterviewRecordService(
                 updatedAt = now,
             ),
         )
+        logger.debug(
+            "Created interview record recordId={}, transcriptStatus={}, analysisStatus={}, structuringStage={}",
+            record.id,
+            record.transcriptStatus,
+            record.analysisStatus,
+            record.structuringStage,
+        )
 
         if (normalizedTranscript != null) {
-            rebuildStructuredData(record, normalizedTranscript, now)
+            logger.debug("Triggering structuring pipeline immediately recordId={}", record.id)
+            try {
+                rebuildStructuredData(record, normalizedTranscript, now)
+            } catch (ex: Exception) {
+                logger.error("Structuring pipeline failed recordId={}", record.id, ex)
+                throw ex
+            }
             record = requireOwnedRecord(userId, record.id)
+            logger.debug(
+                "Structuring pipeline completed recordId={}, transcriptStatus={}, analysisStatus={}, structuringStage={}, interviewerProfileId={}",
+                record.id,
+                record.transcriptStatus,
+                record.analysisStatus,
+                record.structuringStage,
+                record.interviewerProfileId,
+            )
+        } else {
+            logger.debug(
+                "No transcript text provided on create; record remains pending until transcript/analysis pipeline populates structured data recordId={}",
+                record.id,
+            )
         }
         return toDetailDto(record)
     }
@@ -147,6 +183,21 @@ class InterviewRecordService(
     fun getTranscript(userId: Long, recordId: Long): InterviewRecordTranscriptDto {
         val record = requireOwnedRecord(userId, recordId)
         val segments = interviewTranscriptSegmentRepository.findByInterviewRecordIdOrderBySequenceAsc(recordId)
+        logger.debug(
+            "Fetched transcript recordId={}, transcriptStatus={}, analysisStatus={}, segmentCount={}",
+            recordId,
+            record.transcriptStatus,
+            record.analysisStatus,
+            segments.size,
+        )
+        if (segments.isEmpty()) {
+            logger.warn(
+                "Transcript has no segments recordId={}, transcriptStatus={}, analysisStatus={}",
+                recordId,
+                record.transcriptStatus,
+                record.analysisStatus,
+            )
+        }
         return InterviewRecordTranscriptDto(
             interviewRecordId = record.id,
             rawTranscript = record.rawTranscript,
@@ -223,16 +274,33 @@ class InterviewRecordService(
     @Transactional
     fun listQuestions(userId: Long, recordId: Long): InterviewRecordQuestionsResponseDto {
         val record = requireOwnedRecord(userId, recordId)
+        val persistedQuestions = interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(recordId)
         val answersByQuestionId = interviewRecordAnswerRepository.findByInterviewRecordQuestionIdIn(
-            interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(recordId).map { it.id },
+            persistedQuestions.map { it.id },
         )
             .associateBy { it.interviewRecordQuestionId }
         val questions = interviewRecordQuestionAssetService.ensureLinkedQuestionAssets(
             record = record,
-            questions = interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(recordId),
+            questions = persistedQuestions,
             answersByQuestionId = answersByQuestionId,
             now = clockService.now(),
         )
+        logger.debug(
+            "Fetched questions recordId={}, analysisStatus={}, persistedQuestionCount={}, responseQuestionCount={}, answerCount={}",
+            recordId,
+            record.analysisStatus,
+            persistedQuestions.size,
+            questions.size,
+            answersByQuestionId.size,
+        )
+        if (questions.isEmpty()) {
+            logger.warn(
+                "No structured questions available recordId={}, analysisStatus={}, transcriptStatus={}",
+                recordId,
+                record.analysisStatus,
+                record.transcriptStatus,
+            )
+        }
         return InterviewRecordQuestionsResponseDto(
             interviewRecordId = recordId,
             items = questions.map { InterviewRecordMapper.toQuestionDto(it, answersByQuestionId[it.id], objectMapper) },
@@ -2101,6 +2169,12 @@ class InterviewRecordService(
         now: Instant,
         isUserConfirmed: Boolean = false,
     ) {
+        logger.debug(
+            "Rebuilding structured data recordId={}, isUserConfirmed={}, transcriptLength={}",
+            record.id,
+            isUserConfirmed,
+            transcriptText.length,
+        )
         val existingQuestions = interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(record.id)
         val existingQuestionIds = existingQuestions.map { it.id }
         val existingAnswers = if (existingQuestionIds.isEmpty()) {
@@ -2124,12 +2198,37 @@ class InterviewRecordService(
             interviewTranscriptSegmentRepository.deleteAllInBatch(existingSegments)
             interviewTranscriptSegmentRepository.flush()
         }
+        logger.debug(
+            "Cleared previous structured data recordId={}, deletedSegments={}, deletedQuestions={}, deletedAnswers={}",
+            record.id,
+            existingSegments.size,
+            existingQuestions.size,
+            existingAnswers.size,
+        )
 
         val deterministicParsed = parseTranscript(transcriptText, now)
-        val parsed = practicalInterviewStructuringEnrichmentService.enrich(
-            record = record,
-            transcriptText = transcriptText,
-            parsedTranscript = deterministicParsed,
+        logger.debug(
+            "Deterministic parsing finished recordId={}, segmentCount={}, questionCount={}",
+            record.id,
+            deterministicParsed.segments.size,
+            deterministicParsed.questions.size,
+        )
+        val parsed = try {
+            practicalInterviewStructuringEnrichmentService.enrich(
+                record = record,
+                transcriptText = transcriptText,
+                parsedTranscript = deterministicParsed,
+            )
+        } catch (ex: Exception) {
+            logger.error("Structuring enrichment failed recordId={}", record.id, ex)
+            throw ex
+        }
+        logger.debug(
+            "Structuring enrichment finished recordId={}, structuringSource={}, segmentCount={}, questionCount={}",
+            record.id,
+            parsed.structuringSource,
+            parsed.segments.size,
+            parsed.questions.size,
         )
         val deterministicSummary = buildOverallSummary(deterministicParsed.questions)
         val aiEnrichedSummary = when {
@@ -2203,6 +2302,21 @@ class InterviewRecordService(
             if (edges.isNotEmpty()) {
                 interviewRecordFollowUpEdgeRepository.saveAll(edges)
             }
+        }
+        logger.debug(
+            "Persisted structured assets recordId={}, segmentCount={}, questionCount={}, answerCount={}",
+            record.id,
+            segments.size,
+            persistedQuestions.size,
+            answersToPersist.size,
+        )
+        if (persistedQuestions.isEmpty()) {
+            logger.warn(
+                "Structured parsing produced zero questions recordId={}, transcriptLength={}, structuringSource={}",
+                record.id,
+                transcriptText.length,
+                persistedStructuringSource,
+            )
         }
 
         val overallSummary = if (isUserConfirmed) {
@@ -2278,6 +2392,14 @@ class InterviewRecordService(
                 createdAt = record.createdAt,
                 updatedAt = now,
             ),
+        )
+        logger.debug(
+            "Rebuild completed recordId={}, analysisStatus={}, transcriptStatus={}, structuringStage={}, interviewerProfileId={}",
+            record.id,
+            ANALYSIS_STATUS_COMPLETED,
+            TRANSCRIPT_STATUS_CONFIRMED,
+            persistedStructuringSource,
+            savedProfile.id,
         )
     }
 
@@ -2393,6 +2515,15 @@ class InterviewRecordService(
             }
         }
         flushQuestion()
+        logger.debug(
+            "Parsed transcript record stage=deterministic lineCount={}, segmentCount={}, questionCount={}",
+            lines.size,
+            segments.size,
+            questions.size,
+        )
+        if (questions.isEmpty()) {
+            logger.warn("Deterministic parser extracted zero questions lineCount={}, segmentCount={}", lines.size, segments.size)
+        }
         return ParsedInterviewTranscript(segments, questions)
     }
 
@@ -2737,6 +2868,7 @@ class InterviewRecordService(
     }
 
     companion object {
+        private val logger = LoggerFactory.getLogger(InterviewRecordService::class.java)
         private const val STRUCTURING_STAGE_DETERMINISTIC = "deterministic"
         private const val STRUCTURING_STAGE_AI_ENRICHED = "ai_enriched"
         private const val STRUCTURING_STAGE_CONFIRMED = "confirmed"
