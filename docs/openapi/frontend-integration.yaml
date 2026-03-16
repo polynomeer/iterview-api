@@ -2063,6 +2063,18 @@ components:
         blockingReasons:
           type: array
           items: { type: string }
+        blockingReasonDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/InterviewRecordReviewLaneBlockerDetailDto'
+    InterviewRecordReviewLaneBlockerDetailDto:
+      type: object
+      properties:
+        code: { type: string }
+        label: { type: string }
+        description: { type: string }
+        recommendedAction: { type: string }
+        recommendedActionLabel: { type: string }
     InterviewRecordTranscriptIssueSummaryDto:
       type: object
       properties:

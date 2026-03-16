@@ -1670,6 +1670,12 @@ Current structured extraction semantics:
       - `completionCtaTargetPayload`
       - `completionMessage`
       - `blockingReasons[]`
+      - `blockingReasonDetails[]`
+        - `code`
+        - `label`
+        - `description`
+        - `recommendedAction`
+        - `recommendedActionLabel`
   - `transcriptIssueSummary`
     - additive aggregate for review-priority panels
     - includes:

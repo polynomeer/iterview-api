@@ -10,6 +10,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestion
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionDistributionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionFilterSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewLaneItemDto
+import com.example.interviewplatform.interview.dto.InterviewRecordReviewLaneBlockerDetailDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewLaneSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionOriginSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReplayBlockerDetailDto
@@ -593,6 +594,9 @@ class InterviewRecordService(
                     null
                 },
                 blockingReasons = transcriptBlockingReasons.distinct(),
+                blockingReasonDetails = transcriptBlockingReasons
+                    .distinct()
+                    .map { buildReviewLaneBlockerDetail(REVIEW_LANE_KEY_TRANSCRIPT, it) },
             ),
             question = InterviewRecordReviewLaneItemDto(
                 sortOrder = laneSortOrderByKey.getValue(REVIEW_LANE_KEY_QUESTION),
@@ -727,6 +731,9 @@ class InterviewRecordService(
                     null
                 },
                 blockingReasons = questionBlockingReasons.distinct(),
+                blockingReasonDetails = questionBlockingReasons
+                    .distinct()
+                    .map { buildReviewLaneBlockerDetail(REVIEW_LANE_KEY_QUESTION, it) },
             ),
             thread = InterviewRecordReviewLaneItemDto(
                 sortOrder = laneSortOrderByKey.getValue(REVIEW_LANE_KEY_THREAD),
@@ -873,7 +880,60 @@ class InterviewRecordService(
                     null
                 },
                 blockingReasons = threadBlockingReasons.distinct(),
+                blockingReasonDetails = threadBlockingReasons
+                    .distinct()
+                    .map { buildReviewLaneBlockerDetail(REVIEW_LANE_KEY_THREAD, it) },
             ),
+        )
+    }
+
+    private fun buildReviewLaneBlockerDetail(
+        laneKey: String,
+        code: String,
+    ): InterviewRecordReviewLaneBlockerDetailDto = when (code) {
+        REVIEW_BLOCKING_REASON_PENDING_TRANSCRIPT_EDITS -> InterviewRecordReviewLaneBlockerDetailDto(
+            code = code,
+            label = "Pending transcript edits",
+            description = "Transcript edits still need review before this lane can be treated as stable.",
+            recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
+            recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
+        )
+        REVIEW_BLOCKING_REASON_WEAK_ANSWERS_PRESENT -> InterviewRecordReviewLaneBlockerDetailDto(
+            code = code,
+            label = "Weak answers present",
+            description = "Some imported answers are still weak and should be reviewed before confirming study quality.",
+            recommendedAction = REVIEW_ACTION_REVIEW_ANSWERS,
+            recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_ANSWERS),
+        )
+        REVIEW_BLOCKING_REASON_UNCONFIRMED_QUESTIONS_PRESENT -> InterviewRecordReviewLaneBlockerDetailDto(
+            code = code,
+            label = "Unconfirmed structured questions",
+            description = "Question or answer structuring is not fully confirmed yet.",
+            recommendedAction = REVIEW_ACTION_CONFIRM,
+            recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_CONFIRM),
+        )
+        REVIEW_BLOCKING_REASON_WEAK_THREADS_PRESENT -> InterviewRecordReviewLaneBlockerDetailDto(
+            code = code,
+            label = "Weak follow-up threads",
+            description = "Some follow-up chains still need review before they are ready for replay or study.",
+            recommendedAction = THREAD_ACTION_REVIEW_WEAK_CHAIN,
+            recommendedActionLabel = resolveReviewLaneActionLabel(THREAD_ACTION_REVIEW_WEAK_CHAIN),
+        )
+        REVIEW_BLOCKING_REASON_NO_THREADS_AVAILABLE -> InterviewRecordReviewLaneBlockerDetailDto(
+            code = code,
+            label = "No follow-up threads",
+            description = "No follow-up chains are available yet for this interview record.",
+            recommendedAction = if (laneKey == REVIEW_LANE_KEY_THREAD) REVIEW_ACTION_REVIEW_ANSWERS else REVIEW_ACTION_REVIEW_TRANSCRIPT,
+            recommendedActionLabel = resolveReviewLaneActionLabel(
+                if (laneKey == REVIEW_LANE_KEY_THREAD) REVIEW_ACTION_REVIEW_ANSWERS else REVIEW_ACTION_REVIEW_TRANSCRIPT,
+            ),
+        )
+        else -> InterviewRecordReviewLaneBlockerDetailDto(
+            code = code,
+            label = code,
+            description = "Resolve this blocking issue before continuing review.",
+            recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
+            recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
         )
     }
 

@@ -199,6 +199,15 @@ data class InterviewRecordReviewLaneItemDto(
     val completionCtaTarget: String?,
     val completionCtaTargetPayload: Map<String, String>?,
     val blockingReasons: List<String>,
+    val blockingReasonDetails: List<InterviewRecordReviewLaneBlockerDetailDto>,
+)
+
+data class InterviewRecordReviewLaneBlockerDetailDto(
+    val code: String,
+    val label: String,
+    val description: String,
+    val recommendedAction: String,
+    val recommendedActionLabel: String,
 )
 
 data class InterviewRecordAnswerQualitySummaryDto(
