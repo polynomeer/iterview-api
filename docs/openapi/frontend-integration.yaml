@@ -2003,6 +2003,8 @@ components:
         trackingContext:
           type: object
           additionalProperties: { type: string }
+        helpText: { type: string }
+        whyItMatters: { type: string }
         emptyStateCtaAction: { type: string, nullable: true }
         emptyStateCtaLabel: { type: string, nullable: true }
         totalCount: { type: integer }

@@ -1629,6 +1629,8 @@ Current structured extraction semantics:
       - `defaultExpanded`
       - `analyticsKey`
       - `trackingContext`
+      - `helpText`
+      - `whyItMatters`
       - `emptyStateCtaAction`
       - `emptyStateCtaLabel`
       - `totalCount`

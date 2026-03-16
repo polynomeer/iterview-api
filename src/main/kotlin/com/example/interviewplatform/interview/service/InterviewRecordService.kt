@@ -467,6 +467,8 @@ class InterviewRecordService(
                     readiness = transcriptIssueSummary.confirmationReadiness,
                     primaryAction = transcriptPrimaryAction,
                 ),
+                helpText = buildReviewLaneHelpText(REVIEW_LANE_KEY_TRANSCRIPT),
+                whyItMatters = buildReviewLaneWhyItMatters(REVIEW_LANE_KEY_TRANSCRIPT),
                 totalCount = transcriptIssueSummary.segmentActions.size,
                 readyCount = transcriptIssueSummary.resolvedIssueCount,
                 needsReviewCount = transcriptIssueSummary.unresolvedIssueCount,
@@ -545,6 +547,8 @@ class InterviewRecordService(
                     readiness = if (questionNeedsReviewCount == 0) REVIEW_LANE_READY else REVIEW_LANE_NEEDS_REVIEW,
                     primaryAction = questionPrimaryAction,
                 ),
+                helpText = buildReviewLaneHelpText(REVIEW_LANE_KEY_QUESTION),
+                whyItMatters = buildReviewLaneWhyItMatters(REVIEW_LANE_KEY_QUESTION),
                 totalCount = questionSummaries.size,
                 readyCount = (questionSummaries.size - questionNeedsReviewCount).coerceAtLeast(0),
                 needsReviewCount = questionNeedsReviewCount,
@@ -614,6 +618,8 @@ class InterviewRecordService(
                     readiness = if (threadNeedsReviewCount == 0) REVIEW_LANE_READY else REVIEW_LANE_NEEDS_REVIEW,
                     primaryAction = threadPrimaryAction,
                 ),
+                helpText = buildReviewLaneHelpText(REVIEW_LANE_KEY_THREAD),
+                whyItMatters = buildReviewLaneWhyItMatters(REVIEW_LANE_KEY_THREAD),
                 totalCount = followUpThreads.size,
                 readyCount = (followUpThreads.size - threadNeedsReviewCount).coerceAtLeast(0),
                 needsReviewCount = threadNeedsReviewCount,
@@ -876,6 +882,20 @@ class InterviewRecordService(
         "readiness" to readiness,
         "primaryAction" to primaryAction,
     )
+
+    private fun buildReviewLaneHelpText(laneKey: String): String = when (laneKey) {
+        REVIEW_LANE_KEY_TRANSCRIPT -> "Check transcript accuracy, speaker attribution, and confirmed edits."
+        REVIEW_LANE_KEY_QUESTION -> "Review imported questions and answer quality before confirming the record."
+        REVIEW_LANE_KEY_THREAD -> "Inspect follow-up chains to find weak probing paths and replay targets."
+        else -> "Review this lane before moving on."
+    }
+
+    private fun buildReviewLaneWhyItMatters(laneKey: String): String = when (laneKey) {
+        REVIEW_LANE_KEY_TRANSCRIPT -> "Transcript issues can distort downstream question, answer, and replay analysis."
+        REVIEW_LANE_KEY_QUESTION -> "Question and answer review determines what becomes a reliable study asset."
+        REVIEW_LANE_KEY_THREAD -> "Thread review shows whether the practical interview had strong probing depth."
+        else -> "This lane affects practical interview review quality."
+    }
 
     private fun buildAnswerQualitySummary(
         answers: List<InterviewRecordAnswerEntity>,
