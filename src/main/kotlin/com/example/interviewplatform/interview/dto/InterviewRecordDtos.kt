@@ -107,6 +107,12 @@ data class InterviewRecordReplayReadinessDto(
     val followUpThreadCount: Int,
     val hasInterviewerProfile: Boolean,
     val recommendedReplayMode: String,
+    val recommendedReplayModeLabel: String,
+    val statusBadgeText: String,
+    val statusVariant: String,
+    val statusSummary: String,
+    val primaryCtaLabel: String,
+    val blockedCtaLabel: String,
     val blockers: List<String>,
 )
 

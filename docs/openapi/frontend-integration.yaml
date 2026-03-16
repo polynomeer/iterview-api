@@ -1978,6 +1978,12 @@ components:
         followUpThreadCount: { type: integer }
         hasInterviewerProfile: { type: boolean }
         recommendedReplayMode: { type: string }
+        recommendedReplayModeLabel: { type: string }
+        statusBadgeText: { type: string }
+        statusVariant: { type: string }
+        statusSummary: { type: string }
+        primaryCtaLabel: { type: string }
+        blockedCtaLabel: { type: string }
         blockers:
           type: array
           items: { type: string }

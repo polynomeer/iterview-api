@@ -283,6 +283,8 @@ Implemented practical interview record foundation:
   - `replayLaunchPreset`
     - use this to prefill the replay-start modal or direct `POST /api/interview-sessions` call for `replay_mock`
     - `recommendedReplayModeLabel`, `availableReplayModeLabels`, `presetTitle`, `presetDescription`, and `launchButtonLabel` are additive display helpers so replay launch UI can render recommended-copy without duplicating mode-label rules
+  - `replayReadiness`
+    - `recommendedReplayModeLabel`, `statusBadgeText`, `statusVariant`, `statusSummary`, `primaryCtaLabel`, and `blockedCtaLabel` are additive display helpers so readiness cards can render replay-ready vs blocked copy without re-deriving backend blocker state
   - `provenanceComparisonSummary`
     - use this for deterministic vs AI vs confirmed diff panels without inferring current source precedence on the client
   - `questionSummaries[]`

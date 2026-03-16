@@ -1020,6 +1020,16 @@ class InterviewRecordService(
             followUpThreadCount = questionSummaries.count { !it.isFollowUp },
             hasInterviewerProfile = hasInterviewerProfile,
             recommendedReplayMode = REVIEW_REPLAY_MODE_ORIGINAL,
+            recommendedReplayModeLabel = resolveReplayModeLabel(REVIEW_REPLAY_MODE_ORIGINAL),
+            statusBadgeText = if (blockers.isEmpty()) "Replay ready" else "Replay blocked",
+            statusVariant = if (blockers.isEmpty()) REVIEW_LANE_HIGHLIGHT_SUCCESS else REVIEW_LANE_HIGHLIGHT_WARNING,
+            statusSummary = if (blockers.isEmpty()) {
+                "Replay can start with the recommended interviewer pattern."
+            } else {
+                "Resolve replay blockers before starting a replay session."
+            },
+            primaryCtaLabel = if (blockers.isEmpty()) "Start replay" else "Review blockers",
+            blockedCtaLabel = "Resolve replay blockers",
             blockers = blockers,
         )
     }

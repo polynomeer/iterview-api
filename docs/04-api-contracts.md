@@ -1613,6 +1613,12 @@ Current structured extraction semantics:
       - `followUpThreadCount`
       - `hasInterviewerProfile`
       - `recommendedReplayMode`
+      - `recommendedReplayModeLabel`
+      - `statusBadgeText`
+      - `statusVariant`
+      - `statusSummary`
+      - `primaryCtaLabel`
+      - `blockedCtaLabel`
       - `blockers[]`
   - `reviewLaneSummary`
     - additive dashboard aggregate for transcript/question/thread review lanes
