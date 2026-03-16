@@ -1395,6 +1395,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AnswerFeedbackItemDto"
+        analysis:
+          allOf:
+            - $ref: "#/components/schemas/AnswerAnalysisDto"
+          nullable: true
         progressStatus: { type: string }
         nextReviewAt: { type: string, format: date-time, nullable: true }
         archiveDecision: { type: boolean }
@@ -1418,6 +1422,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AnswerFeedbackItemDto"
+        analysis:
+          allOf:
+            - $ref: "#/components/schemas/AnswerAnalysisDto"
+          nullable: true
         progressSummary:
           allOf:
             - $ref: "#/components/schemas/UserProgressSummaryDto"
@@ -1446,7 +1454,30 @@ components:
         strengthSummary: { type: string }
         weaknessSummary: { type: string }
         recommendedNextStep: { type: string, nullable: true }
+        detailedFeedback: { type: string, nullable: true }
+        strengthPoints:
+          type: array
+          items: { type: string }
+        improvementPoints:
+          type: array
+          items: { type: string }
+        missedPoints:
+          type: array
+          items: { type: string }
+        modelAnswer:
+          allOf:
+            - $ref: "#/components/schemas/AnswerModelAnswerDto"
+          nullable: true
+        llmModel: { type: string, nullable: true }
+        contentLocale: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
+    AnswerModelAnswerDto:
+      type: object
+      properties:
+        sourceType: { type: string }
+        contentLocale: { type: string, nullable: true }
+        llmModel: { type: string, nullable: true }
+        text: { type: string }
     ScoreSummaryDto:
       type: object
       properties:

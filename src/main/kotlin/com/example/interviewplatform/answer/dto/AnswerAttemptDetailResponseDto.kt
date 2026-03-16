@@ -6,5 +6,6 @@ data class AnswerAttemptDetailResponseDto(
     val answerAttempt: AnswerAttemptDto,
     val score: ScoreSummaryDto,
     val feedback: List<AnswerFeedbackItemDto>,
+    val analysis: AnswerAnalysisDto?,
     val progressSummary: UserProgressSummaryDto?,
 )

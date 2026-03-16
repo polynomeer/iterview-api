@@ -237,5 +237,16 @@ class OpenApiIntegrationTest {
             .andExpect(jsonPath("$.components.schemas.AuthTokenResponse.description").value("Authentication response containing the bearer token and the authenticated user snapshot"))
             .andExpect(jsonPath("$.components.schemas.HomeResponseDto.description").value("Home payload with the primary daily card, retry queue preview, and learning materials"))
             .andExpect(jsonPath("$.components.schemas.SubmitAnswerRequest.description").value("Answer submission payload for a question attempt"))
+            .andExpect(jsonPath("$.components.schemas.SubmitAnswerResponseDto.properties.analysis").exists())
+            .andExpect(jsonPath("$.components.schemas.AnswerAnalysisDto.properties.detailedFeedback").exists())
+            .andExpect(jsonPath("$.components.schemas.AnswerAnalysisDto.properties.strengthPoints").exists())
+            .andExpect(jsonPath("$.components.schemas.AnswerAnalysisDto.properties.improvementPoints").exists())
+            .andExpect(jsonPath("$.components.schemas.AnswerAnalysisDto.properties.missedPoints").exists())
+            .andExpect(jsonPath("$.components.schemas.AnswerAnalysisDto.properties.modelAnswer").exists())
+            .andExpect(jsonPath("$.components.schemas.AnswerAnalysisDto.properties.llmModel").exists())
+            .andExpect(jsonPath("$.components.schemas.AnswerAnalysisDto.properties.contentLocale").exists())
+            .andExpect(jsonPath("$.components.schemas.AnswerModelAnswerDto").exists())
+            .andExpect(jsonPath("$.components.schemas.AnswerModelAnswerDto.properties.sourceType").exists())
+            .andExpect(jsonPath("$.components.schemas.AnswerModelAnswerDto.properties.text").exists())
     }
 }

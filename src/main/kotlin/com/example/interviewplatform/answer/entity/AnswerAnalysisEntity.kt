@@ -37,6 +37,20 @@ class AnswerAnalysisEntity(
     val weaknessSummary: String,
     @Column(name = "recommended_next_step")
     val recommendedNextStep: String? = null,
+    @Column(name = "detailed_feedback")
+    val detailedFeedback: String? = null,
+    @Column(name = "model_answer_text")
+    val modelAnswerText: String? = null,
+    @Column(name = "strength_points_json")
+    val strengthPointsJson: String? = null,
+    @Column(name = "improvement_points_json")
+    val improvementPointsJson: String? = null,
+    @Column(name = "missed_points_json")
+    val missedPointsJson: String? = null,
+    @Column(name = "llm_model")
+    val llmModel: String? = null,
+    @Column(name = "content_locale")
+    val contentLocale: String? = null,
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant,
 )

@@ -75,12 +75,16 @@ class AnswerService(
 
         val score = scoringService.score(savedAttempt.contentText)
         answerScoreRepository.save(toScoreEntity(savedAttempt.id, score, now))
+        val question = questionRepository.findByIdAndIsActiveTrue(questionId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found: $questionId")
 
         val feedbackEntities = buildFeedback(score, savedAttempt.id, now)
         val savedFeedback = answerFeedbackItemRepository.saveAll(feedbackEntities)
-        answerAnalysisRepository.save(
+        val savedAnalysis = answerAnalysisRepository.save(
             answerAnalysisService.analyze(
                 attempt = savedAttempt,
+                questionTitle = question.title,
+                questionBody = question.body,
                 score = score,
                 feedback = savedFeedback.map(AnswerMapper::toFeedbackDto),
                 now = now,
@@ -127,6 +131,7 @@ class AnswerService(
             answerAttemptId = savedAttempt.id,
             scoreSummary = score,
             feedback = savedFeedback.map(AnswerMapper::toFeedbackDto),
+            analysis = AnswerMapper.toAnalysisDto(savedAnalysis),
             progressStatus = progressStatus,
             nextReviewAt = nextReviewAt,
             archiveDecision = shouldArchive,
@@ -162,6 +167,7 @@ class AnswerService(
             attempt = attempt,
             score = AnswerMapper.toScoreSummary(score),
             feedback = feedback.map(AnswerMapper::toFeedbackDto),
+            analysis = answerAnalysisRepository.findByAnswerAttemptId(answerAttemptId)?.let(AnswerMapper::toAnalysisDto),
             progressSummary = progress?.let(::toProgressSummary),
         )
     }
@@ -176,6 +182,8 @@ class AnswerService(
         val persisted = answerAnalysisRepository.findByAnswerAttemptId(answerAttemptId)
         val analysis = persisted ?: answerAnalysisService.analyze(
             attempt = attempt,
+            questionTitle = questionRepository.findByIdAndIsActiveTrue(attempt.questionId)?.title ?: "Interview question",
+            questionBody = questionRepository.findByIdAndIsActiveTrue(attempt.questionId)?.body,
             score = AnswerMapper.toScoreSummary(score),
             feedback = feedback.map(AnswerMapper::toFeedbackDto),
             now = score.evaluatedAt,

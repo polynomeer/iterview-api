@@ -769,6 +769,18 @@ Response:
       "displayOrder": 1
     }
   ],
+  "analysis": {
+    "answerAttemptId": 200,
+    "detailedFeedback": "The answer is directionally strong, but it still needs clearer tradeoff framing and stronger measurable evidence.",
+    "strengthPoints": ["Stays on the core topic", "Shows a usable answer flow"],
+    "improvementPoints": ["Add metrics", "Explain tradeoffs explicitly"],
+    "missedPoints": ["Alternative comparison", "Validation criteria"],
+    "modelAnswer": {
+      "sourceType": "ai_generated",
+      "contentLocale": "ko",
+      "text": "A stronger answer would define the context, explain the decision criteria, describe the implementation, and close with measurable validation."
+    }
+  },
   "progressStatus": "in_progress",
   "nextReviewAt": null,
   "archiveDecision": false
@@ -779,6 +791,7 @@ Notes:
 - low-quality answers can create or update a retry queue item
 - `answerMode` values like `skip` and `unanswered` trigger retry behavior
 - future analysis depth should not remove or rename `scoreSummary`
+- additive `analysis` may now include richer AI-style feedback and a model answer for the submitted attempt
 
 #### `GET /api/questions/{questionId}/answers`
 Auth:

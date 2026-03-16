@@ -73,6 +73,9 @@ class AnswerApiIntegrationTest {
             .andExpect(jsonPath("$.answerAttempt.id").value(answerAttemptId))
             .andExpect(jsonPath("$.score.totalScore").isNumber)
             .andExpect(jsonPath("$.feedback[0].id").isNumber)
+            .andExpect(jsonPath("$.analysis.detailedFeedback").isNotEmpty)
+            .andExpect(jsonPath("$.analysis.modelAnswer.text").isNotEmpty)
+            .andExpect(jsonPath("$.analysis.strengthPoints[0]").isNotEmpty)
             .andExpect(jsonPath("$.progressSummary.totalAttemptCount").value(1))
 
         mockMvc.perform(get("/api/answer-attempts/$answerAttemptId/analysis").header("Authorization", authHeader))
@@ -81,6 +84,8 @@ class AnswerApiIntegrationTest {
             .andExpect(jsonPath("$.overallScore").isNumber)
             .andExpect(jsonPath("$.strengthSummary").isNotEmpty)
             .andExpect(jsonPath("$.weaknessSummary").isNotEmpty)
+            .andExpect(jsonPath("$.detailedFeedback").isNotEmpty)
+            .andExpect(jsonPath("$.modelAnswer.text").isNotEmpty)
     }
 
     @Test
@@ -123,6 +128,9 @@ class AnswerApiIntegrationTest {
                 ),
         )
             .andExpect(status().isOk)
+            .andExpect(jsonPath("$.analysis.detailedFeedback").isNotEmpty)
+            .andExpect(jsonPath("$.analysis.modelAnswer.sourceType").value("ai_generated"))
+            .andExpect(jsonPath("$.analysis.improvementPoints[0]").isNotEmpty)
             .andExpect(jsonPath("$.progressStatus").value("retry_pending"))
             .andExpect(jsonPath("$.nextReviewAt").isNotEmpty)
 

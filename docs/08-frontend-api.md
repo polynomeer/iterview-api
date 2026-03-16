@@ -85,6 +85,15 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `title = Imported real interview answer summary`
 - Imported real interview question assets are private. Frontend should treat their question detail reads as authenticated owner-only flows.
 - The skill APIs recalculate and persist score snapshots server-side; frontend clients should treat them as read APIs.
+- `POST /api/questions/{questionId}/answers` now also returns additive `analysis` payload for richer result screens, including:
+  - `detailedFeedback`
+  - `strengthPoints`
+  - `improvementPoints`
+  - `missedPoints`
+  - `modelAnswer`
+  - `llmModel`
+  - `contentLocale`
+- `GET /api/answer-attempts/{answerAttemptId}` also includes additive `analysis` so detailed result views can reuse the persisted deep feedback.
 - Interview sessions are minimal turn-based APIs. They do not imply realtime or streaming behavior.
 - Interview history is now available from `GET /api/interview-sessions` as session-level summaries.
 - `POST /api/interview-sessions` now also supports `sessionType = replay_mock` with:

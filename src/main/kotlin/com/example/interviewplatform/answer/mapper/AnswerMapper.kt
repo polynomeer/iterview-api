@@ -3,6 +3,7 @@ package com.example.interviewplatform.answer.mapper
 import com.example.interviewplatform.answer.dto.AnswerAttemptDetailResponseDto
 import com.example.interviewplatform.answer.dto.AnswerAttemptDto
 import com.example.interviewplatform.answer.dto.AnswerAnalysisDto
+import com.example.interviewplatform.answer.dto.AnswerModelAnswerDto
 import com.example.interviewplatform.answer.dto.AnswerAttemptListItemDto
 import com.example.interviewplatform.answer.dto.AnswerFeedbackItemDto
 import com.example.interviewplatform.answer.dto.ScoreSummaryDto
@@ -11,13 +12,18 @@ import com.example.interviewplatform.answer.entity.AnswerAnalysisEntity
 import com.example.interviewplatform.answer.entity.AnswerAttemptEntity
 import com.example.interviewplatform.answer.entity.AnswerFeedbackItemEntity
 import com.example.interviewplatform.answer.entity.AnswerScoreEntity
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.example.interviewplatform.question.dto.UserProgressSummaryDto
 
 object AnswerMapper {
+    private val objectMapper = ObjectMapper()
+
     fun toSubmitResponse(
         answerAttemptId: Long,
         scoreSummary: ScoreSummaryDto,
         feedback: List<AnswerFeedbackItemDto>,
+        analysis: AnswerAnalysisDto?,
         progressStatus: String,
         nextReviewAt: java.time.Instant?,
         archiveDecision: Boolean,
@@ -25,6 +31,7 @@ object AnswerMapper {
         answerAttemptId = answerAttemptId,
         scoreSummary = scoreSummary,
         feedback = feedback,
+        analysis = analysis,
         progressStatus = progressStatus,
         nextReviewAt = nextReviewAt,
         archiveDecision = archiveDecision,
@@ -57,11 +64,13 @@ object AnswerMapper {
         attempt: AnswerAttemptEntity,
         score: ScoreSummaryDto,
         feedback: List<AnswerFeedbackItemDto>,
+        analysis: AnswerAnalysisDto?,
         progressSummary: UserProgressSummaryDto?,
     ): AnswerAttemptDetailResponseDto = AnswerAttemptDetailResponseDto(
         answerAttempt = toAttemptDto(attempt),
         score = score,
         feedback = feedback,
+        analysis = analysis,
         progressSummary = progressSummary,
     )
 
@@ -98,6 +107,25 @@ object AnswerMapper {
         strengthSummary = entity.strengthSummary,
         weaknessSummary = entity.weaknessSummary,
         recommendedNextStep = entity.recommendedNextStep,
+        detailedFeedback = entity.detailedFeedback,
+        strengthPoints = decodeStringList(entity.strengthPointsJson),
+        improvementPoints = decodeStringList(entity.improvementPointsJson),
+        missedPoints = decodeStringList(entity.missedPointsJson),
+        modelAnswer = entity.modelAnswerText?.takeIf { it.isNotBlank() }?.let {
+            AnswerModelAnswerDto(
+                sourceType = "ai_generated",
+                contentLocale = entity.contentLocale,
+                llmModel = entity.llmModel,
+                text = it,
+            )
+        },
+        llmModel = entity.llmModel,
+        contentLocale = entity.contentLocale,
         createdAt = entity.createdAt,
     )
+
+    private fun decodeStringList(raw: String?): List<String> =
+        raw?.takeIf { it.isNotBlank() }?.let {
+            runCatching { objectMapper.readValue(it, object : TypeReference<List<String>>() {}) }.getOrDefault(emptyList())
+        }.orEmpty()
 }
