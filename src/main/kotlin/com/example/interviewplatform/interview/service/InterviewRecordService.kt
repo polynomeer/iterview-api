@@ -896,6 +896,10 @@ class InterviewRecordService(
             code = code,
             label = "Pending transcript edits",
             description = "Transcript edits still need review before this lane can be treated as stable.",
+            severity = resolveReviewBlockerSeverity(code),
+            priority = resolveReviewBlockerPriority(code),
+            highlightVariant = resolveReviewBlockerHighlightVariant(code),
+            sortOrder = resolveReviewBlockerSortOrder(code),
             recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
             recommendedActionTarget = resolveReviewLaneActionTarget(laneKey, REVIEW_ACTION_REVIEW_TRANSCRIPT),
@@ -905,6 +909,10 @@ class InterviewRecordService(
             code = code,
             label = "Weak answers present",
             description = "Some imported answers are still weak and should be reviewed before confirming study quality.",
+            severity = resolveReviewBlockerSeverity(code),
+            priority = resolveReviewBlockerPriority(code),
+            highlightVariant = resolveReviewBlockerHighlightVariant(code),
+            sortOrder = resolveReviewBlockerSortOrder(code),
             recommendedAction = REVIEW_ACTION_REVIEW_ANSWERS,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_ANSWERS),
             recommendedActionTarget = resolveReviewLaneActionTarget(laneKey, REVIEW_ACTION_REVIEW_ANSWERS),
@@ -914,6 +922,10 @@ class InterviewRecordService(
             code = code,
             label = "Unconfirmed structured questions",
             description = "Question or answer structuring is not fully confirmed yet.",
+            severity = resolveReviewBlockerSeverity(code),
+            priority = resolveReviewBlockerPriority(code),
+            highlightVariant = resolveReviewBlockerHighlightVariant(code),
+            sortOrder = resolveReviewBlockerSortOrder(code),
             recommendedAction = REVIEW_ACTION_CONFIRM,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_CONFIRM),
             recommendedActionTarget = resolveReviewLaneActionTarget(laneKey, REVIEW_ACTION_CONFIRM),
@@ -923,6 +935,10 @@ class InterviewRecordService(
             code = code,
             label = "Weak follow-up threads",
             description = "Some follow-up chains still need review before they are ready for replay or study.",
+            severity = resolveReviewBlockerSeverity(code),
+            priority = resolveReviewBlockerPriority(code),
+            highlightVariant = resolveReviewBlockerHighlightVariant(code),
+            sortOrder = resolveReviewBlockerSortOrder(code),
             recommendedAction = THREAD_ACTION_REVIEW_WEAK_CHAIN,
             recommendedActionLabel = resolveReviewLaneActionLabel(THREAD_ACTION_REVIEW_WEAK_CHAIN),
             recommendedActionTarget = resolveReviewLaneActionTarget(laneKey, THREAD_ACTION_REVIEW_WEAK_CHAIN),
@@ -932,6 +948,10 @@ class InterviewRecordService(
             code = code,
             label = "No follow-up threads",
             description = "No follow-up chains are available yet for this interview record.",
+            severity = resolveReviewBlockerSeverity(code),
+            priority = resolveReviewBlockerPriority(code),
+            highlightVariant = resolveReviewBlockerHighlightVariant(code),
+            sortOrder = resolveReviewBlockerSortOrder(code),
             recommendedAction = if (laneKey == REVIEW_LANE_KEY_THREAD) REVIEW_ACTION_REVIEW_ANSWERS else REVIEW_ACTION_REVIEW_TRANSCRIPT,
             recommendedActionLabel = resolveReviewLaneActionLabel(
                 if (laneKey == REVIEW_LANE_KEY_THREAD) REVIEW_ACTION_REVIEW_ANSWERS else REVIEW_ACTION_REVIEW_TRANSCRIPT,
@@ -949,11 +969,62 @@ class InterviewRecordService(
             code = code,
             label = code,
             description = "Resolve this blocking issue before continuing review.",
+            severity = resolveReviewBlockerSeverity(code),
+            priority = resolveReviewBlockerPriority(code),
+            highlightVariant = resolveReviewBlockerHighlightVariant(code),
+            sortOrder = resolveReviewBlockerSortOrder(code),
             recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
             recommendedActionTarget = resolveReviewLaneActionTarget(laneKey, REVIEW_ACTION_REVIEW_TRANSCRIPT),
             recommendedActionTargetPayload = resolveReviewLaneActionTargetPayload(laneKey, REVIEW_ACTION_REVIEW_TRANSCRIPT),
         )
+    }
+
+    private fun resolveReviewBlockerSeverity(code: String): String = when (code) {
+        REVIEW_BLOCKING_REASON_PENDING_TRANSCRIPT_EDITS,
+        REPLAY_BLOCKER_NO_INTERVIEWER_PROFILE,
+        -> SEGMENT_SEVERITY_HIGH
+        REVIEW_BLOCKING_REASON_WEAK_ANSWERS_PRESENT,
+        REVIEW_BLOCKING_REASON_UNCONFIRMED_QUESTIONS_PRESENT,
+        REVIEW_BLOCKING_REASON_WEAK_THREADS_PRESENT,
+        REPLAY_BLOCKER_NO_QUESTIONS,
+        -> SEGMENT_SEVERITY_MEDIUM
+        REVIEW_BLOCKING_REASON_NO_THREADS_AVAILABLE -> SEGMENT_SEVERITY_LOW
+        else -> SEGMENT_SEVERITY_MEDIUM
+    }
+
+    private fun resolveReviewBlockerPriority(code: String): String = when (code) {
+        REVIEW_BLOCKING_REASON_PENDING_TRANSCRIPT_EDITS,
+        REPLAY_BLOCKER_NO_INTERVIEWER_PROFILE,
+        -> SEGMENT_PRIORITY_P0
+        REVIEW_BLOCKING_REASON_WEAK_ANSWERS_PRESENT,
+        REVIEW_BLOCKING_REASON_UNCONFIRMED_QUESTIONS_PRESENT,
+        REVIEW_BLOCKING_REASON_WEAK_THREADS_PRESENT,
+        REPLAY_BLOCKER_NO_QUESTIONS,
+        -> SEGMENT_PRIORITY_P1
+        REVIEW_BLOCKING_REASON_NO_THREADS_AVAILABLE -> SEGMENT_PRIORITY_P2
+        else -> SEGMENT_PRIORITY_P1
+    }
+
+    private fun resolveReviewBlockerHighlightVariant(code: String): String = when (resolveReviewBlockerSeverity(code)) {
+        SEGMENT_SEVERITY_HIGH -> REVIEW_LANE_HIGHLIGHT_DANGER
+        SEGMENT_SEVERITY_MEDIUM -> REVIEW_LANE_HIGHLIGHT_WARNING
+        SEGMENT_SEVERITY_LOW -> REVIEW_LANE_HIGHLIGHT_NEUTRAL
+        else -> REVIEW_LANE_HIGHLIGHT_NEUTRAL
+    }
+
+    private fun resolveReviewBlockerSortOrder(code: String): Int = when (code) {
+        REVIEW_BLOCKING_REASON_PENDING_TRANSCRIPT_EDITS,
+        REPLAY_BLOCKER_NO_INTERVIEWER_PROFILE,
+        -> 0
+        REVIEW_BLOCKING_REASON_WEAK_ANSWERS_PRESENT,
+        REVIEW_BLOCKING_REASON_WEAK_THREADS_PRESENT,
+        -> 1
+        REVIEW_BLOCKING_REASON_UNCONFIRMED_QUESTIONS_PRESENT,
+        REPLAY_BLOCKER_NO_QUESTIONS,
+        -> 2
+        REVIEW_BLOCKING_REASON_NO_THREADS_AVAILABLE -> 3
+        else -> 9
     }
 
     private fun resolveReviewLaneActionLabel(action: String): String = when (action) {
@@ -1120,6 +1191,10 @@ class InterviewRecordService(
             code = code,
             label = "No replayable questions",
             description = "This interview record does not have imported questions that can seed a replay session yet.",
+            severity = resolveReviewBlockerSeverity(code),
+            priority = resolveReviewBlockerPriority(code),
+            highlightVariant = resolveReviewBlockerHighlightVariant(code),
+            sortOrder = resolveReviewBlockerSortOrder(code),
             recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
             recommendedActionTarget = resolveGlobalActionTarget(REVIEW_ACTION_REVIEW_TRANSCRIPT),
@@ -1129,6 +1204,10 @@ class InterviewRecordService(
             code = code,
             label = "Missing interviewer profile",
             description = "Replay needs interviewer tone and probing metadata before it can generate realistic follow-ups.",
+            severity = resolveReviewBlockerSeverity(code),
+            priority = resolveReviewBlockerPriority(code),
+            highlightVariant = resolveReviewBlockerHighlightVariant(code),
+            sortOrder = resolveReviewBlockerSortOrder(code),
             recommendedAction = REVIEW_ACTION_CONFIRM,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_CONFIRM),
             recommendedActionTarget = resolveGlobalActionTarget(REVIEW_ACTION_CONFIRM),
@@ -1138,6 +1217,10 @@ class InterviewRecordService(
             code = code,
             label = code,
             description = "Resolve this replay blocker before starting replay.",
+            severity = resolveReviewBlockerSeverity(code),
+            priority = resolveReviewBlockerPriority(code),
+            highlightVariant = resolveReviewBlockerHighlightVariant(code),
+            sortOrder = resolveReviewBlockerSortOrder(code),
             recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
             recommendedActionTarget = resolveGlobalActionTarget(REVIEW_ACTION_REVIEW_TRANSCRIPT),
@@ -1419,6 +1502,10 @@ class InterviewRecordService(
             code = code,
             label = "Pending transcript edits",
             description = "Transcript edits must be reviewed before confirmation or replay can safely proceed.",
+            severity = resolveReviewBlockerSeverity(code),
+            priority = resolveReviewBlockerPriority(code),
+            highlightVariant = resolveReviewBlockerHighlightVariant(code),
+            sortOrder = resolveReviewBlockerSortOrder(code),
             recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
             recommendedActionTarget = resolveGlobalActionTarget(REVIEW_ACTION_REVIEW_TRANSCRIPT),
@@ -1428,6 +1515,10 @@ class InterviewRecordService(
             code = code,
             label = "No replayable questions",
             description = "This record needs imported or confirmed questions before replay can start.",
+            severity = resolveReviewBlockerSeverity(code),
+            priority = resolveReviewBlockerPriority(code),
+            highlightVariant = resolveReviewBlockerHighlightVariant(code),
+            sortOrder = resolveReviewBlockerSortOrder(code),
             recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
             recommendedActionTarget = resolveGlobalActionTarget(REVIEW_ACTION_REVIEW_TRANSCRIPT),
@@ -1437,6 +1528,10 @@ class InterviewRecordService(
             code = code,
             label = "Missing interviewer profile",
             description = "Confirm or enrich interviewer metadata before replay so follow-up behavior stays realistic.",
+            severity = resolveReviewBlockerSeverity(code),
+            priority = resolveReviewBlockerPriority(code),
+            highlightVariant = resolveReviewBlockerHighlightVariant(code),
+            sortOrder = resolveReviewBlockerSortOrder(code),
             recommendedAction = REVIEW_ACTION_CONFIRM,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_CONFIRM),
             recommendedActionTarget = resolveGlobalActionTarget(REVIEW_ACTION_CONFIRM),
@@ -1446,6 +1541,10 @@ class InterviewRecordService(
             code = code,
             label = code,
             description = "Resolve this review blocker before continuing.",
+            severity = resolveReviewBlockerSeverity(code),
+            priority = resolveReviewBlockerPriority(code),
+            highlightVariant = resolveReviewBlockerHighlightVariant(code),
+            sortOrder = resolveReviewBlockerSortOrder(code),
             recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
             recommendedActionTarget = resolveGlobalActionTarget(REVIEW_ACTION_REVIEW_TRANSCRIPT),

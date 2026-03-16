@@ -279,13 +279,13 @@ Implemented practical interview record foundation:
     - use this for transcript viewer, question table, and follow-up thread panel cross-navigation without recomputing anchors on the client
   - `actionRecommendations`
     - use this for primary CTA selection and disabled-state messaging in practical interview review
-    - `primaryActionLabel`, `primaryActionTarget`, `primaryActionTargetPayload`, `availableActionTargets`, and `availableActionTargetPayloads` are additive and let the review header CTA reuse the same route/panel/filter semantics as lane cards
+    - `primaryActionLabel`, `primaryActionTarget`, `primaryActionTargetPayload`, `availableActionLabels`, `availableActionTargets`, `availableActionTargetPayloads`, and `blockingReasonDetails[]` are additive and let the review header CTA reuse the same route/panel/filter semantics as lane cards, while also rendering blocker chips/cards with server-provided labels, severity, ordering, and action targets
   - `replayLaunchPreset`
     - use this to prefill the replay-start modal or direct `POST /api/interview-sessions` call for `replay_mock`
     - `recommendedReplayModeLabel`, `availableReplayModeLabels`, `presetTitle`, `presetDescription`, and `launchButtonLabel` are additive display helpers so replay launch UI can render recommended-copy without duplicating mode-label rules
   - `replayReadiness`
     - `recommendedReplayModeLabel`, `statusBadgeText`, `statusVariant`, `statusSummary`, `primaryCtaLabel`, and `blockedCtaLabel` are additive display helpers so readiness cards can render replay-ready vs blocked copy without re-deriving backend blocker state
-    - `blockerDetails[]` is additive richer blocker metadata for blocked replay cards, including label, description, and recommended next action copy
+    - `blockerDetails[]` is additive richer blocker metadata for blocked replay cards, including label, description, severity, ordering, and recommended next action target copy
   - `provenanceComparisonSummary`
     - use this for deterministic vs AI vs confirmed diff panels without inferring current source precedence on the client
   - `questionSummaries[]`

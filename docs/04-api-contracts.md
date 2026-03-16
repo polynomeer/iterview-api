@@ -1624,8 +1624,14 @@ Current structured extraction semantics:
         - `code`
         - `label`
         - `description`
+        - `severity`
+        - `priority`
+        - `highlightVariant`
+        - `sortOrder`
         - `recommendedAction`
         - `recommendedActionLabel`
+        - `recommendedActionTarget`
+        - `recommendedActionTargetPayload`
   - `reviewLaneSummary`
     - additive dashboard aggregate for transcript/question/thread review lanes
     - includes:
@@ -1674,8 +1680,14 @@ Current structured extraction semantics:
         - `code`
         - `label`
         - `description`
+        - `severity`
+        - `priority`
+        - `highlightVariant`
+        - `sortOrder`
         - `recommendedAction`
         - `recommendedActionLabel`
+        - `recommendedActionTarget`
+        - `recommendedActionTargetPayload`
   - `transcriptIssueSummary`
     - additive aggregate for review-priority panels
     - includes:
@@ -1733,9 +1745,22 @@ Current structured extraction semantics:
       - `primaryActionTarget`
       - `primaryActionTargetPayload`
       - `availableActions[]`
+      - `availableActionLabels`
       - `availableActionTargets`
       - `availableActionTargetPayloads`
       - `blockingReasons[]`
+      - `blockingReasonDetails[]`
+        - `code`
+        - `label`
+        - `description`
+        - `severity`
+        - `priority`
+        - `highlightVariant`
+        - `sortOrder`
+        - `recommendedAction`
+        - `recommendedActionLabel`
+        - `recommendedActionTarget`
+        - `recommendedActionTargetPayload`
       - `canConfirm`
       - `canReplay`
   - `replayLaunchPreset`

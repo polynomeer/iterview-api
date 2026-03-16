@@ -1997,8 +1997,16 @@ components:
         code: { type: string }
         label: { type: string }
         description: { type: string }
+        severity: { type: string }
+        priority: { type: string }
+        highlightVariant: { type: string }
+        sortOrder: { type: integer }
         recommendedAction: { type: string }
         recommendedActionLabel: { type: string }
+        recommendedActionTarget: { type: string }
+        recommendedActionTargetPayload:
+          type: object
+          additionalProperties: { type: string }
     InterviewRecordReviewLaneSummaryDto:
       type: object
       properties:
@@ -2073,8 +2081,16 @@ components:
         code: { type: string }
         label: { type: string }
         description: { type: string }
+        severity: { type: string }
+        priority: { type: string }
+        highlightVariant: { type: string }
+        sortOrder: { type: integer }
         recommendedAction: { type: string }
         recommendedActionLabel: { type: string }
+        recommendedActionTarget: { type: string }
+        recommendedActionTargetPayload:
+          type: object
+          additionalProperties: { type: string }
     InterviewRecordTranscriptIssueSummaryDto:
       type: object
       properties:
@@ -2175,6 +2191,9 @@ components:
         availableActions:
           type: array
           items: { type: string }
+        availableActionLabels:
+          type: object
+          additionalProperties: { type: string }
         availableActionTargets:
           type: object
           additionalProperties: { type: string }
@@ -2186,8 +2205,28 @@ components:
         blockingReasons:
           type: array
           items: { type: string }
+        blockingReasonDetails:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewRecordReviewActionBlockerDetailDto"
         canConfirm: { type: boolean }
         canReplay: { type: boolean }
+    InterviewRecordReviewActionBlockerDetailDto:
+      type: object
+      properties:
+        code: { type: string }
+        label: { type: string }
+        description: { type: string }
+        severity: { type: string }
+        priority: { type: string }
+        highlightVariant: { type: string }
+        sortOrder: { type: integer }
+        recommendedAction: { type: string }
+        recommendedActionLabel: { type: string }
+        recommendedActionTarget: { type: string }
+        recommendedActionTargetPayload:
+          type: object
+          additionalProperties: { type: string }
     InterviewRecordReplayLaunchPresetDto:
       type: object
       properties:
