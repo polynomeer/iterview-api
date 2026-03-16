@@ -1881,6 +1881,8 @@ components:
           $ref: "#/components/schemas/InterviewRecordReplayReadinessDto"
         transcriptIssueSummary:
           $ref: "#/components/schemas/InterviewRecordTranscriptIssueSummaryDto"
+        answerQualitySummary:
+          $ref: "#/components/schemas/InterviewRecordAnswerQualitySummaryDto"
         questionSummaries:
           type: array
           items:
@@ -1981,6 +1983,17 @@ components:
         editedSegmentSequences:
           type: array
           items: { type: integer }
+    InterviewRecordAnswerQualitySummaryDto:
+      type: object
+      properties:
+        answeredQuestionCount: { type: integer }
+        weakAnswerCount: { type: integer }
+        strengthTaggedAnswerCount: { type: integer }
+        quantifiedAnswerCount: { type: integer }
+        structuredAnswerCount: { type: integer }
+        tradeoffAwareAnswerCount: { type: integer }
+        uncertainAnswerCount: { type: integer }
+        detailedAnswerCount: { type: integer }
     InterviewRecordReviewFollowUpThreadDto:
       type: object
       properties:

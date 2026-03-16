@@ -68,6 +68,7 @@ data class InterviewRecordReviewDto(
     val questionOriginSummary: InterviewRecordReviewQuestionOriginSummaryDto,
     val replayReadiness: InterviewRecordReplayReadinessDto,
     val transcriptIssueSummary: InterviewRecordTranscriptIssueSummaryDto,
+    val answerQualitySummary: InterviewRecordAnswerQualitySummaryDto,
     val questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
     val followUpThreads: List<InterviewRecordReviewFollowUpThreadDto>,
 )
@@ -111,6 +112,17 @@ data class InterviewRecordTranscriptIssueSummaryDto(
     val speakerOverrideSegmentSequences: List<Int>,
     val confirmedTextOverrideCount: Int,
     val editedSegmentSequences: List<Int>,
+)
+
+data class InterviewRecordAnswerQualitySummaryDto(
+    val answeredQuestionCount: Int,
+    val weakAnswerCount: Int,
+    val strengthTaggedAnswerCount: Int,
+    val quantifiedAnswerCount: Int,
+    val structuredAnswerCount: Int,
+    val tradeoffAwareAnswerCount: Int,
+    val uncertainAnswerCount: Int,
+    val detailedAnswerCount: Int,
 )
 
 data class InterviewRecordReviewQuestionSummaryDto(

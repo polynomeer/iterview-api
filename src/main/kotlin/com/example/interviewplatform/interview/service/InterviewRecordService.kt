@@ -12,6 +12,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestion
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionOriginSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReplayReadinessDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptIssueSummaryDto
+import com.example.interviewplatform.interview.dto.InterviewRecordAnswerQualitySummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptDto
@@ -291,6 +292,7 @@ class InterviewRecordService(
             questionOriginSummary = buildReviewQuestionOriginSummary(questionSummaries),
             replayReadiness = buildReplayReadiness(questionSummaries, interviewerProfile != null),
             transcriptIssueSummary = buildTranscriptIssueSummary(segments),
+            answerQualitySummary = buildAnswerQualitySummary(answers),
             questionSummaries = questionSummaries,
             followUpThreads = buildReviewFollowUpThreads(questionSummaries),
         )
@@ -368,6 +370,30 @@ class InterviewRecordService(
             speakerOverrideSegmentSequences = speakerOverrideSegments.map { it.sequence },
             confirmedTextOverrideCount = editedSegments.size,
             editedSegmentSequences = editedSegments.map { it.sequence },
+        )
+    }
+
+    private fun buildAnswerQualitySummary(
+        answers: List<InterviewRecordAnswerEntity>,
+    ): InterviewRecordAnswerQualitySummaryDto {
+        val decodedAnswers = answers.map { answer ->
+            DecodedReviewAnswerQuality(
+                weaknessTags = decodeStringList(answer.weaknessTagsJson),
+                strengthTags = decodeStringList(answer.strengthTagsJson),
+                confidenceMarkers = decodeStringList(answer.confidenceMarkersJson),
+            )
+        }
+        return InterviewRecordAnswerQualitySummaryDto(
+            answeredQuestionCount = answers.size,
+            weakAnswerCount = decodedAnswers.count { it.weaknessTags.isNotEmpty() },
+            strengthTaggedAnswerCount = decodedAnswers.count { it.strengthTags.isNotEmpty() },
+            quantifiedAnswerCount = decodedAnswers.count {
+                "quantified" in it.strengthTags || "quantified" in it.confidenceMarkers
+            },
+            structuredAnswerCount = decodedAnswers.count { "structured" in it.strengthTags },
+            tradeoffAwareAnswerCount = decodedAnswers.count { "tradeoff_aware" in it.strengthTags },
+            uncertainAnswerCount = decodedAnswers.count { "uncertain" in it.confidenceMarkers },
+            detailedAnswerCount = decodedAnswers.count { "detailed" in it.strengthTags },
         )
     }
 
@@ -1285,6 +1311,12 @@ data class ParsedInterviewTranscript(
     val overallSummaryOverride: String? = null,
     val interviewerProfileOverride: PracticalInterviewInterviewerProfileOverride? = null,
     val structuringSource: String = "deterministic",
+)
+
+private data class DecodedReviewAnswerQuality(
+    val weaknessTags: List<String>,
+    val strengthTags: List<String>,
+    val confidenceMarkers: List<String>,
 )
 
 data class ParsedSegment(

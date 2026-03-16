@@ -1623,6 +1623,17 @@ Current structured extraction semantics:
       - `speakerOverrideSegmentSequences[]`
       - `confirmedTextOverrideCount`
       - `editedSegmentSequences[]`
+  - `answerQualitySummary`
+    - additive aggregate for answer-quality overview panels
+    - includes:
+      - `answeredQuestionCount`
+      - `weakAnswerCount`
+      - `strengthTaggedAnswerCount`
+      - `quantifiedAnswerCount`
+      - `structuredAnswerCount`
+      - `tradeoffAwareAnswerCount`
+      - `uncertainAnswerCount`
+      - `detailedAnswerCount`
   - `questionSummaries[]`
     - each summary also includes `deepLink`
       - `questionDetailQuestionId`
