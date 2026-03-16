@@ -1625,6 +1625,8 @@ Current structured extraction semantics:
       - `highlightVariant`
       - `badgeText`
       - `summaryText`
+      - `recommendedTab`
+      - `defaultExpanded`
       - `totalCount`
       - `readyCount`
       - `needsReviewCount`

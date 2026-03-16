@@ -1997,6 +1997,8 @@ components:
         highlightVariant: { type: string }
         badgeText: { type: string }
         summaryText: { type: string }
+        recommendedTab: { type: string }
+        defaultExpanded: { type: boolean }
         totalCount: { type: integer }
         readyCount: { type: integer }
         needsReviewCount: { type: integer }

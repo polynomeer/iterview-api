@@ -151,6 +151,8 @@ data class InterviewRecordReviewLaneItemDto(
     val highlightVariant: String,
     val badgeText: String,
     val summaryText: String,
+    val recommendedTab: String,
+    val defaultExpanded: Boolean,
     val totalCount: Int,
     val readyCount: Int,
     val needsReviewCount: Int,

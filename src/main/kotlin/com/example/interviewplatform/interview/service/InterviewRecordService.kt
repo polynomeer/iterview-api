@@ -457,6 +457,8 @@ class InterviewRecordService(
                     readyCount = transcriptIssueSummary.resolvedIssueCount,
                     needsReviewCount = transcriptIssueSummary.unresolvedIssueCount,
                 ),
+                recommendedTab = resolveReviewLaneRecommendedTab(REVIEW_LANE_KEY_TRANSCRIPT),
+                defaultExpanded = laneSortOrderByKey.getValue(REVIEW_LANE_KEY_TRANSCRIPT) == 1,
                 totalCount = transcriptIssueSummary.segmentActions.size,
                 readyCount = transcriptIssueSummary.resolvedIssueCount,
                 needsReviewCount = transcriptIssueSummary.unresolvedIssueCount,
@@ -499,6 +501,8 @@ class InterviewRecordService(
                     readyCount = (questionSummaries.size - questionNeedsReviewCount).coerceAtLeast(0),
                     needsReviewCount = questionNeedsReviewCount,
                 ),
+                recommendedTab = resolveReviewLaneRecommendedTab(REVIEW_LANE_KEY_QUESTION),
+                defaultExpanded = laneSortOrderByKey.getValue(REVIEW_LANE_KEY_QUESTION) == 1,
                 totalCount = questionSummaries.size,
                 readyCount = (questionSummaries.size - questionNeedsReviewCount).coerceAtLeast(0),
                 needsReviewCount = questionNeedsReviewCount,
@@ -538,6 +542,8 @@ class InterviewRecordService(
                     readyCount = (followUpThreads.size - threadNeedsReviewCount).coerceAtLeast(0),
                     needsReviewCount = threadNeedsReviewCount,
                 ),
+                recommendedTab = resolveReviewLaneRecommendedTab(REVIEW_LANE_KEY_THREAD),
+                defaultExpanded = laneSortOrderByKey.getValue(REVIEW_LANE_KEY_THREAD) == 1,
                 totalCount = followUpThreads.size,
                 readyCount = (followUpThreads.size - threadNeedsReviewCount).coerceAtLeast(0),
                 needsReviewCount = threadNeedsReviewCount,
@@ -756,6 +762,13 @@ class InterviewRecordService(
         totalCount == 0 -> "$laneLabel not available yet."
         needsReviewCount > 0 -> "$needsReviewCount of $totalCount require review."
         else -> "$readyCount of $totalCount are ready."
+    }
+
+    private fun resolveReviewLaneRecommendedTab(laneKey: String): String = when (laneKey) {
+        REVIEW_LANE_KEY_TRANSCRIPT -> REVIEW_LANE_TAB_ISSUES
+        REVIEW_LANE_KEY_QUESTION -> REVIEW_LANE_TAB_QUESTIONS
+        REVIEW_LANE_KEY_THREAD -> REVIEW_LANE_TAB_THREADS
+        else -> REVIEW_LANE_TAB_OVERVIEW
     }
 
     private fun buildAnswerQualitySummary(
@@ -1973,6 +1986,10 @@ class InterviewRecordService(
         private const val REVIEW_LANE_KEY_TRANSCRIPT = "transcript"
         private const val REVIEW_LANE_KEY_QUESTION = "question"
         private const val REVIEW_LANE_KEY_THREAD = "thread"
+        private const val REVIEW_LANE_TAB_OVERVIEW = "overview"
+        private const val REVIEW_LANE_TAB_ISSUES = "issues"
+        private const val REVIEW_LANE_TAB_QUESTIONS = "questions"
+        private const val REVIEW_LANE_TAB_THREADS = "threads"
         private const val REVIEW_LANE_HIGHLIGHT_DANGER = "danger"
         private const val REVIEW_LANE_HIGHLIGHT_WARNING = "warning"
         private const val REVIEW_LANE_HIGHLIGHT_NEUTRAL = "neutral"
