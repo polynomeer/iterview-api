@@ -123,6 +123,8 @@ data class InterviewRecordReplayBlockerDetailDto(
     val description: String,
     val recommendedAction: String,
     val recommendedActionLabel: String,
+    val recommendedActionTarget: String,
+    val recommendedActionTargetPayload: Map<String, String>,
 )
 
 data class InterviewRecordTranscriptIssueSummaryDto(
@@ -208,6 +210,8 @@ data class InterviewRecordReviewLaneBlockerDetailDto(
     val description: String,
     val recommendedAction: String,
     val recommendedActionLabel: String,
+    val recommendedActionTarget: String,
+    val recommendedActionTargetPayload: Map<String, String>,
 )
 
 data class InterviewRecordAnswerQualitySummaryDto(
@@ -242,11 +246,23 @@ data class InterviewRecordReviewActionRecommendationsDto(
     val primaryActionTarget: String,
     val primaryActionTargetPayload: Map<String, String>,
     val availableActions: List<String>,
+    val availableActionLabels: Map<String, String>,
     val availableActionTargets: Map<String, String>,
     val availableActionTargetPayloads: Map<String, Map<String, String>>,
     val blockingReasons: List<String>,
+    val blockingReasonDetails: List<InterviewRecordReviewActionBlockerDetailDto>,
     val canConfirm: Boolean,
     val canReplay: Boolean,
+)
+
+data class InterviewRecordReviewActionBlockerDetailDto(
+    val code: String,
+    val label: String,
+    val description: String,
+    val recommendedAction: String,
+    val recommendedActionLabel: String,
+    val recommendedActionTarget: String,
+    val recommendedActionTargetPayload: Map<String, String>,
 )
 
 data class InterviewRecordReplayLaunchPresetDto(

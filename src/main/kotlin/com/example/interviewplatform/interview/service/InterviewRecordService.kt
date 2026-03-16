@@ -21,6 +21,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordAnswerQualityS
 import com.example.interviewplatform.interview.dto.InterviewRecordTimelineNavigationDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTimelineNavigationItemDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewActionRecommendationsDto
+import com.example.interviewplatform.interview.dto.InterviewRecordReviewActionBlockerDetailDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReplayLaunchPresetDto
 import com.example.interviewplatform.interview.dto.InterviewRecordProvenanceComparisonSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionSummaryDto
@@ -897,6 +898,8 @@ class InterviewRecordService(
             description = "Transcript edits still need review before this lane can be treated as stable.",
             recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
+            recommendedActionTarget = resolveReviewLaneActionTarget(laneKey, REVIEW_ACTION_REVIEW_TRANSCRIPT),
+            recommendedActionTargetPayload = resolveReviewLaneActionTargetPayload(laneKey, REVIEW_ACTION_REVIEW_TRANSCRIPT),
         )
         REVIEW_BLOCKING_REASON_WEAK_ANSWERS_PRESENT -> InterviewRecordReviewLaneBlockerDetailDto(
             code = code,
@@ -904,6 +907,8 @@ class InterviewRecordService(
             description = "Some imported answers are still weak and should be reviewed before confirming study quality.",
             recommendedAction = REVIEW_ACTION_REVIEW_ANSWERS,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_ANSWERS),
+            recommendedActionTarget = resolveReviewLaneActionTarget(laneKey, REVIEW_ACTION_REVIEW_ANSWERS),
+            recommendedActionTargetPayload = resolveReviewLaneActionTargetPayload(laneKey, REVIEW_ACTION_REVIEW_ANSWERS),
         )
         REVIEW_BLOCKING_REASON_UNCONFIRMED_QUESTIONS_PRESENT -> InterviewRecordReviewLaneBlockerDetailDto(
             code = code,
@@ -911,6 +916,8 @@ class InterviewRecordService(
             description = "Question or answer structuring is not fully confirmed yet.",
             recommendedAction = REVIEW_ACTION_CONFIRM,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_CONFIRM),
+            recommendedActionTarget = resolveReviewLaneActionTarget(laneKey, REVIEW_ACTION_CONFIRM),
+            recommendedActionTargetPayload = resolveReviewLaneActionTargetPayload(laneKey, REVIEW_ACTION_CONFIRM),
         )
         REVIEW_BLOCKING_REASON_WEAK_THREADS_PRESENT -> InterviewRecordReviewLaneBlockerDetailDto(
             code = code,
@@ -918,6 +925,8 @@ class InterviewRecordService(
             description = "Some follow-up chains still need review before they are ready for replay or study.",
             recommendedAction = THREAD_ACTION_REVIEW_WEAK_CHAIN,
             recommendedActionLabel = resolveReviewLaneActionLabel(THREAD_ACTION_REVIEW_WEAK_CHAIN),
+            recommendedActionTarget = resolveReviewLaneActionTarget(laneKey, THREAD_ACTION_REVIEW_WEAK_CHAIN),
+            recommendedActionTargetPayload = resolveReviewLaneActionTargetPayload(laneKey, THREAD_ACTION_REVIEW_WEAK_CHAIN),
         )
         REVIEW_BLOCKING_REASON_NO_THREADS_AVAILABLE -> InterviewRecordReviewLaneBlockerDetailDto(
             code = code,
@@ -927,6 +936,14 @@ class InterviewRecordService(
             recommendedActionLabel = resolveReviewLaneActionLabel(
                 if (laneKey == REVIEW_LANE_KEY_THREAD) REVIEW_ACTION_REVIEW_ANSWERS else REVIEW_ACTION_REVIEW_TRANSCRIPT,
             ),
+            recommendedActionTarget = resolveReviewLaneActionTarget(
+                laneKey,
+                if (laneKey == REVIEW_LANE_KEY_THREAD) REVIEW_ACTION_REVIEW_ANSWERS else REVIEW_ACTION_REVIEW_TRANSCRIPT,
+            ),
+            recommendedActionTargetPayload = resolveReviewLaneActionTargetPayload(
+                laneKey,
+                if (laneKey == REVIEW_LANE_KEY_THREAD) REVIEW_ACTION_REVIEW_ANSWERS else REVIEW_ACTION_REVIEW_TRANSCRIPT,
+            ),
         )
         else -> InterviewRecordReviewLaneBlockerDetailDto(
             code = code,
@@ -934,6 +951,8 @@ class InterviewRecordService(
             description = "Resolve this blocking issue before continuing review.",
             recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
+            recommendedActionTarget = resolveReviewLaneActionTarget(laneKey, REVIEW_ACTION_REVIEW_TRANSCRIPT),
+            recommendedActionTargetPayload = resolveReviewLaneActionTargetPayload(laneKey, REVIEW_ACTION_REVIEW_TRANSCRIPT),
         )
     }
 
@@ -1103,6 +1122,8 @@ class InterviewRecordService(
             description = "This interview record does not have imported questions that can seed a replay session yet.",
             recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
+            recommendedActionTarget = resolveGlobalActionTarget(REVIEW_ACTION_REVIEW_TRANSCRIPT),
+            recommendedActionTargetPayload = resolveGlobalActionTargetPayload(REVIEW_ACTION_REVIEW_TRANSCRIPT),
         )
         REPLAY_BLOCKER_NO_INTERVIEWER_PROFILE -> InterviewRecordReplayBlockerDetailDto(
             code = code,
@@ -1110,6 +1131,8 @@ class InterviewRecordService(
             description = "Replay needs interviewer tone and probing metadata before it can generate realistic follow-ups.",
             recommendedAction = REVIEW_ACTION_CONFIRM,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_CONFIRM),
+            recommendedActionTarget = resolveGlobalActionTarget(REVIEW_ACTION_CONFIRM),
+            recommendedActionTargetPayload = resolveGlobalActionTargetPayload(REVIEW_ACTION_CONFIRM),
         )
         else -> InterviewRecordReplayBlockerDetailDto(
             code = code,
@@ -1117,6 +1140,8 @@ class InterviewRecordService(
             description = "Resolve this replay blocker before starting replay.",
             recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
             recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
+            recommendedActionTarget = resolveGlobalActionTarget(REVIEW_ACTION_REVIEW_TRANSCRIPT),
+            recommendedActionTargetPayload = resolveGlobalActionTargetPayload(REVIEW_ACTION_REVIEW_TRANSCRIPT),
         )
     }
 
@@ -1379,11 +1404,52 @@ class InterviewRecordService(
             primaryActionTarget = resolveGlobalActionTarget(primaryAction),
             primaryActionTargetPayload = resolveGlobalActionTargetPayload(primaryAction),
             availableActions = distinctAvailableActions,
+            availableActionLabels = distinctAvailableActions.associateWith(::resolveReviewLaneActionLabel),
             availableActionTargets = distinctAvailableActions.associateWith(::resolveGlobalActionTarget),
             availableActionTargetPayloads = distinctAvailableActions.associateWith(::resolveGlobalActionTargetPayload),
             blockingReasons = blockingReasons.distinct(),
+            blockingReasonDetails = blockingReasons.distinct().map(::buildReviewActionBlockerDetail),
             canConfirm = editedSegmentCount == 0 && recordStructuringStage != STRUCTURING_STAGE_CONFIRMED,
             canReplay = replayReadiness.ready,
+        )
+    }
+
+    private fun buildReviewActionBlockerDetail(code: String): InterviewRecordReviewActionBlockerDetailDto = when (code) {
+        REVIEW_BLOCKING_REASON_PENDING_TRANSCRIPT_EDITS -> InterviewRecordReviewActionBlockerDetailDto(
+            code = code,
+            label = "Pending transcript edits",
+            description = "Transcript edits must be reviewed before confirmation or replay can safely proceed.",
+            recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
+            recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
+            recommendedActionTarget = resolveGlobalActionTarget(REVIEW_ACTION_REVIEW_TRANSCRIPT),
+            recommendedActionTargetPayload = resolveGlobalActionTargetPayload(REVIEW_ACTION_REVIEW_TRANSCRIPT),
+        )
+        REPLAY_BLOCKER_NO_QUESTIONS -> InterviewRecordReviewActionBlockerDetailDto(
+            code = code,
+            label = "No replayable questions",
+            description = "This record needs imported or confirmed questions before replay can start.",
+            recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
+            recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
+            recommendedActionTarget = resolveGlobalActionTarget(REVIEW_ACTION_REVIEW_TRANSCRIPT),
+            recommendedActionTargetPayload = resolveGlobalActionTargetPayload(REVIEW_ACTION_REVIEW_TRANSCRIPT),
+        )
+        REPLAY_BLOCKER_NO_INTERVIEWER_PROFILE -> InterviewRecordReviewActionBlockerDetailDto(
+            code = code,
+            label = "Missing interviewer profile",
+            description = "Confirm or enrich interviewer metadata before replay so follow-up behavior stays realistic.",
+            recommendedAction = REVIEW_ACTION_CONFIRM,
+            recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_CONFIRM),
+            recommendedActionTarget = resolveGlobalActionTarget(REVIEW_ACTION_CONFIRM),
+            recommendedActionTargetPayload = resolveGlobalActionTargetPayload(REVIEW_ACTION_CONFIRM),
+        )
+        else -> InterviewRecordReviewActionBlockerDetailDto(
+            code = code,
+            label = code,
+            description = "Resolve this review blocker before continuing.",
+            recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
+            recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
+            recommendedActionTarget = resolveGlobalActionTarget(REVIEW_ACTION_REVIEW_TRANSCRIPT),
+            recommendedActionTargetPayload = resolveGlobalActionTargetPayload(REVIEW_ACTION_REVIEW_TRANSCRIPT),
         )
     }
 
