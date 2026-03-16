@@ -1645,6 +1645,14 @@ Current structured extraction semantics:
       - `questionSegmentEndSequence`
       - `answerSegmentStartSequence`
       - `answerSegmentEndSequence`
+  - `actionRecommendations`
+    - additive CTA guidance for review UIs
+    - includes:
+      - `primaryAction`
+      - `availableActions[]`
+      - `blockingReasons[]`
+      - `canConfirm`
+      - `canReplay`
   - `questionSummaries[]`
     - each summary also includes `deepLink`
       - `questionDetailQuestionId`

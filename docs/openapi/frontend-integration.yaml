@@ -1885,6 +1885,8 @@ components:
           $ref: "#/components/schemas/InterviewRecordAnswerQualitySummaryDto"
         timelineNavigation:
           $ref: "#/components/schemas/InterviewRecordTimelineNavigationDto"
+        actionRecommendations:
+          $ref: "#/components/schemas/InterviewRecordReviewActionRecommendationsDto"
         questionSummaries:
           type: array
           items:
@@ -2014,6 +2016,18 @@ components:
         questionSegmentEndSequence: { type: integer, nullable: true }
         answerSegmentStartSequence: { type: integer, nullable: true }
         answerSegmentEndSequence: { type: integer, nullable: true }
+    InterviewRecordReviewActionRecommendationsDto:
+      type: object
+      properties:
+        primaryAction: { type: string }
+        availableActions:
+          type: array
+          items: { type: string }
+        blockingReasons:
+          type: array
+          items: { type: string }
+        canConfirm: { type: boolean }
+        canReplay: { type: boolean }
     InterviewRecordReviewFollowUpThreadDto:
       type: object
       properties:

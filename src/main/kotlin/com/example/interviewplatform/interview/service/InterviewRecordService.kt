@@ -15,6 +15,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptIssu
 import com.example.interviewplatform.interview.dto.InterviewRecordAnswerQualitySummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTimelineNavigationDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTimelineNavigationItemDto
+import com.example.interviewplatform.interview.dto.InterviewRecordReviewActionRecommendationsDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptDto
@@ -273,6 +274,7 @@ class InterviewRecordService(
                 answerStructuringSource = answer?.structuringSource,
             )
         }
+        val replayReadiness = buildReplayReadiness(questionSummaries, interviewerProfile != null)
         return InterviewRecordReviewDto(
             interviewRecordId = record.id,
             structuringStage = record.structuringStage,
@@ -293,10 +295,16 @@ class InterviewRecordService(
             questionFilterSummary = buildReviewQuestionFilterSummary(questionSummaries),
             questionDistributionSummary = buildReviewQuestionDistributionSummary(questionSummaries),
             questionOriginSummary = buildReviewQuestionOriginSummary(questionSummaries),
-            replayReadiness = buildReplayReadiness(questionSummaries, interviewerProfile != null),
+            replayReadiness = replayReadiness,
             transcriptIssueSummary = buildTranscriptIssueSummary(segments),
             answerQualitySummary = buildAnswerQualitySummary(answers),
             timelineNavigation = buildTimelineNavigation(questions, answerByQuestionId, segmentSequenceById),
+            actionRecommendations = buildActionRecommendations(
+                recordStructuringStage = record.structuringStage,
+                editedSegmentCount = segments.count(::isEditedSegment),
+                weakAnswerCount = answers.count { decodeStringList(it.weaknessTagsJson).isNotEmpty() },
+                replayReadiness = replayReadiness,
+            ),
             questionSummaries = questionSummaries,
             followUpThreads = buildReviewFollowUpThreads(questionSummaries),
         )
@@ -421,6 +429,52 @@ class InterviewRecordService(
                     answerSegmentEndSequence = answer?.segmentEndId?.let(segmentSequenceById::get),
                 )
             },
+        )
+    }
+
+    private fun buildActionRecommendations(
+        recordStructuringStage: String,
+        editedSegmentCount: Int,
+        weakAnswerCount: Int,
+        replayReadiness: InterviewRecordReplayReadinessDto,
+    ): InterviewRecordReviewActionRecommendationsDto {
+        val blockingReasons = buildList {
+            if (editedSegmentCount > 0) {
+                add(REVIEW_BLOCKING_REASON_PENDING_TRANSCRIPT_EDITS)
+            }
+            if (!replayReadiness.ready) {
+                addAll(replayReadiness.blockers)
+            }
+        }
+        val availableActions = buildList {
+            if (editedSegmentCount > 0) {
+                add(REVIEW_ACTION_REVIEW_TRANSCRIPT)
+            }
+            if (weakAnswerCount > 0) {
+                add(REVIEW_ACTION_REVIEW_ANSWERS)
+            }
+            if (recordStructuringStage != STRUCTURING_STAGE_CONFIRMED && editedSegmentCount == 0) {
+                add(REVIEW_ACTION_CONFIRM)
+            }
+            if (replayReadiness.ready) {
+                add(REVIEW_ACTION_START_REPLAY)
+            }
+        }.ifEmpty {
+            listOf(REVIEW_ACTION_REVIEW_ANSWERS)
+        }
+        val primaryAction = when {
+            editedSegmentCount > 0 -> REVIEW_ACTION_REVIEW_TRANSCRIPT
+            recordStructuringStage != STRUCTURING_STAGE_CONFIRMED -> REVIEW_ACTION_CONFIRM
+            replayReadiness.ready -> REVIEW_ACTION_START_REPLAY
+            weakAnswerCount > 0 -> REVIEW_ACTION_REVIEW_ANSWERS
+            else -> availableActions.first()
+        }
+        return InterviewRecordReviewActionRecommendationsDto(
+            primaryAction = primaryAction,
+            availableActions = availableActions.distinct(),
+            blockingReasons = blockingReasons.distinct(),
+            canConfirm = editedSegmentCount == 0 && recordStructuringStage != STRUCTURING_STAGE_CONFIRMED,
+            canReplay = replayReadiness.ready,
         )
     }
 
@@ -1341,6 +1395,11 @@ class InterviewRecordService(
         private const val REPLAY_BLOCKER_NO_QUESTIONS = "no_questions"
         private const val REPLAY_BLOCKER_NO_INTERVIEWER_PROFILE = "no_interviewer_profile"
         private val LOW_CONFIDENCE_THRESHOLD = BigDecimal("0.80")
+        private const val REVIEW_ACTION_REVIEW_TRANSCRIPT = "review_transcript"
+        private const val REVIEW_ACTION_REVIEW_ANSWERS = "review_answers"
+        private const val REVIEW_ACTION_CONFIRM = "confirm"
+        private const val REVIEW_ACTION_START_REPLAY = "start_replay"
+        private const val REVIEW_BLOCKING_REASON_PENDING_TRANSCRIPT_EDITS = "pending_transcript_edits"
         private const val REVIEW_ORIGIN_RESUME_LINKED = "resume_linked"
         private const val REVIEW_ORIGIN_JOB_POSTING_LINKED = "job_posting_linked"
         private const val REVIEW_ORIGIN_HYBRID_LINKED = "hybrid_linked"

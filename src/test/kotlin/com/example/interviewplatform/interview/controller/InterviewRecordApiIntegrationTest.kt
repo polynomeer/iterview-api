@@ -206,6 +206,11 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.timelineNavigation.items[0].answerSegmentStartSequence").value(2))
             .andExpect(jsonPath("$.timelineNavigation.items[1].parentQuestionId").exists())
             .andExpect(jsonPath("$.timelineNavigation.items[1].threadRootQuestionId").value(org.hamcrest.Matchers.notNullValue()))
+            .andExpect(jsonPath("$.actionRecommendations.primaryAction").value("confirm"))
+            .andExpect(jsonPath("$.actionRecommendations.availableActions[0]").exists())
+            .andExpect(jsonPath("$.actionRecommendations.canConfirm").value(true))
+            .andExpect(jsonPath("$.actionRecommendations.canReplay").value(true))
+            .andExpect(jsonPath("$.actionRecommendations.blockingReasons.length()").value(0))
             .andExpect(jsonPath("$.questionSummaries.length()").value(2))
             .andExpect(jsonPath("$.questionSummaries[0].deepLink.archiveSourceType").value("real_interview"))
             .andExpect(jsonPath("$.questionSummaries[0].deepLink.sourceInterviewRecordId").value(recordId))
@@ -243,6 +248,8 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.transcriptIssueSummary.confirmedTextOverrideCount").value(0))
             .andExpect(jsonPath("$.answerQualitySummary.answeredQuestionCount").value(2))
             .andExpect(jsonPath("$.timelineNavigation.items.length()").value(2))
+            .andExpect(jsonPath("$.actionRecommendations.primaryAction").value("start_replay"))
+            .andExpect(jsonPath("$.actionRecommendations.canConfirm").value(false))
             .andExpect(jsonPath("$.questionSourceCounts.confirmed").value(2))
             .andExpect(jsonPath("$.answerSourceCounts.confirmed").value(2))
             .andExpect(jsonPath("$.questionSummaries[0].questionStructuringSource").value("confirmed"))
@@ -358,6 +365,9 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.transcriptIssueSummary.speakerOverrideSegmentSequences[0]").value(1))
             .andExpect(jsonPath("$.transcriptIssueSummary.confirmedTextOverrideCount").value(1))
             .andExpect(jsonPath("$.transcriptIssueSummary.editedSegmentSequences[0]").value(1))
+            .andExpect(jsonPath("$.actionRecommendations.primaryAction").value("review_transcript"))
+            .andExpect(jsonPath("$.actionRecommendations.blockingReasons[0]").value("pending_transcript_edits"))
+            .andExpect(jsonPath("$.actionRecommendations.canConfirm").value(false))
     }
 
     @Test

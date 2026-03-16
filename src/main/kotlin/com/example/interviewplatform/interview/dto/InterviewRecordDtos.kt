@@ -70,6 +70,7 @@ data class InterviewRecordReviewDto(
     val transcriptIssueSummary: InterviewRecordTranscriptIssueSummaryDto,
     val answerQualitySummary: InterviewRecordAnswerQualitySummaryDto,
     val timelineNavigation: InterviewRecordTimelineNavigationDto,
+    val actionRecommendations: InterviewRecordReviewActionRecommendationsDto,
     val questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
     val followUpThreads: List<InterviewRecordReviewFollowUpThreadDto>,
 )
@@ -139,6 +140,14 @@ data class InterviewRecordTimelineNavigationItemDto(
     val questionSegmentEndSequence: Int?,
     val answerSegmentStartSequence: Int?,
     val answerSegmentEndSequence: Int?,
+)
+
+data class InterviewRecordReviewActionRecommendationsDto(
+    val primaryAction: String,
+    val availableActions: List<String>,
+    val blockingReasons: List<String>,
+    val canConfirm: Boolean,
+    val canReplay: Boolean,
 )
 
 data class InterviewRecordReviewQuestionSummaryDto(
