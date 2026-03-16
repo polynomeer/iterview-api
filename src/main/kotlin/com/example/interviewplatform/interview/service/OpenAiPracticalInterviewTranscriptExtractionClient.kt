@@ -10,7 +10,7 @@ import java.time.Duration
 class OpenAiPracticalInterviewTranscriptExtractionClient(
     private val objectMapper: ObjectMapper,
     private val transport: InterviewLlmApiTransport,
-    @Value("\${app.interview.transcription.api-key:}")
+    @Value("\${app.interview.transcription.api-key:\${app.interview.llm.api-key:}}")
     private val apiKey: String,
     @Value("\${app.interview.transcription.base-url:https://api.openai.com/v1}")
     private val baseUrl: String,
