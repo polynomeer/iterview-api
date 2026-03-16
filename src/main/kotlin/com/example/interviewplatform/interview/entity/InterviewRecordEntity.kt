@@ -41,6 +41,18 @@ class InterviewRecordEntity(
     val confirmedTranscript: String? = null,
     @Column(name = "transcript_status", nullable = false)
     val transcriptStatus: String,
+    @Column(name = "transcript_error_code")
+    val transcriptErrorCode: String? = null,
+    @Column(name = "transcript_error_message")
+    val transcriptErrorMessage: String? = null,
+    @Column(name = "transcript_retry_count", nullable = false)
+    val transcriptRetryCount: Int = 0,
+    @Column(name = "transcript_last_attempt_at")
+    val transcriptLastAttemptAt: Instant? = null,
+    @Column(name = "transcript_processing_started_at")
+    val transcriptProcessingStartedAt: Instant? = null,
+    @Column(name = "transcript_next_retry_at")
+    val transcriptNextRetryAt: Instant? = null,
     @Column(name = "analysis_status", nullable = false)
     val analysisStatus: String,
     @Column(name = "linked_resume_version_id")

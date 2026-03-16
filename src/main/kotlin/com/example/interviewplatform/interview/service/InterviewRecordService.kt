@@ -50,12 +50,14 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.server.ResponseStatusException
 import java.math.BigDecimal
+import java.nio.file.Path
 import java.time.Instant
 import java.time.LocalDate
 
@@ -75,8 +77,15 @@ class InterviewRecordService(
     private val resumeVersionRepository: ResumeVersionRepository,
     private val clockService: ClockService,
     private val objectMapper: ObjectMapper,
+    private val eventPublisher: ApplicationEventPublisher,
     @Value("\${app.upload.interview-audio.max-size-bytes:52428800}")
     private val interviewAudioUploadMaxSizeBytes: Long,
+    @Value("\${app.interview.transcription.max-auto-retries:3}")
+    private val transcriptMaxAutoRetries: Int,
+    @Value("\${app.interview.transcription.retry-base-delay-seconds:300}")
+    private val transcriptRetryBaseDelaySeconds: Long,
+    @Value("\${app.interview.transcription.processing-timeout-seconds:900}")
+    private val transcriptProcessingTimeoutSeconds: Long,
 ) {
     @Transactional(readOnly = true)
     fun listRecords(userId: Long): List<InterviewRecordListItemDto> {
@@ -104,11 +113,7 @@ class InterviewRecordService(
         val now = clockService.now()
         val storedFile = interviewAudioStorageService.store(userId, file, now)
         val normalizedTranscript = transcriptText?.trim()?.takeIf { it.isNotEmpty() }
-            ?: practicalInterviewTranscriptExtractionService.extractOrNull(
-                audioFilePath = storedFile.absolutePath,
-                fileName = storedFile.fileName,
-                contentType = file.contentType,
-            )
+        val automaticTranscriptionConfigured = practicalInterviewTranscriptExtractionService.isConfigured()
         logger.debug(
             "Creating interview record userId={}, audioFileName={}, contentType={}, fileSize={}, transcriptSource={}, transcriptLength={}",
             userId,
@@ -117,12 +122,22 @@ class InterviewRecordService(
             file.size,
             when {
                 transcriptText?.trim()?.isNotEmpty() == true -> "request"
-                normalizedTranscript != null -> "audio_transcription"
+                automaticTranscriptionConfigured -> "queued_audio_transcription"
                 else -> "none"
             },
             normalizedTranscript?.length ?: 0,
         )
 
+        val transcriptStatus = when {
+            normalizedTranscript != null -> TRANSCRIPT_STATUS_CONFIRMED
+            automaticTranscriptionConfigured -> TRANSCRIPT_STATUS_PENDING
+            else -> TRANSCRIPT_STATUS_FAILED
+        }
+        val analysisStatus = when {
+            normalizedTranscript != null -> ANALYSIS_STATUS_COMPLETED
+            automaticTranscriptionConfigured -> ANALYSIS_STATUS_PENDING
+            else -> ANALYSIS_STATUS_FAILED
+        }
         var record = interviewRecordRepository.save(
             InterviewRecordEntity(
                 userId = userId,
@@ -137,8 +152,18 @@ class InterviewRecordService(
                 rawTranscript = normalizedTranscript,
                 cleanedTranscript = normalizedTranscript,
                 confirmedTranscript = normalizedTranscript,
-                transcriptStatus = if (normalizedTranscript == null) TRANSCRIPT_STATUS_PENDING else TRANSCRIPT_STATUS_CONFIRMED,
-                analysisStatus = if (normalizedTranscript == null) ANALYSIS_STATUS_PENDING else ANALYSIS_STATUS_COMPLETED,
+                transcriptStatus = transcriptStatus,
+                transcriptErrorCode = if (normalizedTranscript == null && !automaticTranscriptionConfigured) TRANSCRIPT_ERROR_NOT_CONFIGURED else null,
+                transcriptErrorMessage = if (normalizedTranscript == null && !automaticTranscriptionConfigured) {
+                    "Automatic transcription is not configured for this environment."
+                } else {
+                    null
+                },
+                transcriptRetryCount = 0,
+                transcriptLastAttemptAt = null,
+                transcriptProcessingStartedAt = null,
+                transcriptNextRetryAt = if (normalizedTranscript == null && automaticTranscriptionConfigured) now else null,
+                analysisStatus = analysisStatus,
                 linkedResumeVersionId = linkedResumeVersionId,
                 linkedJobPostingId = linkedJobPostingId,
                 interviewerProfileId = null,
@@ -177,10 +202,12 @@ class InterviewRecordService(
                 record.interviewerProfileId,
             )
         } else {
-            logger.debug(
-                "No transcript text provided on create; record remains pending until transcript/analysis pipeline populates structured data recordId={}",
-                record.id,
-            )
+            if (automaticTranscriptionConfigured) {
+                logger.debug("Queued transcript extraction recordId={}", record.id)
+                publishTranscriptRequested(record.id)
+            } else {
+                logger.warn("Transcript extraction unavailable recordId={} because extractor is not configured", record.id)
+            }
         }
         return toDetailDto(record)
     }
@@ -214,9 +241,190 @@ class InterviewRecordService(
             cleanedTranscript = record.cleanedTranscript,
             confirmedTranscript = record.confirmedTranscript,
             transcriptStatus = record.transcriptStatus,
+            transcriptErrorCode = record.transcriptErrorCode,
+            transcriptErrorMessage = record.transcriptErrorMessage,
+            transcriptRetryCount = record.transcriptRetryCount,
+            transcriptLastAttemptAt = record.transcriptLastAttemptAt,
+            transcriptNextRetryAt = record.transcriptNextRetryAt,
             segments = segments.map(InterviewRecordMapper::toTranscriptSegmentDto),
             updatedAt = record.updatedAt,
         )
+    }
+
+    @Transactional
+    fun retryTranscription(userId: Long, recordId: Long): InterviewRecordDetailDto {
+        val record = requireOwnedRecord(userId, recordId)
+        if (record.confirmedTranscript?.isNotBlank() == true || record.transcriptStatus == TRANSCRIPT_STATUS_CONFIRMED) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "Transcript is already confirmed for record: $recordId")
+        }
+        if (record.transcriptStatus == TRANSCRIPT_STATUS_PROCESSING && !isProcessingTimedOut(record, clockService.now())) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "Transcript extraction is already processing for record: $recordId")
+        }
+        val now = clockService.now()
+        val updated = interviewRecordRepository.save(
+            InterviewRecordEntity(
+                id = record.id,
+                userId = record.userId,
+                companyName = record.companyName,
+                roleName = record.roleName,
+                interviewDate = record.interviewDate,
+                interviewType = record.interviewType,
+                sourceAudioFileUrl = record.sourceAudioFileUrl,
+                sourceAudioFileName = record.sourceAudioFileName,
+                sourceAudioDurationMs = record.sourceAudioDurationMs,
+                sourceAudioContentType = record.sourceAudioContentType,
+                rawTranscript = record.rawTranscript,
+                cleanedTranscript = record.cleanedTranscript,
+                confirmedTranscript = record.confirmedTranscript,
+                transcriptStatus = if (practicalInterviewTranscriptExtractionService.isConfigured()) TRANSCRIPT_STATUS_PENDING else TRANSCRIPT_STATUS_FAILED,
+                transcriptErrorCode = if (practicalInterviewTranscriptExtractionService.isConfigured()) null else TRANSCRIPT_ERROR_NOT_CONFIGURED,
+                transcriptErrorMessage = if (practicalInterviewTranscriptExtractionService.isConfigured()) null else {
+                    "Automatic transcription is not configured for this environment."
+                },
+                transcriptRetryCount = record.transcriptRetryCount,
+                transcriptLastAttemptAt = record.transcriptLastAttemptAt,
+                transcriptProcessingStartedAt = null,
+                transcriptNextRetryAt = if (practicalInterviewTranscriptExtractionService.isConfigured()) now else null,
+                analysisStatus = if (practicalInterviewTranscriptExtractionService.isConfigured()) ANALYSIS_STATUS_PENDING else ANALYSIS_STATUS_FAILED,
+                linkedResumeVersionId = record.linkedResumeVersionId,
+                linkedJobPostingId = record.linkedJobPostingId,
+                interviewerProfileId = record.interviewerProfileId,
+                deterministicSummary = record.deterministicSummary,
+                aiEnrichedSummary = record.aiEnrichedSummary,
+                overallSummary = record.overallSummary,
+                structuringStage = record.structuringStage,
+                confirmedAt = record.confirmedAt,
+                createdAt = record.createdAt,
+                updatedAt = now,
+            ),
+        )
+        if (practicalInterviewTranscriptExtractionService.isConfigured()) {
+            publishTranscriptRequested(updated.id)
+        }
+        return toDetailDto(updated)
+    }
+
+    @Transactional
+    fun processQueuedTranscriptExtraction(recordId: Long) {
+        val record = interviewRecordRepository.findById(recordId).orElse(null) ?: run {
+            logger.warn("Skipping transcript extraction because record was not found recordId={}", recordId)
+            return
+        }
+        if (record.transcriptStatus == TRANSCRIPT_STATUS_CONFIRMED || record.confirmedTranscript?.isNotBlank() == true) {
+            logger.debug("Skipping transcript extraction because transcript is already confirmed recordId={}", recordId)
+            return
+        }
+        if (!practicalInterviewTranscriptExtractionService.isConfigured()) {
+            markTranscriptionFailure(
+                record = record,
+                errorCode = TRANSCRIPT_ERROR_NOT_CONFIGURED,
+                errorMessage = "Automatic transcription is not configured for this environment.",
+                now = clockService.now(),
+                incrementRetryCount = false,
+            )
+            return
+        }
+
+        val now = clockService.now()
+        if (record.transcriptStatus == TRANSCRIPT_STATUS_PROCESSING && !isProcessingTimedOut(record, now)) {
+            logger.debug("Skipping transcript extraction because another worker is already processing recordId={}", recordId)
+            return
+        }
+
+        val processingRecord = interviewRecordRepository.save(
+            InterviewRecordEntity(
+                id = record.id,
+                userId = record.userId,
+                companyName = record.companyName,
+                roleName = record.roleName,
+                interviewDate = record.interviewDate,
+                interviewType = record.interviewType,
+                sourceAudioFileUrl = record.sourceAudioFileUrl,
+                sourceAudioFileName = record.sourceAudioFileName,
+                sourceAudioDurationMs = record.sourceAudioDurationMs,
+                sourceAudioContentType = record.sourceAudioContentType,
+                rawTranscript = record.rawTranscript,
+                cleanedTranscript = record.cleanedTranscript,
+                confirmedTranscript = record.confirmedTranscript,
+                transcriptStatus = TRANSCRIPT_STATUS_PROCESSING,
+                transcriptErrorCode = null,
+                transcriptErrorMessage = null,
+                transcriptRetryCount = record.transcriptRetryCount,
+                transcriptLastAttemptAt = now,
+                transcriptProcessingStartedAt = now,
+                transcriptNextRetryAt = null,
+                analysisStatus = ANALYSIS_STATUS_PENDING,
+                linkedResumeVersionId = record.linkedResumeVersionId,
+                linkedJobPostingId = record.linkedJobPostingId,
+                interviewerProfileId = record.interviewerProfileId,
+                deterministicSummary = record.deterministicSummary,
+                aiEnrichedSummary = record.aiEnrichedSummary,
+                overallSummary = record.overallSummary,
+                structuringStage = record.structuringStage,
+                confirmedAt = record.confirmedAt,
+                createdAt = record.createdAt,
+                updatedAt = now,
+            ),
+        )
+
+        try {
+            val audioPath = resolveStoredAudioPath(processingRecord)
+            val transcript = practicalInterviewTranscriptExtractionService.extractOrNull(
+                audioFilePath = audioPath,
+                fileName = processingRecord.sourceAudioFileName ?: audioPath.fileName.toString(),
+                contentType = processingRecord.sourceAudioContentType,
+            )
+            if (transcript.isNullOrBlank()) {
+                markTranscriptionFailure(
+                    record = processingRecord,
+                    errorCode = TRANSCRIPT_ERROR_EMPTY_TRANSCRIPT,
+                    errorMessage = "Automatic transcription did not return any transcript text.",
+                    now = clockService.now(),
+                )
+                return
+            }
+            rebuildStructuredData(processingRecord, transcript, clockService.now())
+            logger.info("Transcript extraction completed recordId={}", recordId)
+        } catch (ex: Exception) {
+            logger.warn("Transcript extraction failed recordId={}", recordId, ex)
+            markTranscriptionFailure(
+                record = processingRecord,
+                errorCode = TRANSCRIPT_ERROR_EXTRACTION_FAILED,
+                errorMessage = ex.message ?: "Automatic transcription failed.",
+                now = clockService.now(),
+            )
+        }
+    }
+
+    @Transactional
+    fun recoverTimedOutTranscriptExtractions() {
+        val now = clockService.now()
+        val threshold = now.minusSeconds(transcriptProcessingTimeoutSeconds)
+        interviewRecordRepository.findTimedOutProcessingTranscriptRecords(threshold)
+            .forEach { record ->
+                logger.warn("Recovering timed-out transcript extraction recordId={}", record.id)
+                markTranscriptionFailure(
+                    record = record,
+                    errorCode = TRANSCRIPT_ERROR_PROCESSING_TIMEOUT,
+                    errorMessage = "Automatic transcription timed out before completion.",
+                    now = now,
+                )
+            }
+    }
+
+    @Transactional
+    fun enqueueEligibleTranscriptRetries() {
+        if (!practicalInterviewTranscriptExtractionService.isConfigured()) {
+            return
+        }
+        val now = clockService.now()
+        interviewRecordRepository.findRetryableTranscriptRecords(now)
+            .forEach { record ->
+                if (record.transcriptStatus == TRANSCRIPT_STATUS_PROCESSING && !isProcessingTimedOut(record, now)) {
+                    return@forEach
+                }
+                publishTranscriptRequested(record.id)
+            }
     }
 
     @Transactional
@@ -264,6 +472,12 @@ class InterviewRecordService(
                 cleanedTranscript = refreshedSegments.joinToString("\n") { it.cleanedText ?: it.rawText.orEmpty() }.trim(),
                 confirmedTranscript = rebuiltTranscript,
                 transcriptStatus = TRANSCRIPT_STATUS_CONFIRMED,
+                transcriptErrorCode = null,
+                transcriptErrorMessage = null,
+                transcriptRetryCount = record.transcriptRetryCount,
+                transcriptLastAttemptAt = record.transcriptLastAttemptAt,
+                transcriptProcessingStartedAt = null,
+                transcriptNextRetryAt = null,
                 analysisStatus = ANALYSIS_STATUS_COMPLETED,
                 linkedResumeVersionId = record.linkedResumeVersionId,
                 linkedJobPostingId = record.linkedJobPostingId,
@@ -1975,6 +2189,12 @@ class InterviewRecordService(
                 cleanedTranscript = refreshedSegments.joinToString("\n") { it.cleanedText ?: it.rawText.orEmpty() }.trim(),
                 confirmedTranscript = rebuiltTranscript,
                 transcriptStatus = TRANSCRIPT_STATUS_CONFIRMED,
+                transcriptErrorCode = null,
+                transcriptErrorMessage = null,
+                transcriptRetryCount = record.transcriptRetryCount,
+                transcriptLastAttemptAt = record.transcriptLastAttemptAt,
+                transcriptProcessingStartedAt = null,
+                transcriptNextRetryAt = null,
                 analysisStatus = ANALYSIS_STATUS_COMPLETED,
                 linkedResumeVersionId = record.linkedResumeVersionId,
                 linkedJobPostingId = record.linkedJobPostingId,
@@ -2123,6 +2343,12 @@ class InterviewRecordService(
                 cleanedTranscript = record.cleanedTranscript,
                 confirmedTranscript = record.confirmedTranscript,
                 transcriptStatus = record.transcriptStatus,
+                transcriptErrorCode = record.transcriptErrorCode,
+                transcriptErrorMessage = record.transcriptErrorMessage,
+                transcriptRetryCount = record.transcriptRetryCount,
+                transcriptLastAttemptAt = record.transcriptLastAttemptAt,
+                transcriptProcessingStartedAt = record.transcriptProcessingStartedAt,
+                transcriptNextRetryAt = record.transcriptNextRetryAt,
                 analysisStatus = record.analysisStatus,
                 linkedResumeVersionId = record.linkedResumeVersionId,
                 linkedJobPostingId = record.linkedJobPostingId,
@@ -2172,6 +2398,85 @@ class InterviewRecordService(
     }
 
     private fun buildInterviewAudioFileUrl(storageKey: String): String = "/uploads/interview-audio/$storageKey"
+
+    private fun publishTranscriptRequested(recordId: Long) {
+        eventPublisher.publishEvent(PracticalInterviewTranscriptRequestedEvent(recordId))
+    }
+
+    private fun resolveStoredAudioPath(record: InterviewRecordEntity): Path {
+        val storageKey = record.sourceAudioFileUrl
+            ?.removePrefix("/uploads/interview-audio/")
+            ?.takeIf { it.isNotBlank() }
+            ?: throw ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "Interview audio file is not available for transcription: ${record.id}",
+            )
+        return interviewAudioStorageService.resolveStoredPath(storageKey)
+    }
+
+    private fun isProcessingTimedOut(record: InterviewRecordEntity, now: Instant): Boolean {
+        val processingStartedAt = record.transcriptProcessingStartedAt ?: return false
+        return processingStartedAt <= now.minusSeconds(transcriptProcessingTimeoutSeconds)
+    }
+
+    private fun markTranscriptionFailure(
+        record: InterviewRecordEntity,
+        errorCode: String,
+        errorMessage: String,
+        now: Instant,
+        incrementRetryCount: Boolean = true,
+    ): InterviewRecordEntity {
+        val nextRetryCount = if (incrementRetryCount) record.transcriptRetryCount + 1 else record.transcriptRetryCount
+        val nextRetryAt = if (practicalInterviewTranscriptExtractionService.isConfigured() && nextRetryCount <= transcriptMaxAutoRetries) {
+            now.plusSeconds(calculateRetryDelaySeconds(nextRetryCount))
+        } else {
+            null
+        }
+        return interviewRecordRepository.save(
+            InterviewRecordEntity(
+                id = record.id,
+                userId = record.userId,
+                companyName = record.companyName,
+                roleName = record.roleName,
+                interviewDate = record.interviewDate,
+                interviewType = record.interviewType,
+                sourceAudioFileUrl = record.sourceAudioFileUrl,
+                sourceAudioFileName = record.sourceAudioFileName,
+                sourceAudioDurationMs = record.sourceAudioDurationMs,
+                sourceAudioContentType = record.sourceAudioContentType,
+                rawTranscript = record.rawTranscript,
+                cleanedTranscript = record.cleanedTranscript,
+                confirmedTranscript = record.confirmedTranscript,
+                transcriptStatus = TRANSCRIPT_STATUS_FAILED,
+                transcriptErrorCode = errorCode,
+                transcriptErrorMessage = errorMessage,
+                transcriptRetryCount = nextRetryCount,
+                transcriptLastAttemptAt = now,
+                transcriptProcessingStartedAt = null,
+                transcriptNextRetryAt = nextRetryAt,
+                analysisStatus = ANALYSIS_STATUS_FAILED,
+                linkedResumeVersionId = record.linkedResumeVersionId,
+                linkedJobPostingId = record.linkedJobPostingId,
+                interviewerProfileId = record.interviewerProfileId,
+                deterministicSummary = record.deterministicSummary,
+                aiEnrichedSummary = record.aiEnrichedSummary,
+                overallSummary = record.overallSummary,
+                structuringStage = record.structuringStage,
+                confirmedAt = record.confirmedAt,
+                createdAt = record.createdAt,
+                updatedAt = now,
+            ),
+        )
+    }
+
+    private fun calculateRetryDelaySeconds(retryCount: Int): Long {
+        val exponentialFactor = when {
+            retryCount <= 1 -> 1L
+            retryCount >= 8 -> 128L
+            else -> 1L shl (retryCount - 1)
+        }
+        return transcriptRetryBaseDelaySeconds * exponentialFactor
+    }
 
     private fun rebuildStructuredData(
         record: InterviewRecordEntity,
@@ -2355,10 +2660,16 @@ class InterviewRecordService(
                     sourceAudioFileName = record.sourceAudioFileName,
                     sourceAudioDurationMs = record.sourceAudioDurationMs,
                     sourceAudioContentType = record.sourceAudioContentType,
-                    rawTranscript = record.rawTranscript,
+                    rawTranscript = record.rawTranscript ?: transcriptText,
                     cleanedTranscript = transcriptText,
                     confirmedTranscript = transcriptText,
                     transcriptStatus = TRANSCRIPT_STATUS_CONFIRMED,
+                    transcriptErrorCode = null,
+                    transcriptErrorMessage = null,
+                    transcriptRetryCount = record.transcriptRetryCount,
+                    transcriptLastAttemptAt = record.transcriptLastAttemptAt,
+                    transcriptProcessingStartedAt = null,
+                    transcriptNextRetryAt = null,
                     analysisStatus = ANALYSIS_STATUS_COMPLETED,
                     linkedResumeVersionId = record.linkedResumeVersionId,
                     linkedJobPostingId = record.linkedJobPostingId,
@@ -2387,10 +2698,16 @@ class InterviewRecordService(
                 sourceAudioFileName = record.sourceAudioFileName,
                 sourceAudioDurationMs = record.sourceAudioDurationMs,
                 sourceAudioContentType = record.sourceAudioContentType,
-                rawTranscript = record.rawTranscript,
+                rawTranscript = record.rawTranscript ?: transcriptText,
                 cleanedTranscript = transcriptText,
                 confirmedTranscript = transcriptText,
                 transcriptStatus = TRANSCRIPT_STATUS_CONFIRMED,
+                transcriptErrorCode = null,
+                transcriptErrorMessage = null,
+                transcriptRetryCount = record.transcriptRetryCount,
+                transcriptLastAttemptAt = record.transcriptLastAttemptAt,
+                transcriptProcessingStartedAt = null,
+                transcriptNextRetryAt = null,
                 analysisStatus = ANALYSIS_STATUS_COMPLETED,
                 linkedResumeVersionId = record.linkedResumeVersionId,
                 linkedJobPostingId = record.linkedJobPostingId,
@@ -2861,6 +3178,12 @@ class InterviewRecordService(
                 cleanedTranscript = record.cleanedTranscript,
                 confirmedTranscript = record.confirmedTranscript,
                 transcriptStatus = record.transcriptStatus,
+                transcriptErrorCode = record.transcriptErrorCode,
+                transcriptErrorMessage = record.transcriptErrorMessage,
+                transcriptRetryCount = record.transcriptRetryCount,
+                transcriptLastAttemptAt = record.transcriptLastAttemptAt,
+                transcriptProcessingStartedAt = record.transcriptProcessingStartedAt,
+                transcriptNextRetryAt = record.transcriptNextRetryAt,
                 analysisStatus = record.analysisStatus,
                 linkedResumeVersionId = record.linkedResumeVersionId,
                 linkedJobPostingId = record.linkedJobPostingId,
@@ -2884,9 +3207,16 @@ class InterviewRecordService(
         private const val STRUCTURING_STAGE_CONFIRMED = "confirmed"
         private const val INTERVIEW_TYPE_GENERAL = "general"
         private const val TRANSCRIPT_STATUS_PENDING = "pending"
+        private const val TRANSCRIPT_STATUS_PROCESSING = "processing"
+        private const val TRANSCRIPT_STATUS_FAILED = "failed"
         private const val TRANSCRIPT_STATUS_CONFIRMED = "confirmed"
         private const val ANALYSIS_STATUS_PENDING = "pending"
+        private const val ANALYSIS_STATUS_FAILED = "failed"
         private const val ANALYSIS_STATUS_COMPLETED = "completed"
+        private const val TRANSCRIPT_ERROR_NOT_CONFIGURED = "transcription_not_configured"
+        private const val TRANSCRIPT_ERROR_EXTRACTION_FAILED = "transcription_failed"
+        private const val TRANSCRIPT_ERROR_EMPTY_TRANSCRIPT = "empty_transcript"
+        private const val TRANSCRIPT_ERROR_PROCESSING_TIMEOUT = "processing_timeout"
         private const val SPEAKER_TYPE_INTERVIEWER = "interviewer"
         private const val SPEAKER_TYPE_CANDIDATE = "candidate"
         private const val QUESTION_TYPE_INTRO = "intro"

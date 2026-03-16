@@ -224,6 +224,7 @@ Implemented practical interview record foundation:
   - `GET /api/interview-records/{recordId}`
   - `GET /api/interview-records/{recordId}/transcript`
   - `PATCH /api/interview-records/{recordId}/transcript/segments/{segmentId}`
+  - `POST /api/interview-records/{recordId}/retry-transcription`
   - `GET /api/interview-records/{recordId}/questions`
   - `GET /api/interview-records/{recordId}/review`
   - `PATCH /api/interview-records/{recordId}/review`
@@ -237,7 +238,22 @@ Implemented practical interview record foundation:
   - optional `companyName`, `roleName`, `interviewDate`, `interviewType`, `linkedResumeVersionId`, `linkedJobPostingId`, `transcriptText`
 - when transcript text is present at upload time, the backend performs deterministic structuring immediately and may also apply optional AI refinement before returning completed transcript/analysis status
 - when transcript text is omitted, the backend now attempts automatic transcript extraction from the uploaded audio before running the same structuring pipeline
-- if automatic extraction is not available in the runtime environment, the created record may still come back as `transcriptStatus = pending`
+- practical interview transcription now uses explicit lifecycle statuses:
+  - `pending`
+  - `processing`
+  - `failed`
+  - `confirmed`
+- if automatic extraction is not available in the runtime environment, the created record currently comes back as:
+  - `transcriptStatus = failed`
+  - `transcriptErrorCode = transcription_not_configured`
+- record detail and transcript reads now also expose:
+  - `transcriptErrorCode`
+  - `transcriptErrorMessage`
+  - `transcriptRetryCount`
+  - `transcriptLastAttemptAt`
+  - `transcriptProcessingStartedAt`
+  - `transcriptNextRetryAt`
+- `POST /api/interview-records/{recordId}/retry-transcription` re-queues extraction for non-confirmed records when the runtime has transcription configured
 - record detail now exposes provenance fields for review UIs:
   - `deterministicSummary`
   - `aiEnrichedSummary`

@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multi
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.testcontainers.junit.jupiter.Testcontainers
+import kotlin.test.assertEquals
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -68,15 +69,29 @@ class InterviewRecordTranscriptionApiIntegrationTest {
                 .header("Authorization", authHeader),
         )
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.transcriptStatus").value("confirmed"))
-            .andExpect(jsonPath("$.analysisStatus").value("completed"))
-            .andExpect(jsonPath("$.questionCount").value(2))
+            .andExpect(jsonPath("$.transcriptStatus").value(org.hamcrest.Matchers.anyOf(org.hamcrest.Matchers.`is`("pending"), org.hamcrest.Matchers.`is`("processing"), org.hamcrest.Matchers.`is`("confirmed"))))
             .andReturn()
             .response
             .contentAsString
             .let(objectMapper::readTree)
 
         val recordId = created["id"].asLong()
+
+        var finalizedTranscriptStatus = created["transcriptStatus"].asText()
+        repeat(20) {
+            if (finalizedTranscriptStatus == "confirmed") {
+                return@repeat
+            }
+            Thread.sleep(100)
+            val detail = mockMvc.perform(get("/api/interview-records/$recordId").header("Authorization", authHeader))
+                .andExpect(status().isOk)
+                .andReturn()
+                .response
+                .contentAsString
+                .let(objectMapper::readTree)
+            finalizedTranscriptStatus = detail["transcriptStatus"].asText()
+        }
+        assertEquals("confirmed", finalizedTranscriptStatus)
 
         mockMvc.perform(get("/api/interview-records/$recordId/transcript").header("Authorization", authHeader))
             .andExpect(status().isOk)

@@ -8,6 +8,8 @@ import java.nio.file.Path
 class PracticalInterviewTranscriptExtractionService(
     private val client: PracticalInterviewTranscriptExtractionClient,
 ) {
+    fun isConfigured(): Boolean = client.isEnabled()
+
     fun extractOrNull(audioFilePath: Path, fileName: String, contentType: String?): String? {
         if (!client.isEnabled()) {
             logger.info("Practical interview transcription skipped because extractor is not configured fileName={}", fileName)

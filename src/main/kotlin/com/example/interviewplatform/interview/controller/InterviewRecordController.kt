@@ -117,4 +117,9 @@ class InterviewRecordController(
     @Operation(summary = "Confirm practical interview structuring review")
     fun confirmRecord(@PathVariable recordId: Long): InterviewRecordDetailDto =
         interviewRecordService.confirmRecord(currentUserProvider.currentUserId(), recordId)
+
+    @PostMapping("/{recordId}/retry-transcription")
+    @Operation(summary = "Retry practical interview transcription")
+    fun retryTranscription(@PathVariable recordId: Long): InterviewRecordDetailDto =
+        interviewRecordService.retryTranscription(currentUserProvider.currentUserId(), recordId)
 }

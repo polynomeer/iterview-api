@@ -477,7 +477,9 @@ class InterviewRecordApiIntegrationTest {
                 .header("Authorization", authHeader),
         )
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.analysisStatus").value("pending"))
+            .andExpect(jsonPath("$.transcriptStatus").value("failed"))
+            .andExpect(jsonPath("$.transcriptErrorCode").value("transcription_not_configured"))
+            .andExpect(jsonPath("$.analysisStatus").value("failed"))
             .andReturn()
             .response
             .contentAsString
@@ -486,6 +488,32 @@ class InterviewRecordApiIntegrationTest {
         val recordId = created["id"].asLong()
         mockMvc.perform(get("/api/interview-records/$recordId/interviewer-profile").header("Authorization", authHeader))
             .andExpect(status().isConflict)
+    }
+
+    @Test
+    fun `retry transcription returns failed detail when extractor is not configured`() {
+        val audio = MockMultipartFile("file", "real-interview.wav", "audio/wav", "fake-audio".toByteArray())
+        val created = mockMvc.perform(
+            multipart("/api/interview-records")
+                .file(audio)
+                .header("Authorization", authHeader),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.transcriptStatus").value("failed"))
+            .andExpect(jsonPath("$.transcriptErrorCode").value("transcription_not_configured"))
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val recordId = created["id"].asLong()
+
+        mockMvc.perform(post("/api/interview-records/$recordId/retry-transcription").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.id").value(recordId))
+            .andExpect(jsonPath("$.transcriptStatus").value("failed"))
+            .andExpect(jsonPath("$.transcriptErrorCode").value("transcription_not_configured"))
+            .andExpect(jsonPath("$.analysisStatus").value("failed"))
     }
 
     @Test

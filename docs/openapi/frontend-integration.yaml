@@ -654,6 +654,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InterviewRecordTranscriptDto"
+  /api/interview-records/{recordId}/retry-transcription:
+    post:
+      tags: [Interview Records]
+      summary: Retry practical interview transcription
+      parameters:
+        - $ref: "#/components/parameters/RecordId"
+      responses:
+        "200":
+          description: Updated imported interview record detail after re-queueing transcription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewRecordDetailDto"
   /api/interview-records/{recordId}/questions:
     get:
       tags: [Interview Records]
@@ -1896,6 +1909,9 @@ components:
         interviewDate: { type: string, format: date, nullable: true }
         interviewType: { type: string }
         transcriptStatus: { type: string }
+        transcriptErrorCode: { type: string, nullable: true }
+        transcriptRetryCount: { type: integer }
+        transcriptNextRetryAt: { type: string, format: date-time, nullable: true }
         analysisStatus: { type: string }
         linkedResumeVersionId: { type: integer, format: int64, nullable: true }
         interviewerProfileId: { type: integer, format: int64, nullable: true }
@@ -1913,6 +1929,12 @@ components:
         sourceAudioFileName: { type: string, nullable: true }
         sourceAudioDurationMs: { type: integer, format: int64, nullable: true }
         transcriptStatus: { type: string }
+        transcriptErrorCode: { type: string, nullable: true }
+        transcriptErrorMessage: { type: string, nullable: true }
+        transcriptRetryCount: { type: integer }
+        transcriptLastAttemptAt: { type: string, format: date-time, nullable: true }
+        transcriptProcessingStartedAt: { type: string, format: date-time, nullable: true }
+        transcriptNextRetryAt: { type: string, format: date-time, nullable: true }
         analysisStatus: { type: string }
         linkedResumeVersionId: { type: integer, format: int64, nullable: true }
         linkedJobPostingId: { type: integer, format: int64, nullable: true }
@@ -2387,6 +2409,11 @@ components:
         cleanedTranscript: { type: string, nullable: true }
         confirmedTranscript: { type: string, nullable: true }
         transcriptStatus: { type: string }
+        transcriptErrorCode: { type: string, nullable: true }
+        transcriptErrorMessage: { type: string, nullable: true }
+        transcriptRetryCount: { type: integer }
+        transcriptLastAttemptAt: { type: string, format: date-time, nullable: true }
+        transcriptNextRetryAt: { type: string, format: date-time, nullable: true }
         segments:
           type: array
           items:

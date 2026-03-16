@@ -34,6 +34,9 @@ class InterviewAudioStorageService(
         )
     }
 
+    fun resolveStoredPath(storageKey: String): Path =
+        Paths.get(interviewAudioDir, storageKey).toAbsolutePath().normalize()
+
     private fun sanitizeFileName(originalFilename: String?): String {
         val cleaned = StringUtils.cleanPath(originalFilename ?: "interview-audio.bin")
         return cleaned.substringAfterLast('/').substringAfterLast('\\').ifBlank { "interview-audio.bin" }

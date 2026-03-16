@@ -1510,7 +1510,6 @@ Current additive behavior for interview-originated records:
 ### Still Planned
 The following interview features are still intentionally deferred:
 - live or streaming mock interview sessions
-- voice transcription pipeline
 - AI realtime interactions that bypass the standard answer-attempt model
 
 ### Implemented Practical Interview Record Foundation
@@ -1524,6 +1523,7 @@ Implemented resources:
 - `GET /api/interview-records/{recordId}`
 - `GET /api/interview-records/{recordId}/transcript`
 - `PATCH /api/interview-records/{recordId}/transcript/segments/{segmentId}`
+- `POST /api/interview-records/{recordId}/retry-transcription`
 - `GET /api/interview-records/{recordId}/questions`
 - `GET /api/interview-records/{recordId}/review`
 - `PATCH /api/interview-records/{recordId}/review`
@@ -1548,12 +1548,30 @@ Current request and response semantics:
   - `transcriptStatus = confirmed`
   - `analysisStatus = completed`
 - when `transcriptText` is omitted, the backend now attempts automatic transcript extraction from the uploaded audio
-- when automatic extraction succeeds, the backend runs the same structuring pipeline and returns:
+- automatic extraction now uses an explicit lifecycle:
+  - `pending`
+  - `processing`
+  - `failed`
+  - `confirmed`
+- when automatic extraction succeeds, the backend runs the same structuring pipeline and moves the record to:
   - `transcriptStatus = confirmed`
   - `analysisStatus = completed`
-- when automatic extraction is unavailable or fails before a transcript is produced, the record remains in:
-  - `transcriptStatus = pending`
-  - `analysisStatus = pending`
+- when automatic extraction is not configured, create currently returns:
+  - `transcriptStatus = failed`
+  - `analysisStatus = failed`
+  - `transcriptErrorCode = transcription_not_configured`
+- when automatic extraction fails after a queued or in-flight attempt, the record moves to:
+  - `transcriptStatus = failed`
+  - `analysisStatus = failed`
+  - `transcriptErrorCode` such as `transcription_failed`, `empty_transcript`, or `processing_timeout`
+- detail and transcript resources now also expose:
+  - `transcriptErrorCode`
+  - `transcriptErrorMessage`
+  - `transcriptRetryCount`
+  - `transcriptLastAttemptAt`
+  - `transcriptProcessingStartedAt`
+  - `transcriptNextRetryAt`
+- `POST /api/interview-records/{recordId}/retry-transcription` re-queues extraction for non-confirmed records unless a non-timed-out extraction is already running
 
 Current transcript semantics:
 - transcript resources keep three staged values on the record:
