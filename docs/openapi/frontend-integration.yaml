@@ -2006,6 +2006,9 @@ components:
           type: array
           items: { type: string }
         recommendedAction: { type: string }
+        severity: { type: string }
+        priority: { type: string }
+        reviewerLane: { type: string }
         linkedQuestionId:
           type: integer
           format: int64

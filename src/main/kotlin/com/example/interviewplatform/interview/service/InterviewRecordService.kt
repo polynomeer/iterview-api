@@ -433,6 +433,9 @@ class InterviewRecordService(
                         SEGMENT_ISSUE_SPEAKER_OVERRIDE in issueTypes -> SEGMENT_ACTION_JUMP_TO_QUESTION
                         else -> SEGMENT_ACTION_JUMP_TO_THREAD
                     },
+                    severity = resolveSegmentIssueSeverity(issueTypes),
+                    priority = resolveSegmentIssuePriority(issueTypes),
+                    reviewerLane = resolveSegmentReviewerLane(issueTypes, linkedQuestionId, threadRootQuestionId),
                     linkedQuestionId = linkedQuestionId,
                     threadRootQuestionId = threadRootQuestionId,
                     deepLink = linkedQuestion?.toReviewQuestionDeepLink(recordId),
@@ -565,6 +568,29 @@ class InterviewRecordService(
                 REVIEW_REPLAY_MODE_PRESSURE_VARIANT,
             ),
         )
+    }
+
+    private fun resolveSegmentIssueSeverity(issueTypes: Set<String>): String = when {
+        SEGMENT_ISSUE_CONFIRMED_OVERRIDE in issueTypes -> SEGMENT_SEVERITY_HIGH
+        SEGMENT_ISSUE_SPEAKER_OVERRIDE in issueTypes -> SEGMENT_SEVERITY_MEDIUM
+        else -> SEGMENT_SEVERITY_LOW
+    }
+
+    private fun resolveSegmentIssuePriority(issueTypes: Set<String>): String = when {
+        SEGMENT_ISSUE_CONFIRMED_OVERRIDE in issueTypes -> SEGMENT_PRIORITY_P0
+        SEGMENT_ISSUE_SPEAKER_OVERRIDE in issueTypes -> SEGMENT_PRIORITY_P1
+        else -> SEGMENT_PRIORITY_P2
+    }
+
+    private fun resolveSegmentReviewerLane(
+        issueTypes: Set<String>,
+        linkedQuestionId: Long?,
+        threadRootQuestionId: Long?,
+    ): String = when {
+        SEGMENT_ISSUE_CONFIRMED_OVERRIDE in issueTypes -> SEGMENT_REVIEWER_LANE_TRANSCRIPT
+        SEGMENT_ISSUE_SPEAKER_OVERRIDE in issueTypes && linkedQuestionId != null -> SEGMENT_REVIEWER_LANE_QUESTION
+        threadRootQuestionId != null -> SEGMENT_REVIEWER_LANE_THREAD
+        else -> SEGMENT_REVIEWER_LANE_TRANSCRIPT
     }
 
     private fun buildProvenanceComparisonSummary(
@@ -1607,6 +1633,15 @@ class InterviewRecordService(
         private const val SEGMENT_ACTION_REVIEW_NOW = "review_now"
         private const val SEGMENT_ACTION_JUMP_TO_QUESTION = "jump_to_question"
         private const val SEGMENT_ACTION_JUMP_TO_THREAD = "jump_to_thread"
+        private const val SEGMENT_SEVERITY_HIGH = "high"
+        private const val SEGMENT_SEVERITY_MEDIUM = "medium"
+        private const val SEGMENT_SEVERITY_LOW = "low"
+        private const val SEGMENT_PRIORITY_P0 = "p0"
+        private const val SEGMENT_PRIORITY_P1 = "p1"
+        private const val SEGMENT_PRIORITY_P2 = "p2"
+        private const val SEGMENT_REVIEWER_LANE_TRANSCRIPT = "transcript_review"
+        private const val SEGMENT_REVIEWER_LANE_QUESTION = "question_review"
+        private const val SEGMENT_REVIEWER_LANE_THREAD = "thread_review"
         private const val REVIEW_ACTION_REVIEW_TRANSCRIPT = "review_transcript"
         private const val REVIEW_ACTION_REVIEW_ANSWERS = "review_answers"
         private const val REVIEW_ACTION_CONFIRM = "confirm"

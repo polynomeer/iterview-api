@@ -1627,6 +1627,9 @@ Current structured extraction semantics:
         - `sequence`
         - `issueTypes[]`
         - `recommendedAction`
+        - `severity`
+        - `priority`
+        - `reviewerLane`
         - `linkedQuestionId`
         - `threadRootQuestionId`
         - `deepLink`
