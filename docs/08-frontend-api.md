@@ -279,8 +279,10 @@ Implemented practical interview record foundation:
     - each summary also carries `deepLink` metadata for direct question-detail, archive-source, and replay-mock actions
     - `topicTags` is included so row-level tag filtering does not require a second `questions` fetch
     - `originType`, `derivedFromResumeSection`, and `derivedFromJobPostingSection` are included so origin badges do not require a second `questions` fetch
+    - `confidenceMarkers` is included so confidence/uncertainty badges do not require a second `questions` fetch
   - `followUpThreads[]`
     - use this for threaded review panels or grouped follow-up badges without reconstructing parent-child chains on the client
+    - thread rows now also include answer-quality counters such as `answeredQuestionCount`, `quantifiedQuestionCount`, `structuredQuestionCount`, `tradeoffAwareQuestionCount`, and `uncertainQuestionCount`
 - `PATCH /api/interview-records/{recordId}/review` supports bulk review editing:
   - `edits[]`
   - each edit may update `speakerType`, `cleanedText`, and `confirmedText` for one `segmentId`

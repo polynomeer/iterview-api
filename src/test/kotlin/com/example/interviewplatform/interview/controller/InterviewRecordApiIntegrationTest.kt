@@ -236,10 +236,16 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.questionSummaries[1].isFollowUp").value(true))
             .andExpect(jsonPath("$.questionSummaries[1].hasWeakAnswer").value(true))
             .andExpect(jsonPath("$.questionSummaries[1].weaknessTags[0]").exists())
+            .andExpect(jsonPath("$.questionSummaries[0].confidenceMarkers[0]").value("quantified"))
             .andExpect(jsonPath("$.followUpThreads.length()").value(1))
             .andExpect(jsonPath("$.followUpThreads[0].questionIds.length()").value(2))
             .andExpect(jsonPath("$.followUpThreads[0].followUpCount").value(1))
             .andExpect(jsonPath("$.followUpThreads[0].weakQuestionCount").value(2))
+            .andExpect(jsonPath("$.followUpThreads[0].answeredQuestionCount").value(2))
+            .andExpect(jsonPath("$.followUpThreads[0].quantifiedQuestionCount").value(2))
+            .andExpect(jsonPath("$.followUpThreads[0].structuredQuestionCount").value(0))
+            .andExpect(jsonPath("$.followUpThreads[0].tradeoffAwareQuestionCount").value(0))
+            .andExpect(jsonPath("$.followUpThreads[0].uncertainQuestionCount").value(0))
 
         mockMvc.perform(
             org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/interview-records/$recordId/confirm")

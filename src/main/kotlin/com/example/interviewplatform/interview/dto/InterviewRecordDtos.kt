@@ -187,6 +187,7 @@ data class InterviewRecordReviewQuestionSummaryDto(
     val parentQuestionId: Long?,
     val hasWeakAnswer: Boolean,
     val answerSummary: String?,
+    val confidenceMarkers: List<String>,
     val weaknessTags: List<String>,
     val strengthTags: List<String>,
     val questionStructuringSource: String,
@@ -212,6 +213,11 @@ data class InterviewRecordReviewFollowUpThreadDto(
     val followUpQuestionIds: List<Long>,
     val followUpCount: Int,
     val weakQuestionCount: Int,
+    val answeredQuestionCount: Int,
+    val quantifiedQuestionCount: Int,
+    val structuredQuestionCount: Int,
+    val tradeoffAwareQuestionCount: Int,
+    val uncertainQuestionCount: Int,
     val structuringSources: List<String>,
 )
 

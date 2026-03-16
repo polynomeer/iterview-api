@@ -244,6 +244,7 @@ class InterviewRecordService(
         val interviewerProfile = interviewerProfileRepository.findBySourceInterviewRecordId(recordId)
         val questionSummaries = questions.map { question ->
             val answer = answerByQuestionId[question.id]
+            val confidenceMarkers = answer?.let { decodeStringList(it.confidenceMarkersJson) }.orEmpty()
             val weaknessTags = answer?.let { decodeStringList(it.weaknessTagsJson) }.orEmpty()
             val strengthTags = answer?.let { decodeStringList(it.strengthTagsJson) }.orEmpty()
             val topicTags = decodeStringList(question.topicTagsJson)
@@ -270,6 +271,7 @@ class InterviewRecordService(
                 parentQuestionId = question.parentQuestionId,
                 hasWeakAnswer = weaknessTags.isNotEmpty(),
                 answerSummary = answer?.summary,
+                confidenceMarkers = confidenceMarkers,
                 weaknessTags = weaknessTags,
                 strengthTags = strengthTags,
                 questionStructuringSource = question.structuringSource,
@@ -608,6 +610,19 @@ class InterviewRecordService(
                 followUpQuestionIds = sortedThreadSummaries.filter { it.isFollowUp }.map { it.questionId },
                 followUpCount = sortedThreadSummaries.count { it.isFollowUp },
                 weakQuestionCount = sortedThreadSummaries.count { it.hasWeakAnswer },
+                answeredQuestionCount = sortedThreadSummaries.count { it.answerSummary != null },
+                quantifiedQuestionCount = sortedThreadSummaries.count {
+                    "quantified" in it.strengthTags
+                },
+                structuredQuestionCount = sortedThreadSummaries.count {
+                    "structured" in it.strengthTags
+                },
+                tradeoffAwareQuestionCount = sortedThreadSummaries.count {
+                    "tradeoff_aware" in it.strengthTags
+                },
+                uncertainQuestionCount = sortedThreadSummaries.count {
+                    "uncertain" in it.confidenceMarkers
+                },
                 structuringSources = sortedThreadSummaries
                     .flatMap { listOfNotNull(it.questionStructuringSource, it.answerStructuringSource) }
                     .distinct()

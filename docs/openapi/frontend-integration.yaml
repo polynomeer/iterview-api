@@ -1919,6 +1919,9 @@ components:
         parentQuestionId: { type: integer, format: int64, nullable: true }
         hasWeakAnswer: { type: boolean }
         answerSummary: { type: string, nullable: true }
+        confidenceMarkers:
+          type: array
+          items: { type: string }
         weaknessTags:
           type: array
           items: { type: string }
@@ -2074,6 +2077,11 @@ components:
           items: { type: integer, format: int64 }
         followUpCount: { type: integer }
         weakQuestionCount: { type: integer }
+        answeredQuestionCount: { type: integer }
+        quantifiedQuestionCount: { type: integer }
+        structuredQuestionCount: { type: integer }
+        tradeoffAwareQuestionCount: { type: integer }
+        uncertainQuestionCount: { type: integer }
         structuringSources:
           type: array
           items: { type: string }

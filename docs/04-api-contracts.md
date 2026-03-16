@@ -1690,6 +1690,7 @@ Current structured extraction semantics:
     - `orderIndex`
     - `text`
     - `questionType`
+    - `confidenceMarkers`
     - `isFollowUp`
     - `parentQuestionId`
     - `hasWeakAnswer`
@@ -1710,6 +1711,11 @@ Current structured extraction semantics:
       - `followUpQuestionIds[]`
       - `followUpCount`
       - `weakQuestionCount`
+      - `answeredQuestionCount`
+      - `quantifiedQuestionCount`
+      - `structuredQuestionCount`
+      - `tradeoffAwareQuestionCount`
+      - `uncertainQuestionCount`
       - `structuringSources[]`
 - `PATCH /api/interview-records/{recordId}/review` applies bulk transcript review edits:
   - request body:
