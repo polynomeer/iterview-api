@@ -2083,6 +2083,8 @@ components:
         tradeoffAwareQuestionCount: { type: integer }
         uncertainQuestionCount: { type: integer }
         recommendedAction: { type: string }
+        replayLaunchPreset:
+          $ref: "#/components/schemas/InterviewRecordReplayLaunchPresetDto"
         structuringSources:
           type: array
           items: { type: string }

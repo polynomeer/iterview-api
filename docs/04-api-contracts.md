@@ -1717,6 +1717,7 @@ Current structured extraction semantics:
       - `tradeoffAwareQuestionCount`
       - `uncertainQuestionCount`
       - `recommendedAction`
+      - `replayLaunchPreset`
       - `structuringSources[]`
 - `PATCH /api/interview-records/{recordId}/review` applies bulk transcript review edits:
   - request body:

@@ -624,12 +624,35 @@ class InterviewRecordService(
                     "uncertain" in it.confidenceMarkers
                 },
                 recommendedAction = resolveThreadRecommendedAction(sortedThreadSummaries),
+                replayLaunchPreset = buildThreadReplayLaunchPreset(
+                    recordId = rootSummary.deepLink.sourceInterviewRecordId,
+                    threadSummaries = sortedThreadSummaries,
+                ),
                 structuringSources = sortedThreadSummaries
                     .flatMap { listOfNotNull(it.questionStructuringSource, it.answerStructuringSource) }
                     .distinct()
                     .sorted(),
             )
         }
+    }
+
+    private fun buildThreadReplayLaunchPreset(
+        recordId: Long,
+        threadSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
+    ): InterviewRecordReplayLaunchPresetDto {
+        val linkedQuestionIds = threadSummaries.mapNotNull { it.linkedQuestionId }.distinct()
+        return InterviewRecordReplayLaunchPresetDto(
+            sessionType = REVIEW_REPLAY_SESSION_TYPE,
+            sourceInterviewRecordId = recordId,
+            replayMode = REVIEW_REPLAY_MODE_ORIGINAL,
+            recommendedQuestionCount = threadSummaries.size.coerceAtLeast(1),
+            seedQuestionIds = linkedQuestionIds.take(DEFAULT_REPLAY_SEED_COUNT),
+            availableReplayModes = listOf(
+                REVIEW_REPLAY_MODE_ORIGINAL,
+                REVIEW_REPLAY_MODE_PATTERN_SIMILAR,
+                REVIEW_REPLAY_MODE_PRESSURE_VARIANT,
+            ),
+        )
     }
 
     private fun resolveRootQuestionId(

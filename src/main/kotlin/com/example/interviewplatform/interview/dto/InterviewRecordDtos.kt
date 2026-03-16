@@ -219,6 +219,7 @@ data class InterviewRecordReviewFollowUpThreadDto(
     val tradeoffAwareQuestionCount: Int,
     val uncertainQuestionCount: Int,
     val recommendedAction: String,
+    val replayLaunchPreset: InterviewRecordReplayLaunchPresetDto,
     val structuringSources: List<String>,
 )
 

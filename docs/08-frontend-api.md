@@ -284,6 +284,7 @@ Implemented practical interview record foundation:
     - use this for threaded review panels or grouped follow-up badges without reconstructing parent-child chains on the client
     - thread rows now also include answer-quality counters such as `answeredQuestionCount`, `quantifiedQuestionCount`, `structuredQuestionCount`, `tradeoffAwareQuestionCount`, and `uncertainQuestionCount`
     - `recommendedAction` can drive per-thread CTA labels such as `review weak chain` or `replay chain`
+    - `replayLaunchPreset` can drive `replay this chain` actions without building a second preset client-side
 - `PATCH /api/interview-records/{recordId}/review` supports bulk review editing:
   - `edits[]`
   - each edit may update `speakerType`, `cleanedText`, and `confirmedText` for one `segmentId`
