@@ -469,6 +469,13 @@ class InterviewRecordService(
                 ),
                 helpText = buildReviewLaneHelpText(REVIEW_LANE_KEY_TRANSCRIPT),
                 whyItMatters = buildReviewLaneWhyItMatters(REVIEW_LANE_KEY_TRANSCRIPT),
+                accessibilityLabel = buildReviewLaneAccessibilityLabel(REVIEW_LANE_KEY_TRANSCRIPT),
+                screenReaderSummary = buildReviewLaneScreenReaderSummary(
+                    laneLabel = "Transcript",
+                    readiness = transcriptIssueSummary.confirmationReadiness,
+                    needsReviewCount = transcriptIssueSummary.unresolvedIssueCount,
+                    highestPriority = transcriptHighestPriority,
+                ),
                 totalCount = transcriptIssueSummary.segmentActions.size,
                 readyCount = transcriptIssueSummary.resolvedIssueCount,
                 needsReviewCount = transcriptIssueSummary.unresolvedIssueCount,
@@ -549,6 +556,13 @@ class InterviewRecordService(
                 ),
                 helpText = buildReviewLaneHelpText(REVIEW_LANE_KEY_QUESTION),
                 whyItMatters = buildReviewLaneWhyItMatters(REVIEW_LANE_KEY_QUESTION),
+                accessibilityLabel = buildReviewLaneAccessibilityLabel(REVIEW_LANE_KEY_QUESTION),
+                screenReaderSummary = buildReviewLaneScreenReaderSummary(
+                    laneLabel = "Questions",
+                    readiness = if (questionNeedsReviewCount == 0) REVIEW_LANE_READY else REVIEW_LANE_NEEDS_REVIEW,
+                    needsReviewCount = questionNeedsReviewCount,
+                    highestPriority = questionHighestPriority,
+                ),
                 totalCount = questionSummaries.size,
                 readyCount = (questionSummaries.size - questionNeedsReviewCount).coerceAtLeast(0),
                 needsReviewCount = questionNeedsReviewCount,
@@ -620,6 +634,13 @@ class InterviewRecordService(
                 ),
                 helpText = buildReviewLaneHelpText(REVIEW_LANE_KEY_THREAD),
                 whyItMatters = buildReviewLaneWhyItMatters(REVIEW_LANE_KEY_THREAD),
+                accessibilityLabel = buildReviewLaneAccessibilityLabel(REVIEW_LANE_KEY_THREAD),
+                screenReaderSummary = buildReviewLaneScreenReaderSummary(
+                    laneLabel = "Threads",
+                    readiness = if (threadNeedsReviewCount == 0) REVIEW_LANE_READY else REVIEW_LANE_NEEDS_REVIEW,
+                    needsReviewCount = threadNeedsReviewCount,
+                    highestPriority = threadHighestPriority,
+                ),
                 totalCount = followUpThreads.size,
                 readyCount = (followUpThreads.size - threadNeedsReviewCount).coerceAtLeast(0),
                 needsReviewCount = threadNeedsReviewCount,
@@ -895,6 +916,24 @@ class InterviewRecordService(
         REVIEW_LANE_KEY_QUESTION -> "Question and answer review determines what becomes a reliable study asset."
         REVIEW_LANE_KEY_THREAD -> "Thread review shows whether the practical interview had strong probing depth."
         else -> "This lane affects practical interview review quality."
+    }
+
+    private fun buildReviewLaneAccessibilityLabel(laneKey: String): String = when (laneKey) {
+        REVIEW_LANE_KEY_TRANSCRIPT -> "Transcript review lane"
+        REVIEW_LANE_KEY_QUESTION -> "Question review lane"
+        REVIEW_LANE_KEY_THREAD -> "Thread review lane"
+        else -> "Review lane"
+    }
+
+    private fun buildReviewLaneScreenReaderSummary(
+        laneLabel: String,
+        readiness: String,
+        needsReviewCount: Int,
+        highestPriority: String,
+    ): String = when {
+        needsReviewCount > 0 -> "$laneLabel lane needs review for $needsReviewCount items, priority $highestPriority."
+        readiness == REVIEW_LANE_READY -> "$laneLabel lane is ready."
+        else -> "$laneLabel lane is in progress."
     }
 
     private fun buildAnswerQualitySummary(

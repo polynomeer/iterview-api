@@ -2005,6 +2005,8 @@ components:
           additionalProperties: { type: string }
         helpText: { type: string }
         whyItMatters: { type: string }
+        accessibilityLabel: { type: string }
+        screenReaderSummary: { type: string }
         emptyStateCtaAction: { type: string, nullable: true }
         emptyStateCtaLabel: { type: string, nullable: true }
         totalCount: { type: integer }

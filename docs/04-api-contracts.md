@@ -1631,6 +1631,8 @@ Current structured extraction semantics:
       - `trackingContext`
       - `helpText`
       - `whyItMatters`
+      - `accessibilityLabel`
+      - `screenReaderSummary`
       - `emptyStateCtaAction`
       - `emptyStateCtaLabel`
       - `totalCount`

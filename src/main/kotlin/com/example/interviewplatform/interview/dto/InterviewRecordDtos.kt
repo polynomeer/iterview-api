@@ -157,6 +157,8 @@ data class InterviewRecordReviewLaneItemDto(
     val trackingContext: Map<String, String>,
     val helpText: String,
     val whyItMatters: String,
+    val accessibilityLabel: String,
+    val screenReaderSummary: String,
     val totalCount: Int,
     val readyCount: Int,
     val needsReviewCount: Int,
