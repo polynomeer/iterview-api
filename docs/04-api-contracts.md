@@ -1625,6 +1625,8 @@ Current structured extraction semantics:
       - `readyCount`
       - `needsReviewCount`
       - `readiness`
+      - `severity`
+      - `highestPriority`
       - `primaryAction`
       - `primaryActionLabel`
       - `secondaryAction`

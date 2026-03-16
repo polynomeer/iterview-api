@@ -1997,6 +1997,8 @@ components:
         readyCount: { type: integer }
         needsReviewCount: { type: integer }
         readiness: { type: string }
+        severity: { type: string }
+        highestPriority: { type: string }
         primaryAction: { type: string }
         primaryActionLabel: { type: string }
         secondaryAction: { type: string, nullable: true }

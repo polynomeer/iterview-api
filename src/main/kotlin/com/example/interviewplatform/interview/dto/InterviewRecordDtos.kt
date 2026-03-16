@@ -151,6 +151,8 @@ data class InterviewRecordReviewLaneItemDto(
     val readyCount: Int,
     val needsReviewCount: Int,
     val readiness: String,
+    val severity: String,
+    val highestPriority: String,
     val primaryAction: String,
     val primaryActionLabel: String,
     val secondaryAction: String?,

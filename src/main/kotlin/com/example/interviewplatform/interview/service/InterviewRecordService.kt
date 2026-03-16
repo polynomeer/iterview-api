@@ -386,12 +386,41 @@ class InterviewRecordService(
             REVIEW_ACTION_CONFIRM
         }
         val questionPrimaryAction = if (questionNeedsReviewCount == 0) REVIEW_ACTION_CONFIRM else REVIEW_ACTION_REVIEW_ANSWERS
+        val transcriptSeverity = transcriptIssueSummary.segmentActions
+            .map { it.severity }
+            .minByOrNull(::segmentSeverityRank)
+            ?: SEGMENT_SEVERITY_LOW
+        val transcriptHighestPriority = transcriptIssueSummary.segmentActions
+            .map { it.priority }
+            .minByOrNull(::segmentPriorityRank)
+            ?: SEGMENT_PRIORITY_P2
+        val questionSeverity = when {
+            questionSummaries.any { it.hasWeakAnswer } -> SEGMENT_SEVERITY_MEDIUM
+            questionNeedsReviewCount > 0 -> SEGMENT_SEVERITY_LOW
+            else -> SEGMENT_SEVERITY_LOW
+        }
+        val questionHighestPriority = when {
+            questionSummaries.any { it.hasWeakAnswer } -> SEGMENT_PRIORITY_P1
+            questionNeedsReviewCount > 0 -> SEGMENT_PRIORITY_P2
+            else -> SEGMENT_PRIORITY_P2
+        }
+        val threadSeverity = when {
+            threadPrimaryAction == THREAD_ACTION_REVIEW_WEAK_CHAIN -> SEGMENT_SEVERITY_MEDIUM
+            threadPrimaryAction == THREAD_ACTION_REPLAY_CHAIN -> SEGMENT_SEVERITY_LOW
+            else -> SEGMENT_SEVERITY_LOW
+        }
+        val threadHighestPriority = when {
+            threadPrimaryAction == THREAD_ACTION_REVIEW_WEAK_CHAIN -> SEGMENT_PRIORITY_P1
+            else -> SEGMENT_PRIORITY_P2
+        }
         return InterviewRecordReviewLaneSummaryDto(
             transcript = InterviewRecordReviewLaneItemDto(
                 totalCount = transcriptIssueSummary.segmentActions.size,
                 readyCount = transcriptIssueSummary.resolvedIssueCount,
                 needsReviewCount = transcriptIssueSummary.unresolvedIssueCount,
                 readiness = transcriptIssueSummary.confirmationReadiness,
+                severity = transcriptSeverity,
+                highestPriority = transcriptHighestPriority,
                 primaryAction = transcriptPrimaryAction,
                 primaryActionLabel = resolveReviewLaneActionLabel(transcriptPrimaryAction),
                 secondaryAction = if (transcriptIssueSummary.unresolvedIssueCount == 0) REVIEW_ACTION_START_REPLAY else null,
@@ -420,6 +449,8 @@ class InterviewRecordService(
                 readyCount = (questionSummaries.size - questionNeedsReviewCount).coerceAtLeast(0),
                 needsReviewCount = questionNeedsReviewCount,
                 readiness = if (questionNeedsReviewCount == 0) REVIEW_LANE_READY else REVIEW_LANE_NEEDS_REVIEW,
+                severity = questionSeverity,
+                highestPriority = questionHighestPriority,
                 primaryAction = questionPrimaryAction,
                 primaryActionLabel = resolveReviewLaneActionLabel(questionPrimaryAction),
                 secondaryAction = if (questionNeedsReviewCount > 0) REVIEW_ACTION_CONFIRM else null,
@@ -445,6 +476,8 @@ class InterviewRecordService(
                 readyCount = (followUpThreads.size - threadNeedsReviewCount).coerceAtLeast(0),
                 needsReviewCount = threadNeedsReviewCount,
                 readiness = if (threadNeedsReviewCount == 0) REVIEW_LANE_READY else REVIEW_LANE_NEEDS_REVIEW,
+                severity = threadSeverity,
+                highestPriority = threadHighestPriority,
                 primaryAction = threadPrimaryAction,
                 primaryActionLabel = resolveReviewLaneActionLabel(threadPrimaryAction),
                 secondaryAction = if (threadPrimaryAction == THREAD_ACTION_REVIEW_WEAK_CHAIN &&
@@ -624,6 +657,12 @@ class InterviewRecordService(
     private fun segmentPriorityRank(priority: String): Int = when (priority) {
         SEGMENT_PRIORITY_P0 -> 0
         SEGMENT_PRIORITY_P1 -> 1
+        else -> 2
+    }
+
+    private fun segmentSeverityRank(severity: String): Int = when (severity) {
+        SEGMENT_SEVERITY_HIGH -> 0
+        SEGMENT_SEVERITY_MEDIUM -> 1
         else -> 2
     }
 
