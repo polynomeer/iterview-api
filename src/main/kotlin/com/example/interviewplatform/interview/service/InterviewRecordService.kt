@@ -414,6 +414,32 @@ class InterviewRecordService(
         speakerOverrideSegments.forEach { issueTypesBySequence.computeIfAbsent(it.sequence) { linkedSetOf() }.add(SEGMENT_ISSUE_SPEAKER_OVERRIDE) }
         editedSegments.forEach { issueTypesBySequence.computeIfAbsent(it.sequence) { linkedSetOf() }.add(SEGMENT_ISSUE_CONFIRMED_OVERRIDE) }
         val questionsByRootQuestionId = questions.groupBy { resolveQuestionThreadRootId(it, questionById) }
+        val segmentActions = issueTypesBySequence.entries.map { (sequence, issueTypes) ->
+            val linkedQuestionId = questionIdBySequence[sequence]
+            val linkedQuestion = linkedQuestionId?.let(questionById::get)
+            val threadRootQuestionId = linkedQuestion?.let { resolveQuestionThreadRootId(it, questionById) }
+            InterviewRecordTranscriptSegmentActionDto(
+                sequence = sequence,
+                issueTypes = issueTypes.toList(),
+                recommendedAction = when {
+                    SEGMENT_ISSUE_CONFIRMED_OVERRIDE in issueTypes -> SEGMENT_ACTION_REVIEW_NOW
+                    SEGMENT_ISSUE_SPEAKER_OVERRIDE in issueTypes -> SEGMENT_ACTION_JUMP_TO_QUESTION
+                    else -> SEGMENT_ACTION_JUMP_TO_THREAD
+                },
+                severity = resolveSegmentIssueSeverity(issueTypes),
+                priority = resolveSegmentIssuePriority(issueTypes),
+                reviewerLane = resolveSegmentReviewerLane(issueTypes, linkedQuestionId, threadRootQuestionId),
+                linkedQuestionId = linkedQuestionId,
+                threadRootQuestionId = threadRootQuestionId,
+                deepLink = linkedQuestion?.toReviewQuestionDeepLink(recordId),
+                replayLaunchPreset = threadRootQuestionId?.let { rootQuestionId ->
+                    buildThreadReplayLaunchPreset(
+                        recordId = recordId,
+                        threadQuestions = questionsByRootQuestionId[rootQuestionId].orEmpty(),
+                    )
+                },
+            )
+        }
         return InterviewRecordTranscriptIssueSummaryDto(
             lowConfidenceSegmentCount = lowConfidenceSegments.size,
             lowConfidenceSegmentSequences = lowConfidenceSegments.map { it.sequence },
@@ -421,33 +447,18 @@ class InterviewRecordService(
             speakerOverrideSegmentSequences = speakerOverrideSegments.map { it.sequence },
             confirmedTextOverrideCount = editedSegments.size,
             editedSegmentSequences = editedSegments.map { it.sequence },
-            segmentActions = issueTypesBySequence.entries.map { (sequence, issueTypes) ->
-                val linkedQuestionId = questionIdBySequence[sequence]
-                val linkedQuestion = linkedQuestionId?.let(questionById::get)
-                val threadRootQuestionId = linkedQuestion?.let { resolveQuestionThreadRootId(it, questionById) }
-                InterviewRecordTranscriptSegmentActionDto(
-                    sequence = sequence,
-                    issueTypes = issueTypes.toList(),
-                    recommendedAction = when {
-                        SEGMENT_ISSUE_CONFIRMED_OVERRIDE in issueTypes -> SEGMENT_ACTION_REVIEW_NOW
-                        SEGMENT_ISSUE_SPEAKER_OVERRIDE in issueTypes -> SEGMENT_ACTION_JUMP_TO_QUESTION
-                        else -> SEGMENT_ACTION_JUMP_TO_THREAD
-                    },
-                    severity = resolveSegmentIssueSeverity(issueTypes),
-                    priority = resolveSegmentIssuePriority(issueTypes),
-                    reviewerLane = resolveSegmentReviewerLane(issueTypes, linkedQuestionId, threadRootQuestionId),
-                    linkedQuestionId = linkedQuestionId,
-                    threadRootQuestionId = threadRootQuestionId,
-                    deepLink = linkedQuestion?.toReviewQuestionDeepLink(recordId),
-                    replayLaunchPreset = threadRootQuestionId?.let { rootQuestionId ->
-                        buildThreadReplayLaunchPreset(
-                            recordId = recordId,
-                            threadQuestions = questionsByRootQuestionId[rootQuestionId].orEmpty(),
-                        )
-                    },
-                )
-            },
+            reviewerLaneCounts = segmentActions.groupingBy { it.reviewerLane }.eachCount().toSortedMap(),
+            topPrioritySegmentActions = segmentActions
+                .sortedWith(compareBy<InterviewRecordTranscriptSegmentActionDto>({ segmentPriorityRank(it.priority) }, { it.sequence }))
+                .take(MAX_TOP_PRIORITY_SEGMENT_ACTIONS),
+            segmentActions = segmentActions,
         )
+    }
+
+    private fun segmentPriorityRank(priority: String): Int = when (priority) {
+        SEGMENT_PRIORITY_P0 -> 0
+        SEGMENT_PRIORITY_P1 -> 1
+        else -> 2
     }
 
     private fun buildAnswerQualitySummary(
@@ -1642,6 +1653,7 @@ class InterviewRecordService(
         private const val SEGMENT_REVIEWER_LANE_TRANSCRIPT = "transcript_review"
         private const val SEGMENT_REVIEWER_LANE_QUESTION = "question_review"
         private const val SEGMENT_REVIEWER_LANE_THREAD = "thread_review"
+        private const val MAX_TOP_PRIORITY_SEGMENT_ACTIONS = 5
         private const val REVIEW_ACTION_REVIEW_TRANSCRIPT = "review_transcript"
         private const val REVIEW_ACTION_REVIEW_ANSWERS = "review_answers"
         private const val REVIEW_ACTION_CONFIRM = "confirm"

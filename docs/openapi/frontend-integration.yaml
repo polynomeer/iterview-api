@@ -1994,6 +1994,14 @@ components:
         editedSegmentSequences:
           type: array
           items: { type: integer }
+        reviewerLaneCounts:
+          type: object
+          additionalProperties:
+            type: integer
+        topPrioritySegmentActions:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewRecordTranscriptSegmentActionDto"
         segmentActions:
           type: array
           items:

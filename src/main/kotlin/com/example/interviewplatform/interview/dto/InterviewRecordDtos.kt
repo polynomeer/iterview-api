@@ -116,6 +116,8 @@ data class InterviewRecordTranscriptIssueSummaryDto(
     val speakerOverrideSegmentSequences: List<Int>,
     val confirmedTextOverrideCount: Int,
     val editedSegmentSequences: List<Int>,
+    val reviewerLaneCounts: Map<String, Int>,
+    val topPrioritySegmentActions: List<InterviewRecordTranscriptSegmentActionDto>,
     val segmentActions: List<InterviewRecordTranscriptSegmentActionDto>,
 )
 
