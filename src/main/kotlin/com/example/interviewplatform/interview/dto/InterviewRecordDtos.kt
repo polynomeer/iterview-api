@@ -147,6 +147,8 @@ data class InterviewRecordReviewLaneSummaryDto(
 )
 
 data class InterviewRecordReviewLaneItemDto(
+    val sortOrder: Int,
+    val highlightVariant: String,
     val totalCount: Int,
     val readyCount: Int,
     val needsReviewCount: Int,

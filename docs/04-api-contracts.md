@@ -1621,6 +1621,8 @@ Current structured extraction semantics:
       - `question`
       - `thread`
     - each lane item includes:
+      - `sortOrder`
+      - `highlightVariant`
       - `totalCount`
       - `readyCount`
       - `needsReviewCount`

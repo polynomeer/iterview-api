@@ -1993,6 +1993,8 @@ components:
     InterviewRecordReviewLaneItemDto:
       type: object
       properties:
+        sortOrder: { type: integer }
+        highlightVariant: { type: string }
         totalCount: { type: integer }
         readyCount: { type: integer }
         needsReviewCount: { type: integer }

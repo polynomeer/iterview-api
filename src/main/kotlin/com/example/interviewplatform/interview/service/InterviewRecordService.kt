@@ -413,8 +413,40 @@ class InterviewRecordService(
             threadPrimaryAction == THREAD_ACTION_REVIEW_WEAK_CHAIN -> SEGMENT_PRIORITY_P1
             else -> SEGMENT_PRIORITY_P2
         }
+        val transcriptHighlightVariant = when {
+            transcriptIssueSummary.unresolvedIssueCount > 0 -> REVIEW_LANE_HIGHLIGHT_DANGER
+            transcriptIssueSummary.segmentActions.isNotEmpty() -> REVIEW_LANE_HIGHLIGHT_SUCCESS
+            else -> REVIEW_LANE_HIGHLIGHT_NEUTRAL
+        }
+        val questionHighlightVariant = when {
+            questionSummaries.any { it.hasWeakAnswer } -> REVIEW_LANE_HIGHLIGHT_WARNING
+            questionNeedsReviewCount > 0 -> REVIEW_LANE_HIGHLIGHT_NEUTRAL
+            questionSummaries.isNotEmpty() -> REVIEW_LANE_HIGHLIGHT_SUCCESS
+            else -> REVIEW_LANE_HIGHLIGHT_NEUTRAL
+        }
+        val threadHighlightVariant = when {
+            threadPrimaryAction == THREAD_ACTION_REVIEW_WEAK_CHAIN -> REVIEW_LANE_HIGHLIGHT_WARNING
+            followUpThreads.isNotEmpty() && threadNeedsReviewCount == 0 -> REVIEW_LANE_HIGHLIGHT_SUCCESS
+            else -> REVIEW_LANE_HIGHLIGHT_NEUTRAL
+        }
+        val laneSortTriples = listOf(
+            Triple(REVIEW_LANE_KEY_TRANSCRIPT, transcriptSeverity, transcriptHighestPriority),
+            Triple(REVIEW_LANE_KEY_QUESTION, questionSeverity, questionHighestPriority),
+            Triple(REVIEW_LANE_KEY_THREAD, threadSeverity, threadHighestPriority),
+        ).sortedWith(
+            compareBy<Triple<String, String, String>>(
+                { segmentSeverityRank(it.second) },
+                { segmentPriorityRank(it.third) },
+                { reviewLaneTieBreakRank(it.first) },
+            ),
+        )
+        val laneSortOrderByKey = laneSortTriples
+            .mapIndexed { index, triple -> triple.first to (index + 1) }
+            .toMap()
         return InterviewRecordReviewLaneSummaryDto(
             transcript = InterviewRecordReviewLaneItemDto(
+                sortOrder = laneSortOrderByKey.getValue(REVIEW_LANE_KEY_TRANSCRIPT),
+                highlightVariant = transcriptHighlightVariant,
                 totalCount = transcriptIssueSummary.segmentActions.size,
                 readyCount = transcriptIssueSummary.resolvedIssueCount,
                 needsReviewCount = transcriptIssueSummary.unresolvedIssueCount,
@@ -445,6 +477,8 @@ class InterviewRecordService(
                 blockingReasons = transcriptBlockingReasons.distinct(),
             ),
             question = InterviewRecordReviewLaneItemDto(
+                sortOrder = laneSortOrderByKey.getValue(REVIEW_LANE_KEY_QUESTION),
+                highlightVariant = questionHighlightVariant,
                 totalCount = questionSummaries.size,
                 readyCount = (questionSummaries.size - questionNeedsReviewCount).coerceAtLeast(0),
                 needsReviewCount = questionNeedsReviewCount,
@@ -472,6 +506,8 @@ class InterviewRecordService(
                 blockingReasons = questionBlockingReasons.distinct(),
             ),
             thread = InterviewRecordReviewLaneItemDto(
+                sortOrder = laneSortOrderByKey.getValue(REVIEW_LANE_KEY_THREAD),
+                highlightVariant = threadHighlightVariant,
                 totalCount = followUpThreads.size,
                 readyCount = (followUpThreads.size - threadNeedsReviewCount).coerceAtLeast(0),
                 needsReviewCount = threadNeedsReviewCount,
@@ -663,6 +699,12 @@ class InterviewRecordService(
     private fun segmentSeverityRank(severity: String): Int = when (severity) {
         SEGMENT_SEVERITY_HIGH -> 0
         SEGMENT_SEVERITY_MEDIUM -> 1
+        else -> 2
+    }
+
+    private fun reviewLaneTieBreakRank(laneKey: String): Int = when (laneKey) {
+        REVIEW_LANE_KEY_TRANSCRIPT -> 0
+        REVIEW_LANE_KEY_QUESTION -> 1
         else -> 2
     }
 
@@ -1878,6 +1920,13 @@ class InterviewRecordService(
         private const val TRANSCRIPT_CONFIRMATION_NEEDS_REVIEW = "needs_review"
         private const val REVIEW_LANE_READY = "ready"
         private const val REVIEW_LANE_NEEDS_REVIEW = "needs_review"
+        private const val REVIEW_LANE_KEY_TRANSCRIPT = "transcript"
+        private const val REVIEW_LANE_KEY_QUESTION = "question"
+        private const val REVIEW_LANE_KEY_THREAD = "thread"
+        private const val REVIEW_LANE_HIGHLIGHT_DANGER = "danger"
+        private const val REVIEW_LANE_HIGHLIGHT_WARNING = "warning"
+        private const val REVIEW_LANE_HIGHLIGHT_NEUTRAL = "neutral"
+        private const val REVIEW_LANE_HIGHLIGHT_SUCCESS = "success"
         private const val REVIEW_ACTION_REVIEW_TRANSCRIPT = "review_transcript"
         private const val REVIEW_ACTION_REVIEW_ANSWERS = "review_answers"
         private const val REVIEW_ACTION_CONFIRM = "confirm"
