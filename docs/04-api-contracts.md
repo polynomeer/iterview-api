@@ -1629,6 +1629,8 @@ Current structured extraction semantics:
       - `primaryActionLabel`
       - `secondaryAction`
       - `secondaryActionLabel`
+      - `emptyStateMessage`
+      - `completionMessage`
       - `blockingReasons[]`
   - `transcriptIssueSummary`
     - additive aggregate for review-priority panels

@@ -108,6 +108,8 @@ class OpenApiIntegrationTest {
             .andExpect(jsonPath("$.components.schemas.InterviewRecordReviewLaneItemDto.properties.primaryActionLabel").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewRecordReviewLaneItemDto.properties.secondaryAction").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewRecordReviewLaneItemDto.properties.secondaryActionLabel").exists())
+            .andExpect(jsonPath("$.components.schemas.InterviewRecordReviewLaneItemDto.properties.emptyStateMessage").exists())
+            .andExpect(jsonPath("$.components.schemas.InterviewRecordReviewLaneItemDto.properties.completionMessage").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewRecordReviewLaneItemDto.properties.blockingReasons").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewRecordTranscriptIssueSummaryDto").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewRecordTranscriptIssueSummaryDto.properties.resolvedIssueCount").exists())

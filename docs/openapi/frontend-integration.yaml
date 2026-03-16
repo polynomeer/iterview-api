@@ -2001,6 +2001,8 @@ components:
         primaryActionLabel: { type: string }
         secondaryAction: { type: string, nullable: true }
         secondaryActionLabel: { type: string, nullable: true }
+        emptyStateMessage: { type: string, nullable: true }
+        completionMessage: { type: string, nullable: true }
         blockingReasons:
           type: array
           items: { type: string }

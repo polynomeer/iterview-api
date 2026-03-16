@@ -400,6 +400,19 @@ class InterviewRecordService(
                 } else {
                     null
                 },
+                emptyStateMessage = if (transcriptIssueSummary.segmentActions.isEmpty()) {
+                    "No transcript issues detected."
+                } else {
+                    null
+                },
+                completionMessage = if (
+                    transcriptIssueSummary.segmentActions.isNotEmpty() &&
+                    transcriptIssueSummary.unresolvedIssueCount == 0
+                ) {
+                    "Transcript review is ready."
+                } else {
+                    null
+                },
                 blockingReasons = transcriptBlockingReasons.distinct(),
             ),
             question = InterviewRecordReviewLaneItemDto(
@@ -412,6 +425,16 @@ class InterviewRecordService(
                 secondaryAction = if (questionNeedsReviewCount > 0) REVIEW_ACTION_CONFIRM else null,
                 secondaryActionLabel = if (questionNeedsReviewCount > 0) {
                     resolveReviewLaneActionLabel(REVIEW_ACTION_CONFIRM)
+                } else {
+                    null
+                },
+                emptyStateMessage = if (questionSummaries.isEmpty()) {
+                    "No structured interview questions found."
+                } else {
+                    null
+                },
+                completionMessage = if (questionSummaries.isNotEmpty() && questionNeedsReviewCount == 0) {
+                    "Question review is complete."
                 } else {
                     null
                 },
@@ -435,6 +458,16 @@ class InterviewRecordService(
                     followUpThreads.any { it.recommendedAction == THREAD_ACTION_REPLAY_CHAIN || it.replayLaunchPreset.seedQuestionIds.isNotEmpty() }
                 ) {
                     resolveReviewLaneActionLabel(THREAD_ACTION_REPLAY_CHAIN)
+                } else {
+                    null
+                },
+                emptyStateMessage = if (followUpThreads.isEmpty()) {
+                    "No follow-up threads available yet."
+                } else {
+                    null
+                },
+                completionMessage = if (followUpThreads.isNotEmpty() && threadNeedsReviewCount == 0) {
+                    "Thread review is stable."
                 } else {
                     null
                 },
