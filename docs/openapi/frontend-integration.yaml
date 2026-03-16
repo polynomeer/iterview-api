@@ -1879,6 +1879,8 @@ components:
           $ref: "#/components/schemas/InterviewRecordReviewQuestionOriginSummaryDto"
         replayReadiness:
           $ref: "#/components/schemas/InterviewRecordReplayReadinessDto"
+        reviewLaneSummary:
+          $ref: "#/components/schemas/InterviewRecordReviewLaneSummaryDto"
         transcriptIssueSummary:
           $ref: "#/components/schemas/InterviewRecordTranscriptIssueSummaryDto"
         answerQualitySummary:
@@ -1979,6 +1981,22 @@ components:
         blockers:
           type: array
           items: { type: string }
+    InterviewRecordReviewLaneSummaryDto:
+      type: object
+      properties:
+        transcript:
+          $ref: "#/components/schemas/InterviewRecordReviewLaneItemDto"
+        question:
+          $ref: "#/components/schemas/InterviewRecordReviewLaneItemDto"
+        thread:
+          $ref: "#/components/schemas/InterviewRecordReviewLaneItemDto"
+    InterviewRecordReviewLaneItemDto:
+      type: object
+      properties:
+        totalCount: { type: integer }
+        readyCount: { type: integer }
+        needsReviewCount: { type: integer }
+        readiness: { type: string }
     InterviewRecordTranscriptIssueSummaryDto:
       type: object
       properties:

@@ -68,6 +68,7 @@ data class InterviewRecordReviewDto(
     val questionOriginSummary: InterviewRecordReviewQuestionOriginSummaryDto,
     val replayReadiness: InterviewRecordReplayReadinessDto,
     val transcriptIssueSummary: InterviewRecordTranscriptIssueSummaryDto,
+    val reviewLaneSummary: InterviewRecordReviewLaneSummaryDto,
     val answerQualitySummary: InterviewRecordAnswerQualitySummaryDto,
     val timelineNavigation: InterviewRecordTimelineNavigationDto,
     val actionRecommendations: InterviewRecordReviewActionRecommendationsDto,
@@ -137,6 +138,19 @@ data class InterviewRecordTranscriptSegmentActionDto(
     val threadRootQuestionId: Long?,
     val deepLink: InterviewRecordReviewQuestionDeepLinkDto?,
     val replayLaunchPreset: InterviewRecordReplayLaunchPresetDto?,
+)
+
+data class InterviewRecordReviewLaneSummaryDto(
+    val transcript: InterviewRecordReviewLaneItemDto,
+    val question: InterviewRecordReviewLaneItemDto,
+    val thread: InterviewRecordReviewLaneItemDto,
+)
+
+data class InterviewRecordReviewLaneItemDto(
+    val totalCount: Int,
+    val readyCount: Int,
+    val needsReviewCount: Int,
+    val readiness: String,
 )
 
 data class InterviewRecordAnswerQualitySummaryDto(

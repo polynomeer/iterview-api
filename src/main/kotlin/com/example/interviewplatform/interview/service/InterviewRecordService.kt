@@ -9,6 +9,8 @@ import com.example.interviewplatform.interview.dto.InterviewRecordReviewFollowUp
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionDeepLinkDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionDistributionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionFilterSummaryDto
+import com.example.interviewplatform.interview.dto.InterviewRecordReviewLaneItemDto
+import com.example.interviewplatform.interview.dto.InterviewRecordReviewLaneSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionOriginSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReplayReadinessDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptSegmentActionDto
@@ -281,6 +283,15 @@ class InterviewRecordService(
             )
         }
         val replayReadiness = buildReplayReadiness(questionSummaries, interviewerProfile != null)
+        val transcriptIssueSummary = buildTranscriptIssueSummary(
+            recordId = record.id,
+            segments = segments,
+            questions = questions,
+            answers = answers,
+            segmentSequenceById = segmentSequenceById,
+            questionById = questionById,
+        )
+        val followUpThreads = buildReviewFollowUpThreads(questionSummaries)
         return InterviewRecordReviewDto(
             interviewRecordId = record.id,
             structuringStage = record.structuringStage,
@@ -302,13 +313,11 @@ class InterviewRecordService(
             questionDistributionSummary = buildReviewQuestionDistributionSummary(questionSummaries),
             questionOriginSummary = buildReviewQuestionOriginSummary(questionSummaries),
             replayReadiness = replayReadiness,
-            transcriptIssueSummary = buildTranscriptIssueSummary(
-                recordId = record.id,
-                segments = segments,
-                questions = questions,
-                answers = answers,
-                segmentSequenceById = segmentSequenceById,
-                questionById = questionById,
+            transcriptIssueSummary = transcriptIssueSummary,
+            reviewLaneSummary = buildReviewLaneSummary(
+                transcriptIssueSummary = transcriptIssueSummary,
+                questionSummaries = questionSummaries,
+                followUpThreads = followUpThreads,
             ),
             answerQualitySummary = buildAnswerQualitySummary(answers),
             timelineNavigation = buildTimelineNavigation(questions, answerByQuestionId, segmentSequenceById),
@@ -326,7 +335,40 @@ class InterviewRecordService(
                 interviewerProfileSource = interviewerProfile?.structuringSource,
             ),
             questionSummaries = questionSummaries,
-            followUpThreads = buildReviewFollowUpThreads(questionSummaries),
+            followUpThreads = followUpThreads,
+        )
+    }
+
+    private fun buildReviewLaneSummary(
+        transcriptIssueSummary: InterviewRecordTranscriptIssueSummaryDto,
+        questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
+        followUpThreads: List<InterviewRecordReviewFollowUpThreadDto>,
+    ): InterviewRecordReviewLaneSummaryDto {
+        val questionNeedsReviewCount = questionSummaries.count {
+            it.hasWeakAnswer ||
+                it.questionStructuringSource != STRUCTURING_STAGE_CONFIRMED ||
+                (it.answerStructuringSource != null && it.answerStructuringSource != STRUCTURING_STAGE_CONFIRMED)
+        }
+        val threadNeedsReviewCount = followUpThreads.count { it.recommendedAction != THREAD_ACTION_STABLE_CHAIN }
+        return InterviewRecordReviewLaneSummaryDto(
+            transcript = InterviewRecordReviewLaneItemDto(
+                totalCount = transcriptIssueSummary.segmentActions.size,
+                readyCount = transcriptIssueSummary.resolvedIssueCount,
+                needsReviewCount = transcriptIssueSummary.unresolvedIssueCount,
+                readiness = transcriptIssueSummary.confirmationReadiness,
+            ),
+            question = InterviewRecordReviewLaneItemDto(
+                totalCount = questionSummaries.size,
+                readyCount = (questionSummaries.size - questionNeedsReviewCount).coerceAtLeast(0),
+                needsReviewCount = questionNeedsReviewCount,
+                readiness = if (questionNeedsReviewCount == 0) REVIEW_LANE_READY else REVIEW_LANE_NEEDS_REVIEW,
+            ),
+            thread = InterviewRecordReviewLaneItemDto(
+                totalCount = followUpThreads.size,
+                readyCount = (followUpThreads.size - threadNeedsReviewCount).coerceAtLeast(0),
+                needsReviewCount = threadNeedsReviewCount,
+                readiness = if (threadNeedsReviewCount == 0) REVIEW_LANE_READY else REVIEW_LANE_NEEDS_REVIEW,
+            ),
         )
     }
 
@@ -1680,6 +1722,8 @@ class InterviewRecordService(
         private const val MAX_TOP_PRIORITY_SEGMENT_ACTIONS = 5
         private const val TRANSCRIPT_CONFIRMATION_READY = "ready"
         private const val TRANSCRIPT_CONFIRMATION_NEEDS_REVIEW = "needs_review"
+        private const val REVIEW_LANE_READY = "ready"
+        private const val REVIEW_LANE_NEEDS_REVIEW = "needs_review"
         private const val REVIEW_ACTION_REVIEW_TRANSCRIPT = "review_transcript"
         private const val REVIEW_ACTION_REVIEW_ANSWERS = "review_answers"
         private const val REVIEW_ACTION_CONFIRM = "confirm"

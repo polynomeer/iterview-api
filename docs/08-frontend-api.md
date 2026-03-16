@@ -262,6 +262,8 @@ Implemented practical interview record foundation:
     - use this for source-group tabs or badges such as `Resume-linked`, `JD-linked`, `Hybrid`, `General`
   - `replayReadiness`
     - use this for practical interview replay CTA state and empty-state messaging without recomputing readiness on the client
+  - `reviewLaneSummary`
+    - use this for top-level transcript/question/thread dashboard cards without recomputing lane progress on the client
   - `transcriptIssueSummary`
     - use this for transcript review priority panels such as `edited`, `speaker override`, or `low confidence`
     - `segmentActions[]` is additive quick-action metadata for jumping from a flagged transcript row into the related question or follow-up thread without rebuilding anchors on the client

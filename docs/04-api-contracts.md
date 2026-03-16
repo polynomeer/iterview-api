@@ -1614,6 +1614,17 @@ Current structured extraction semantics:
       - `hasInterviewerProfile`
       - `recommendedReplayMode`
       - `blockers[]`
+  - `reviewLaneSummary`
+    - additive dashboard aggregate for transcript/question/thread review lanes
+    - includes:
+      - `transcript`
+      - `question`
+      - `thread`
+    - each lane item includes:
+      - `totalCount`
+      - `readyCount`
+      - `needsReviewCount`
+      - `readiness`
   - `transcriptIssueSummary`
     - additive aggregate for review-priority panels
     - includes:
