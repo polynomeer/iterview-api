@@ -279,6 +279,7 @@ Implemented practical interview record foundation:
     - use this for transcript viewer, question table, and follow-up thread panel cross-navigation without recomputing anchors on the client
   - `actionRecommendations`
     - use this for primary CTA selection and disabled-state messaging in practical interview review
+    - `primaryActionLabel`, `primaryActionTarget`, `primaryActionTargetPayload`, `availableActionTargets`, and `availableActionTargetPayloads` are additive and let the review header CTA reuse the same route/panel/filter semantics as lane cards
   - `replayLaunchPreset`
     - use this to prefill the replay-start modal or direct `POST /api/interview-sessions` call for `replay_mock`
   - `provenanceComparisonSummary`

@@ -2137,9 +2137,22 @@ components:
       type: object
       properties:
         primaryAction: { type: string }
+        primaryActionLabel: { type: string }
+        primaryActionTarget: { type: string }
+        primaryActionTargetPayload:
+          type: object
+          additionalProperties: { type: string }
         availableActions:
           type: array
           items: { type: string }
+        availableActionTargets:
+          type: object
+          additionalProperties: { type: string }
+        availableActionTargetPayloads:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: { type: string }
         blockingReasons:
           type: array
           items: { type: string }

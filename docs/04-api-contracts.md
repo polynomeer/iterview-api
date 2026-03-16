@@ -1711,7 +1711,12 @@ Current structured extraction semantics:
     - additive CTA guidance for review UIs
     - includes:
       - `primaryAction`
+      - `primaryActionLabel`
+      - `primaryActionTarget`
+      - `primaryActionTargetPayload`
       - `availableActions[]`
+      - `availableActionTargets`
+      - `availableActionTargetPayloads`
       - `blockingReasons[]`
       - `canConfirm`
       - `canReplay`

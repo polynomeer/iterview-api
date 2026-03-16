@@ -901,6 +901,17 @@ class InterviewRecordService(
         else -> "$laneKey:overview"
     }
 
+    private fun resolveGlobalActionTarget(action: String): String = when (action) {
+        REVIEW_ACTION_REVIEW_TRANSCRIPT -> resolveReviewLaneActionTarget(REVIEW_LANE_KEY_TRANSCRIPT, action)
+        REVIEW_ACTION_REVIEW_ANSWERS -> resolveReviewLaneActionTarget(REVIEW_LANE_KEY_QUESTION, action)
+        REVIEW_ACTION_CONFIRM -> "review:confirm"
+        REVIEW_ACTION_START_REPLAY -> "review:replay"
+        THREAD_ACTION_REVIEW_WEAK_CHAIN,
+        THREAD_ACTION_REPLAY_CHAIN,
+        THREAD_ACTION_STABLE_CHAIN -> resolveReviewLaneActionTarget(REVIEW_LANE_KEY_THREAD, action)
+        else -> "review:overview"
+    }
+
     private fun resolveReviewLaneActionTargetPayload(
         laneKey: String,
         action: String,
@@ -940,6 +951,17 @@ class InterviewRecordService(
             "filter" to "stable",
             "focus" to "thread_overview",
         )
+        else -> mapOf("tab" to REVIEW_LANE_TAB_OVERVIEW)
+    }
+
+    private fun resolveGlobalActionTargetPayload(action: String): Map<String, String> = when (action) {
+        REVIEW_ACTION_REVIEW_TRANSCRIPT -> resolveReviewLaneActionTargetPayload(REVIEW_LANE_KEY_TRANSCRIPT, action)
+        REVIEW_ACTION_REVIEW_ANSWERS -> resolveReviewLaneActionTargetPayload(REVIEW_LANE_KEY_QUESTION, action)
+        REVIEW_ACTION_CONFIRM -> resolveReviewLaneActionTargetPayload(REVIEW_LANE_KEY_QUESTION, action)
+        REVIEW_ACTION_START_REPLAY -> resolveReviewLaneActionTargetPayload(REVIEW_LANE_KEY_TRANSCRIPT, action)
+        THREAD_ACTION_REVIEW_WEAK_CHAIN,
+        THREAD_ACTION_REPLAY_CHAIN,
+        THREAD_ACTION_STABLE_CHAIN -> resolveReviewLaneActionTargetPayload(REVIEW_LANE_KEY_THREAD, action)
         else -> mapOf("tab" to REVIEW_LANE_TAB_OVERVIEW)
     }
 
@@ -1254,9 +1276,15 @@ class InterviewRecordService(
             weakAnswerCount > 0 -> REVIEW_ACTION_REVIEW_ANSWERS
             else -> availableActions.first()
         }
+        val distinctAvailableActions = availableActions.distinct()
         return InterviewRecordReviewActionRecommendationsDto(
             primaryAction = primaryAction,
-            availableActions = availableActions.distinct(),
+            primaryActionLabel = resolveReviewLaneActionLabel(primaryAction),
+            primaryActionTarget = resolveGlobalActionTarget(primaryAction),
+            primaryActionTargetPayload = resolveGlobalActionTargetPayload(primaryAction),
+            availableActions = distinctAvailableActions,
+            availableActionTargets = distinctAvailableActions.associateWith(::resolveGlobalActionTarget),
+            availableActionTargetPayloads = distinctAvailableActions.associateWith(::resolveGlobalActionTargetPayload),
             blockingReasons = blockingReasons.distinct(),
             canConfirm = editedSegmentCount == 0 && recordStructuringStage != STRUCTURING_STAGE_CONFIRMED,
             canReplay = replayReadiness.ready,

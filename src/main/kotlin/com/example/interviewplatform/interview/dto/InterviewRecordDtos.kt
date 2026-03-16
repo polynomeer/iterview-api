@@ -214,7 +214,12 @@ data class InterviewRecordTimelineNavigationItemDto(
 
 data class InterviewRecordReviewActionRecommendationsDto(
     val primaryAction: String,
+    val primaryActionLabel: String,
+    val primaryActionTarget: String,
+    val primaryActionTargetPayload: Map<String, String>,
     val availableActions: List<String>,
+    val availableActionTargets: Map<String, String>,
+    val availableActionTargetPayloads: Map<String, Map<String, String>>,
     val blockingReasons: List<String>,
     val canConfirm: Boolean,
     val canReplay: Boolean,
