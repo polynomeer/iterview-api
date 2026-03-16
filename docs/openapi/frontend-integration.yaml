@@ -1875,6 +1875,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/InterviewRecordReviewQuestionSummaryDto"
+        followUpThreads:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewRecordReviewFollowUpThreadDto"
     InterviewRecordReviewQuestionSummaryDto:
       type: object
       properties:
@@ -1895,6 +1899,27 @@ components:
           items: { type: string }
         questionStructuringSource: { type: string }
         answerStructuringSource: { type: string, nullable: true }
+    InterviewRecordReviewFollowUpThreadDto:
+      type: object
+      properties:
+        rootQuestionId: { type: integer, format: int64 }
+        rootLinkedQuestionId: { type: integer, format: int64, nullable: true }
+        rootOrderIndex: { type: integer }
+        rootText: { type: string }
+        questionIds:
+          type: array
+          items: { type: integer, format: int64 }
+        linkedQuestionIds:
+          type: array
+          items: { type: integer, format: int64 }
+        followUpQuestionIds:
+          type: array
+          items: { type: integer, format: int64 }
+        followUpCount: { type: integer }
+        weakQuestionCount: { type: integer }
+        structuringSources:
+          type: array
+          items: { type: string }
     InterviewTranscriptSegmentDto:
       type: object
       properties:

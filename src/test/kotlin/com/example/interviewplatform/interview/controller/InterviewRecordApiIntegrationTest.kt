@@ -172,6 +172,10 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.questionSummaries[1].isFollowUp").value(true))
             .andExpect(jsonPath("$.questionSummaries[1].hasWeakAnswer").value(true))
             .andExpect(jsonPath("$.questionSummaries[1].weaknessTags[0]").exists())
+            .andExpect(jsonPath("$.followUpThreads.length()").value(1))
+            .andExpect(jsonPath("$.followUpThreads[0].questionIds.length()").value(2))
+            .andExpect(jsonPath("$.followUpThreads[0].followUpCount").value(1))
+            .andExpect(jsonPath("$.followUpThreads[0].weakQuestionCount").value(2))
 
         mockMvc.perform(
             org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/interview-records/$recordId/confirm")
@@ -354,6 +358,7 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.changedQuestionCount").value(2))
             .andExpect(jsonPath("$.questionSourceCounts.confirmed").value(2))
             .andExpect(jsonPath("$.questionSummaries[1].answerSummary").value(org.hamcrest.Matchers.containsString("25 percent")))
+            .andExpect(jsonPath("$.followUpThreads[0].structuringSources[0]").value("confirmed"))
 
         mockMvc.perform(get("/api/interview-records/$recordId/questions").header("Authorization", authHeader))
             .andExpect(status().isOk)

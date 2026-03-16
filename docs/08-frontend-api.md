@@ -256,6 +256,8 @@ Implemented practical interview record foundation:
   - `interviewerProfileSource`
   - `questionSummaries[]`
     - use this for practical interview question review tables instead of recomputing follow-up/weak/confirmed state on the client
+  - `followUpThreads[]`
+    - use this for threaded review panels or grouped follow-up badges without reconstructing parent-child chains on the client
 - `PATCH /api/interview-records/{recordId}/review` supports bulk review editing:
   - `edits[]`
   - each edit may update `speakerType`, `cleanedText`, and `confirmedText` for one `segmentId`

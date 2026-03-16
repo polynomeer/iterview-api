@@ -5,6 +5,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordAnalysisDto
 import com.example.interviewplatform.interview.dto.InterviewRecordDetailDto
 import com.example.interviewplatform.interview.dto.InterviewRecordListItemDto
 import com.example.interviewplatform.interview.dto.InterviewRecordQuestionsResponseDto
+import com.example.interviewplatform.interview.dto.InterviewRecordReviewFollowUpThreadDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptDto
@@ -228,6 +229,26 @@ class InterviewRecordService(
         }
         val answerByQuestionId = answers.associateBy { it.interviewRecordQuestionId }
         val interviewerProfile = interviewerProfileRepository.findBySourceInterviewRecordId(recordId)
+        val questionSummaries = questions.map { question ->
+            val answer = answerByQuestionId[question.id]
+            val weaknessTags = answer?.let { decodeStringList(it.weaknessTagsJson) }.orEmpty()
+            val strengthTags = answer?.let { decodeStringList(it.strengthTagsJson) }.orEmpty()
+            InterviewRecordReviewQuestionSummaryDto(
+                questionId = question.id,
+                linkedQuestionId = question.linkedQuestionId,
+                orderIndex = question.orderIndex,
+                text = question.text,
+                questionType = question.questionType,
+                isFollowUp = question.parentQuestionId != null,
+                parentQuestionId = question.parentQuestionId,
+                hasWeakAnswer = weaknessTags.isNotEmpty(),
+                answerSummary = answer?.summary,
+                weaknessTags = weaknessTags,
+                strengthTags = strengthTags,
+                questionStructuringSource = question.structuringSource,
+                answerStructuringSource = answer?.structuringSource,
+            )
+        }
         return InterviewRecordReviewDto(
             interviewRecordId = record.id,
             structuringStage = record.structuringStage,
@@ -245,27 +266,58 @@ class InterviewRecordService(
             questionSourceCounts = questions.groupingBy { it.structuringSource }.eachCount().toSortedMap(),
             answerSourceCounts = answers.groupingBy { it.structuringSource }.eachCount().toSortedMap(),
             interviewerProfileSource = interviewerProfile?.structuringSource,
-            questionSummaries = questions.map { question ->
-                val answer = answerByQuestionId[question.id]
-                val weaknessTags = answer?.let { decodeStringList(it.weaknessTagsJson) }.orEmpty()
-                val strengthTags = answer?.let { decodeStringList(it.strengthTagsJson) }.orEmpty()
-                InterviewRecordReviewQuestionSummaryDto(
-                    questionId = question.id,
-                    linkedQuestionId = question.linkedQuestionId,
-                    orderIndex = question.orderIndex,
-                    text = question.text,
-                    questionType = question.questionType,
-                    isFollowUp = question.parentQuestionId != null,
-                    parentQuestionId = question.parentQuestionId,
-                    hasWeakAnswer = weaknessTags.isNotEmpty(),
-                    answerSummary = answer?.summary,
-                    weaknessTags = weaknessTags,
-                    strengthTags = strengthTags,
-                    questionStructuringSource = question.structuringSource,
-                    answerStructuringSource = answer?.structuringSource,
-                )
-            },
+            questionSummaries = questionSummaries,
+            followUpThreads = buildReviewFollowUpThreads(questionSummaries),
         )
+    }
+
+    private fun buildReviewFollowUpThreads(
+        questionSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
+    ): List<InterviewRecordReviewFollowUpThreadDto> {
+        if (questionSummaries.isEmpty()) {
+            return emptyList()
+        }
+        val summaryByQuestionId = questionSummaries.associateBy { it.questionId }
+        val summariesByRootId = linkedMapOf<Long, MutableList<InterviewRecordReviewQuestionSummaryDto>>()
+        questionSummaries.forEach { summary ->
+            val rootQuestionId = resolveRootQuestionId(summary, summaryByQuestionId)
+            summariesByRootId.computeIfAbsent(rootQuestionId) { mutableListOf() }.add(summary)
+        }
+        return summariesByRootId.values.map { threadSummaries ->
+            val sortedThreadSummaries = threadSummaries.sortedBy { it.orderIndex }
+            val rootSummary = sortedThreadSummaries.first()
+            InterviewRecordReviewFollowUpThreadDto(
+                rootQuestionId = rootSummary.questionId,
+                rootLinkedQuestionId = rootSummary.linkedQuestionId,
+                rootOrderIndex = rootSummary.orderIndex,
+                rootText = rootSummary.text,
+                questionIds = sortedThreadSummaries.map { it.questionId },
+                linkedQuestionIds = sortedThreadSummaries.mapNotNull { it.linkedQuestionId }.distinct(),
+                followUpQuestionIds = sortedThreadSummaries.filter { it.isFollowUp }.map { it.questionId },
+                followUpCount = sortedThreadSummaries.count { it.isFollowUp },
+                weakQuestionCount = sortedThreadSummaries.count { it.hasWeakAnswer },
+                structuringSources = sortedThreadSummaries
+                    .flatMap { listOfNotNull(it.questionStructuringSource, it.answerStructuringSource) }
+                    .distinct()
+                    .sorted(),
+            )
+        }
+    }
+
+    private fun resolveRootQuestionId(
+        summary: InterviewRecordReviewQuestionSummaryDto,
+        summaryByQuestionId: Map<Long, InterviewRecordReviewQuestionSummaryDto>,
+    ): Long {
+        var current = summary
+        val visited = linkedSetOf(current.questionId)
+        while (current.parentQuestionId != null) {
+            val parent = summaryByQuestionId[current.parentQuestionId] ?: break
+            if (!visited.add(parent.questionId)) {
+                break
+            }
+            current = parent
+        }
+        return current.questionId
     }
 
     @Transactional

@@ -1596,6 +1596,19 @@ Current structured extraction semantics:
     - `strengthTags`
     - `questionStructuringSource`
     - `answerStructuringSource`
+  - `followUpThreads[]`
+    - additive thread/group summary for practical interview review UIs
+    - each item includes:
+      - `rootQuestionId`
+      - `rootLinkedQuestionId`
+      - `rootOrderIndex`
+      - `rootText`
+      - `questionIds[]`
+      - `linkedQuestionIds[]`
+      - `followUpQuestionIds[]`
+      - `followUpCount`
+      - `weakQuestionCount`
+      - `structuringSources[]`
 - `PATCH /api/interview-records/{recordId}/review` applies bulk transcript review edits:
   - request body:
     - `edits[]`
