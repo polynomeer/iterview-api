@@ -327,6 +327,24 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/QuestionReferenceAnswerDto"
+    post:
+      tags: [Questions]
+      summary: Add a user reference answer for a question
+      parameters:
+        - $ref: "#/components/parameters/QuestionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQuestionReferenceAnswerRequest"
+      responses:
+        "200":
+          description: Created question reference answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionReferenceAnswerDto"
   /api/questions/{questionId}/learning-materials:
     get:
       tags: [Questions]
@@ -343,6 +361,24 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/LearningMaterialDto"
+    post:
+      tags: [Questions]
+      summary: Add a user learning material for a question
+      parameters:
+        - $ref: "#/components/parameters/QuestionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQuestionLearningMaterialRequest"
+      responses:
+        "200":
+          description: Created question learning material
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningMaterialDto"
   /api/questions/{questionId}/tree:
     get:
       tags: [Questions]
@@ -1328,10 +1364,20 @@ components:
         answerText: { type: string }
         answerFormat: { type: string }
         sourceType: { type: string }
+        sourceLabel: { type: string }
+        contentLocale: { type: string, nullable: true }
+        isUserGenerated: { type: boolean }
         targetRoleId: { type: integer, format: int64, nullable: true }
         companyId: { type: integer, format: int64, nullable: true }
         isOfficial: { type: boolean }
         displayOrder: { type: integer }
+    CreateQuestionReferenceAnswerRequest:
+      type: object
+      required: [title, answerText]
+      properties:
+        title: { type: string }
+        answerText: { type: string }
+        answerFormat: { type: string }
     SubmitAnswerRequest:
       type: object
       required: [answerMode, contentText]
@@ -2514,14 +2560,33 @@ components:
         id: { type: integer, format: int64 }
         title: { type: string }
         materialType: { type: string }
+        sourceType: { type: string }
+        sourceLabel: { type: string }
+        description: { type: string, nullable: true }
+        contentText: { type: string, nullable: true }
+        contentUrl: { type: string, nullable: true }
+        sourceName: { type: string, nullable: true }
+        contentLocale: { type: string, nullable: true }
+        isUserGenerated: { type: boolean }
+        difficultyLevel: { type: string, nullable: true }
+        estimatedMinutes: { type: integer, nullable: true }
+        isOfficial: { type: boolean }
+        displayOrder: { type: integer, nullable: true }
+        relationshipType: { type: string, nullable: true }
+        labelOverride: { type: string, nullable: true }
+        relevanceScore: { type: number, format: double, nullable: true }
+    CreateQuestionLearningMaterialRequest:
+      type: object
+      required: [title, materialType]
+      properties:
+        title: { type: string }
+        materialType: { type: string }
         description: { type: string, nullable: true }
         contentText: { type: string, nullable: true }
         contentUrl: { type: string, nullable: true }
         sourceName: { type: string, nullable: true }
         difficultyLevel: { type: string, nullable: true }
         estimatedMinutes: { type: integer, nullable: true }
-        isOfficial: { type: boolean }
-        displayOrder: { type: integer, nullable: true }
         relationshipType: { type: string, nullable: true }
         labelOverride: { type: string, nullable: true }
         relevanceScore: { type: number, format: double, nullable: true }

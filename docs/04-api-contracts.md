@@ -1075,11 +1075,18 @@ Current support:
 Implemented additive endpoints:
 #### `GET /api/questions/{questionId}/reference-answers`
 Purpose:
-- return curated model answers or answer outlines for a question in stable display order
+- return model answers or answer outlines for a question in stable display order
+- if no locale-matching shared reference answers exist yet, the backend may lazily generate and persist default AI reference answers
+- if the current user added personal reference answers, append them after shared content
 - if the question is a private imported practical interview asset owned by the current user, the response may also append one additive imported answer row with:
   - `sourceType = real_interview_import`
   - `title = Imported real interview answer summary`
   - `answerFormat = summary` or `transcript_excerpt`
+
+#### `POST /api/questions/{questionId}/reference-answers`
+Purpose:
+- add a user-owned reference answer or answer outline for the authenticated user
+- user-added answers are private to that user and returned on subsequent detail/reference-answer reads
 
 Response:
 ```json
@@ -1089,7 +1096,10 @@ Response:
     "title": "Concise strong answer",
     "answerText": "I would start by clarifying throughput and durability requirements...",
     "answerFormat": "full_answer",
-    "sourceType": "editorial",
+    "sourceType": "ai_generated",
+    "sourceLabel": "AI generated",
+    "contentLocale": "ko",
+    "isUserGenerated": false,
     "isOfficial": true,
     "displayOrder": 1
   }
@@ -1098,7 +1108,14 @@ Response:
 
 #### `GET /api/questions/{questionId}/learning-materials`
 Purpose:
-- return the curated related learning materials for a question in stable display order
+- return related learning materials for a question in stable display order
+- if no locale-matching shared learning materials exist yet, the backend may lazily generate and persist default AI learning materials
+- if the current user added personal learning materials, append them after shared content
+
+#### `POST /api/questions/{questionId}/learning-materials`
+Purpose:
+- add a user-owned learning material or note for the authenticated user
+- user-added learning materials are private to that user and returned on subsequent detail/material reads
 
 Response:
 ```json
@@ -1107,9 +1124,13 @@ Response:
     "id": 501,
     "title": "Isolation Levels Explained",
     "materialType": "article",
+    "sourceType": "ai_generated",
+    "sourceLabel": "AI generated",
     "description": "Short refresher on read phenomena and tradeoffs.",
     "contentUrl": "https://example.com/isolation-levels",
     "sourceName": "DB Guide",
+    "contentLocale": "ko",
+    "isUserGenerated": false,
     "difficultyLevel": "intermediate",
     "estimatedMinutes": 12,
     "isOfficial": true,

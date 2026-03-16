@@ -1,5 +1,8 @@
 package com.example.interviewplatform.question.service
 
+import com.example.interviewplatform.common.service.AppLocaleService
+import com.example.interviewplatform.question.dto.CreateQuestionLearningMaterialRequest
+import com.example.interviewplatform.question.dto.CreateQuestionReferenceAnswerRequest
 import com.example.interviewplatform.question.dto.LearningMaterialDto
 import com.example.interviewplatform.question.dto.QuestionCompanyDto
 import com.example.interviewplatform.question.dto.QuestionDetailResponse
@@ -13,6 +16,12 @@ import com.example.interviewplatform.question.dto.QuestionTreeResponseDto
 import com.example.interviewplatform.question.dto.PracticalInterviewQuestionContextDto
 import com.example.interviewplatform.question.dto.RecommendedFollowUpDto
 import com.example.interviewplatform.question.dto.ResumeBasedQuestionDto
+import com.example.interviewplatform.question.entity.LearningMaterialEntity
+import com.example.interviewplatform.question.entity.QuestionLearningMaterialEntity
+import com.example.interviewplatform.question.entity.QuestionLearningMaterialId
+import com.example.interviewplatform.question.entity.QuestionReferenceAnswerEntity
+import com.example.interviewplatform.question.entity.UserQuestionLearningMaterialEntity
+import com.example.interviewplatform.question.entity.UserQuestionReferenceAnswerEntity
 import com.example.interviewplatform.question.mapper.QuestionMapper
 import com.example.interviewplatform.question.repository.QuestionRelationshipRepository
 import com.example.interviewplatform.question.repository.QuestionReferenceAnswerRepository
@@ -27,6 +36,8 @@ import com.example.interviewplatform.question.repository.QuestionSkillMappingRep
 import com.example.interviewplatform.question.repository.QuestionTagRepository
 import com.example.interviewplatform.question.repository.TagRepository
 import com.example.interviewplatform.question.repository.UserQuestionProgressRepository
+import com.example.interviewplatform.question.repository.UserQuestionLearningMaterialRepository
+import com.example.interviewplatform.question.repository.UserQuestionReferenceAnswerRepository
 import com.example.interviewplatform.resume.repository.ResumeRepository
 import com.example.interviewplatform.resume.repository.ResumeRiskItemRepository
 import com.example.interviewplatform.resume.repository.ResumeSkillSnapshotRepository
@@ -44,6 +55,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.math.BigDecimal
+import java.time.Instant
 
 @Service
 class QuestionService(
@@ -62,6 +74,8 @@ class QuestionService(
     private val learningMaterialRepository: LearningMaterialRepository,
     private val categoryRepository: CategoryRepository,
     private val userQuestionProgressRepository: UserQuestionProgressRepository,
+    private val userQuestionReferenceAnswerRepository: UserQuestionReferenceAnswerRepository,
+    private val userQuestionLearningMaterialRepository: UserQuestionLearningMaterialRepository,
     private val interviewRecordQuestionRepository: InterviewRecordQuestionRepository,
     private val interviewRecordAnswerRepository: InterviewRecordAnswerRepository,
     private val interviewRecordRepository: InterviewRecordRepository,
@@ -70,6 +84,8 @@ class QuestionService(
     private val resumeSkillSnapshotRepository: ResumeSkillSnapshotRepository,
     private val resumeRiskItemRepository: ResumeRiskItemRepository,
     private val skillRepository: SkillRepository,
+    private val appLocaleService: AppLocaleService,
+    private val questionReferenceContentGenerationService: QuestionReferenceContentGenerationService,
     private val objectMapper: ObjectMapper,
 ) {
     @Transactional(readOnly = true)
@@ -94,12 +110,24 @@ class QuestionService(
         }
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     fun getQuestionDetail(questionId: Long, userId: Long?): QuestionDetailResponse {
         val question = requireReadableQuestion(questionId, userId)
+        ensureGeneratedReferenceContent(question)
         val context = loadContext(questionIds = listOf(questionId), categoryIds = listOf(question.categoryId))
         val progress = userId?.let { userQuestionProgressRepository.findByUserIdAndQuestionId(it, questionId) }
         val practicalInterviewContext = loadPracticalInterviewContext(question, userId)
+        val referenceAnswers = mergeReferenceAnswers(
+            curated = mergeQuestionReferenceAnswers(
+                globalAnswers = context.referenceAnswersByQuestionId[question.id].orEmpty(),
+                userAnswers = userId?.let { loadUserReferenceAnswers(questionId, it, context.referenceAnswersByQuestionId[question.id].orEmpty().size) }.orEmpty(),
+            ),
+            practicalInterviewContext = practicalInterviewContext,
+        )
+        val learningMaterials = mergeLearningMaterials(
+            globalMaterials = context.learningMaterialsByQuestionId[question.id].orEmpty(),
+            userMaterials = userId?.let { loadUserLearningMaterials(questionId, it, context.learningMaterialsByQuestionId[question.id].orEmpty()) }.orEmpty(),
+        )
 
         return QuestionMapper.toDetailResponse(
             question = question,
@@ -107,30 +135,96 @@ class QuestionService(
             tags = context.tagsByQuestionId[question.id].orEmpty(),
             companies = context.companiesByQuestionId[question.id].orEmpty(),
             roles = context.rolesByQuestionId[question.id].orEmpty(),
-            learningMaterials = context.learningMaterialsByQuestionId[question.id].orEmpty(),
-            referenceAnswers = mergeReferenceAnswers(
-                curated = context.referenceAnswersByQuestionId[question.id].orEmpty(),
-                practicalInterviewContext = practicalInterviewContext,
-            ),
+            learningMaterials = learningMaterials,
+            referenceAnswers = referenceAnswers,
             practicalInterviewContext = practicalInterviewContext,
             progress = progress,
         )
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     fun getQuestionReferenceAnswers(questionId: Long, userId: Long?): List<QuestionReferenceAnswerDto> {
         val question = requireReadableQuestion(questionId, userId)
+        ensureGeneratedReferenceContent(question)
+        val locale = appLocaleService.resolveLanguage()
+        val globalAnswers = questionReferenceAnswerRepository.findByQuestionIdOrderByDisplayOrderAscIdAsc(questionId)
+            .filter { it.contentLocale == null || it.contentLocale == locale }
+            .map(QuestionMapper::toReferenceAnswerDto)
+        val userAnswers = userId?.let { loadUserReferenceAnswers(questionId, it, globalAnswers.size) }.orEmpty()
         return mergeReferenceAnswers(
-            curated = questionReferenceAnswerRepository.findByQuestionIdOrderByDisplayOrderAscIdAsc(questionId)
-                .map(QuestionMapper::toReferenceAnswerDto),
+            curated = mergeQuestionReferenceAnswers(globalAnswers, userAnswers),
             practicalInterviewContext = loadPracticalInterviewContext(question, userId),
         )
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     fun getQuestionLearningMaterials(questionId: Long, userId: Long?): List<LearningMaterialDto> {
+        val question = requireReadableQuestion(questionId, userId)
+        ensureGeneratedReferenceContent(question)
+        val globalMaterials = mapLearningMaterials(listOf(questionId))[questionId].orEmpty()
+        val userMaterials = userId?.let { loadUserLearningMaterials(questionId, it, globalMaterials) }.orEmpty()
+        return mergeLearningMaterials(globalMaterials, userMaterials)
+    }
+
+    @Transactional
+    fun createQuestionReferenceAnswer(
+        questionId: Long,
+        userId: Long,
+        request: CreateQuestionReferenceAnswerRequest,
+    ): QuestionReferenceAnswerDto {
         requireReadableQuestion(questionId, userId)
-        return mapLearningMaterials(listOf(questionId))[questionId].orEmpty()
+        val now = Instant.now()
+        val entity = userQuestionReferenceAnswerRepository.save(
+            UserQuestionReferenceAnswerEntity(
+                questionId = questionId,
+                userId = userId,
+                title = request.title.trim(),
+                answerText = request.answerText.trim(),
+                answerFormat = request.answerFormat.ifBlank { "full_answer" },
+                sourceType = USER_REFERENCE_SOURCE_TYPE,
+                contentLocale = appLocaleService.resolveLanguage(),
+                displayOrder = userQuestionReferenceAnswerRepository.countByQuestionIdAndUserId(questionId, userId).toInt() + 1,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+        return QuestionMapper.toReferenceAnswerDto(entity)
+    }
+
+    @Transactional
+    fun createQuestionLearningMaterial(
+        questionId: Long,
+        userId: Long,
+        request: CreateQuestionLearningMaterialRequest,
+    ): LearningMaterialDto {
+        requireReadableQuestion(questionId, userId)
+        if (request.contentText.isNullOrBlank() && request.contentUrl.isNullOrBlank()) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "contentText or contentUrl is required")
+        }
+        val now = Instant.now()
+        val entity = userQuestionLearningMaterialRepository.save(
+            UserQuestionLearningMaterialEntity(
+                questionId = questionId,
+                userId = userId,
+                title = request.title.trim(),
+                materialType = request.materialType.trim(),
+                description = request.description?.trim()?.ifBlank { null },
+                contentText = request.contentText?.trim()?.ifBlank { null },
+                contentUrl = request.contentUrl?.trim()?.ifBlank { null },
+                sourceName = request.sourceName?.trim()?.ifBlank { null },
+                difficultyLevel = request.difficultyLevel?.trim()?.ifBlank { null },
+                estimatedMinutes = request.estimatedMinutes,
+                relationshipType = request.relationshipType?.trim()?.ifBlank { null },
+                labelOverride = request.labelOverride?.trim()?.ifBlank { null },
+                relevanceScore = request.relevanceScore,
+                sourceType = USER_REFERENCE_SOURCE_TYPE,
+                contentLocale = appLocaleService.resolveLanguage(),
+                displayOrder = userQuestionLearningMaterialRepository.countByQuestionIdAndUserId(questionId, userId).toInt() + 1,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+        return QuestionMapper.toLearningMaterialDto(entity)
     }
 
     @Transactional(readOnly = true)
@@ -285,6 +379,7 @@ class QuestionService(
     }
 
     private fun mapLearningMaterials(questionIds: List<Long>): Map<Long, List<LearningMaterialDto>> {
+        val locale = appLocaleService.resolveLanguage()
         val materialEdges = questionLearningMaterialRepository.findByIdQuestionIdIn(questionIds)
         val materialsById = learningMaterialRepository
             .findAllById(materialEdges.map { it.id.learningMaterialId }.distinct())
@@ -296,15 +391,128 @@ class QuestionService(
                     .thenByDescending { it.relevanceScore }
                     .thenBy { it.id.learningMaterialId },
             ).mapNotNull { edge ->
-                materialsById[edge.id.learningMaterialId]?.let { QuestionMapper.toLearningMaterialDto(it, edge) }
+                materialsById[edge.id.learningMaterialId]
+                    ?.takeIf { it.contentLocale == null || it.contentLocale == locale }
+                    ?.let { QuestionMapper.toLearningMaterialDto(it, edge) }
             }
         }
     }
 
-    private fun mapReferenceAnswers(questionIds: List<Long>): Map<Long, List<QuestionReferenceAnswerDto>> =
-        questionReferenceAnswerRepository.findByQuestionIdInOrderByQuestionIdAscDisplayOrderAscIdAsc(questionIds)
+    private fun mapReferenceAnswers(questionIds: List<Long>): Map<Long, List<QuestionReferenceAnswerDto>> {
+        val locale = appLocaleService.resolveLanguage()
+        return questionReferenceAnswerRepository.findByQuestionIdInOrderByQuestionIdAscDisplayOrderAscIdAsc(questionIds)
+            .filter { it.contentLocale == null || it.contentLocale == locale }
             .groupBy { it.questionId }
             .mapValues { (_, answers) -> answers.map(QuestionMapper::toReferenceAnswerDto) }
+    }
+
+    private fun ensureGeneratedReferenceContent(question: com.example.interviewplatform.question.entity.QuestionEntity) {
+        val locale = appLocaleService.resolveLanguage()
+        val hasReferenceAnswers = questionReferenceAnswerRepository.findByQuestionIdOrderByDisplayOrderAscIdAsc(question.id)
+            .any { it.contentLocale == null || it.contentLocale == locale }
+        val materialEdges = questionLearningMaterialRepository.findByIdQuestionIdIn(listOf(question.id))
+        val materialsById = learningMaterialRepository.findAllById(materialEdges.map { it.id.learningMaterialId }.distinct())
+            .associateBy { it.id }
+        val hasLearningMaterials = materialEdges.any { edge ->
+            materialsById[edge.id.learningMaterialId]?.let { it.contentLocale == null || it.contentLocale == locale } == true
+        }
+        if (hasReferenceAnswers && hasLearningMaterials) {
+            return
+        }
+
+        val tags = mapTags(listOf(question.id))[question.id].orEmpty().map { it.name }
+        val categoryName = categoryRepository.findById(question.categoryId).orElse(null)?.name
+        val generated = questionReferenceContentGenerationService.generate(
+            questionTitle = question.title,
+            questionBody = question.body,
+            questionType = question.questionType,
+            difficultyLevel = question.difficultyLevel,
+            categoryName = categoryName,
+            tags = tags,
+        )
+        val now = Instant.now()
+
+        if (!hasReferenceAnswers) {
+            generated.referenceAnswers.forEach { answer ->
+                questionReferenceAnswerRepository.save(
+                    QuestionReferenceAnswerEntity(
+                        questionId = question.id,
+                        title = answer.title,
+                        answerText = answer.answerText,
+                        answerFormat = answer.answerFormat,
+                        sourceType = AI_REFERENCE_SOURCE_TYPE,
+                        contentLocale = generated.contentLocale,
+                        isOfficial = false,
+                        displayOrder = answer.displayOrder,
+                        createdAt = now,
+                        updatedAt = now,
+                    ),
+                )
+            }
+        }
+
+        if (!hasLearningMaterials) {
+            generated.learningMaterials.forEach { material ->
+                val savedMaterial = learningMaterialRepository.save(
+                    LearningMaterialEntity(
+                        title = material.title,
+                        materialType = material.materialType,
+                        contentText = material.contentText,
+                        contentUrl = material.contentUrl,
+                        sourceName = AI_SOURCE_NAME,
+                        contentLocale = generated.contentLocale,
+                        description = material.description,
+                        difficultyLevel = material.difficultyLevel,
+                        estimatedMinutes = material.estimatedMinutes,
+                        isOfficial = false,
+                        displayOrderHint = material.displayOrder,
+                        createdAt = now,
+                        updatedAt = now,
+                    ),
+                )
+                questionLearningMaterialRepository.save(
+                    QuestionLearningMaterialEntity(
+                        id = QuestionLearningMaterialId(question.id, savedMaterial.id),
+                        relevanceScore = BigDecimal.valueOf(material.relevanceScore ?: DEFAULT_GENERATED_MATERIAL_SCORE),
+                        displayOrder = material.displayOrder,
+                        relationshipType = material.relationshipType,
+                        labelOverride = null,
+                        createdAt = now,
+                    ),
+                )
+            }
+        }
+    }
+
+    private fun loadUserReferenceAnswers(
+        questionId: Long,
+        userId: Long,
+        globalCount: Int,
+    ): List<QuestionReferenceAnswerDto> = userQuestionReferenceAnswerRepository
+        .findByQuestionIdAndUserIdOrderByDisplayOrderAscIdAsc(questionId, userId)
+        .map(QuestionMapper::toReferenceAnswerDto)
+        .mapIndexed { index, dto -> dto.copy(displayOrder = globalCount + index + 1) }
+
+    private fun loadUserLearningMaterials(
+        questionId: Long,
+        userId: Long,
+        globalMaterials: List<LearningMaterialDto>,
+    ): List<LearningMaterialDto> {
+        val globalMax = globalMaterials.mapNotNull { it.displayOrder }.maxOrNull() ?: globalMaterials.size
+        return userQuestionLearningMaterialRepository.findByQuestionIdAndUserIdOrderByDisplayOrderAscIdAsc(questionId, userId)
+            .map(QuestionMapper::toLearningMaterialDto)
+            .mapIndexed { index, dto -> dto.copy(displayOrder = globalMax + index + 1) }
+    }
+
+    private fun mergeQuestionReferenceAnswers(
+        globalAnswers: List<QuestionReferenceAnswerDto>,
+        userAnswers: List<QuestionReferenceAnswerDto>,
+    ): List<QuestionReferenceAnswerDto> = globalAnswers + userAnswers
+
+    private fun mergeLearningMaterials(
+        globalMaterials: List<LearningMaterialDto>,
+        userMaterials: List<LearningMaterialDto>,
+    ): List<LearningMaterialDto> = globalMaterials + userMaterials
 
     private fun requireReadableQuestion(questionId: Long, userId: Long?): com.example.interviewplatform.question.entity.QuestionEntity {
         val question = questionRepository.findByIdAndIsActiveTrue(questionId)
@@ -357,6 +565,9 @@ class QuestionService(
                     answerText = practicalInterviewContext.importedAnswerText?.takeIf { text -> text.isNotBlank() } ?: it,
                     answerFormat = if (practicalInterviewContext.importedAnswerText.isNullOrBlank()) "summary" else "transcript_excerpt",
                     sourceType = QUESTION_SOURCE_TYPE_REAL_INTERVIEW_IMPORT,
+                    sourceLabel = "Real interview",
+                    contentLocale = null,
+                    isUserGenerated = false,
                     targetRoleId = null,
                     companyId = null,
                     isOfficial = false,
@@ -374,6 +585,10 @@ class QuestionService(
     private companion object {
         const val QUESTION_SOURCE_TYPE_REAL_INTERVIEW_IMPORT = "real_interview_import"
         const val QUESTION_VISIBILITY_PUBLIC = "public"
+        const val AI_REFERENCE_SOURCE_TYPE = "ai_generated"
+        const val USER_REFERENCE_SOURCE_TYPE = "user_added"
+        const val AI_SOURCE_NAME = "OpenAI"
+        const val DEFAULT_GENERATED_MATERIAL_SCORE = 0.85
     }
 
     private data class QuestionQueryContext(

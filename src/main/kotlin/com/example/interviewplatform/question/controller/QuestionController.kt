@@ -1,6 +1,8 @@
 package com.example.interviewplatform.question.controller
 
 import com.example.interviewplatform.common.service.CurrentUserProvider
+import com.example.interviewplatform.question.dto.CreateQuestionLearningMaterialRequest
+import com.example.interviewplatform.question.dto.CreateQuestionReferenceAnswerRequest
 import com.example.interviewplatform.question.dto.QuestionDetailResponse
 import com.example.interviewplatform.question.dto.QuestionListItemDto
 import com.example.interviewplatform.question.dto.QuestionReferenceAnswerDto
@@ -12,8 +14,11 @@ import com.example.interviewplatform.question.dto.LearningMaterialDto
 import com.example.interviewplatform.question.service.QuestionService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -57,10 +62,32 @@ class QuestionController(
     fun getQuestionReferenceAnswers(@PathVariable questionId: Long): List<QuestionReferenceAnswerDto> =
         questionService.getQuestionReferenceAnswers(questionId, currentUserProvider.currentUserIdOrNull())
 
+    @PostMapping("/{questionId}/reference-answers")
+    @Operation(summary = "Add a user reference answer for a question")
+    fun createQuestionReferenceAnswer(
+        @PathVariable questionId: Long,
+        @Valid @RequestBody request: CreateQuestionReferenceAnswerRequest,
+    ): QuestionReferenceAnswerDto = questionService.createQuestionReferenceAnswer(
+        questionId = questionId,
+        userId = currentUserProvider.currentUserId(),
+        request = request,
+    )
+
     @GetMapping("/{questionId}/learning-materials")
     @Operation(summary = "Get curated learning materials for a question")
     fun getQuestionLearningMaterials(@PathVariable questionId: Long): List<LearningMaterialDto> =
         questionService.getQuestionLearningMaterials(questionId, currentUserProvider.currentUserIdOrNull())
+
+    @PostMapping("/{questionId}/learning-materials")
+    @Operation(summary = "Add a user learning material for a question")
+    fun createQuestionLearningMaterial(
+        @PathVariable questionId: Long,
+        @Valid @RequestBody request: CreateQuestionLearningMaterialRequest,
+    ): LearningMaterialDto = questionService.createQuestionLearningMaterial(
+        questionId = questionId,
+        userId = currentUserProvider.currentUserId(),
+        request = request,
+    )
 
     @GetMapping("/{questionId}/tree")
     @Operation(summary = "Get question follow-up tree")

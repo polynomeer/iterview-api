@@ -5,5 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface QuestionReferenceAnswerRepository : JpaRepository<QuestionReferenceAnswerEntity, Long> {
     fun findByQuestionIdOrderByDisplayOrderAscIdAsc(questionId: Long): List<QuestionReferenceAnswerEntity>
+    fun findByQuestionIdAndContentLocaleOrderByDisplayOrderAscIdAsc(questionId: Long, contentLocale: String): List<QuestionReferenceAnswerEntity>
     fun findByQuestionIdInOrderByQuestionIdAscDisplayOrderAscIdAsc(questionIds: List<Long>): List<QuestionReferenceAnswerEntity>
 }

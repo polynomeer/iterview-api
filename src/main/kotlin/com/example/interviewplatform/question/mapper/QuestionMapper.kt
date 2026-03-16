@@ -17,6 +17,8 @@ import com.example.interviewplatform.question.entity.QuestionLearningMaterialEnt
 import com.example.interviewplatform.question.entity.QuestionReferenceAnswerEntity
 import com.example.interviewplatform.question.entity.QuestionRoleEntity
 import com.example.interviewplatform.question.entity.TagEntity
+import com.example.interviewplatform.question.entity.UserQuestionLearningMaterialEntity
+import com.example.interviewplatform.question.entity.UserQuestionReferenceAnswerEntity
 import com.example.interviewplatform.question.entity.UserQuestionProgressEntity
 import com.example.interviewplatform.user.entity.CompanyEntity
 import com.example.interviewplatform.user.entity.JobRoleEntity
@@ -110,14 +112,20 @@ object QuestionMapper {
     fun toLearningMaterialDto(
         entity: LearningMaterialEntity,
         edge: QuestionLearningMaterialEntity? = null,
-    ): LearningMaterialDto = LearningMaterialDto(
+    ): LearningMaterialDto {
+        val sourceType = if (entity.sourceName == "OpenAI") "ai_generated" else "editorial"
+        return LearningMaterialDto(
         id = entity.id,
         title = edge?.labelOverride ?: entity.title,
         materialType = entity.materialType,
+        sourceType = sourceType,
+        sourceLabel = learningMaterialSourceLabel(sourceType = sourceType, sourceName = entity.sourceName, isUserGenerated = false),
         description = entity.description,
         contentText = entity.contentText,
         contentUrl = entity.contentUrl,
         sourceName = entity.sourceName,
+        contentLocale = entity.contentLocale,
+        isUserGenerated = false,
         difficultyLevel = entity.difficultyLevel,
         estimatedMinutes = entity.estimatedMinutes,
         isOfficial = entity.isOfficial,
@@ -126,6 +134,7 @@ object QuestionMapper {
         labelOverride = edge?.labelOverride,
         relevanceScore = edge?.relevanceScore?.toDouble(),
     )
+    }
 
     fun toReferenceAnswerDto(entity: QuestionReferenceAnswerEntity): QuestionReferenceAnswerDto = QuestionReferenceAnswerDto(
         id = entity.id,
@@ -133,9 +142,62 @@ object QuestionMapper {
         answerText = entity.answerText,
         answerFormat = entity.answerFormat,
         sourceType = entity.sourceType,
+        sourceLabel = referenceAnswerSourceLabel(entity.sourceType, isUserGenerated = false),
+        contentLocale = entity.contentLocale,
+        isUserGenerated = false,
         targetRoleId = entity.targetRoleId,
         companyId = entity.companyId,
         isOfficial = entity.isOfficial,
         displayOrder = entity.displayOrder,
     )
+
+    fun toLearningMaterialDto(entity: UserQuestionLearningMaterialEntity): LearningMaterialDto = LearningMaterialDto(
+        id = entity.id,
+        title = entity.labelOverride ?: entity.title,
+        materialType = entity.materialType,
+        sourceType = entity.sourceType,
+        sourceLabel = learningMaterialSourceLabel(entity.sourceType, entity.sourceName, isUserGenerated = true),
+        description = entity.description,
+        contentText = entity.contentText,
+        contentUrl = entity.contentUrl,
+        sourceName = entity.sourceName,
+        contentLocale = entity.contentLocale,
+        isUserGenerated = true,
+        difficultyLevel = entity.difficultyLevel,
+        estimatedMinutes = entity.estimatedMinutes,
+        isOfficial = false,
+        displayOrder = entity.displayOrder,
+        relationshipType = entity.relationshipType,
+        labelOverride = entity.labelOverride,
+        relevanceScore = entity.relevanceScore?.toDouble(),
+    )
+
+    fun toReferenceAnswerDto(entity: UserQuestionReferenceAnswerEntity): QuestionReferenceAnswerDto = QuestionReferenceAnswerDto(
+        id = entity.id,
+        title = entity.title,
+        answerText = entity.answerText,
+        answerFormat = entity.answerFormat,
+        sourceType = entity.sourceType,
+        sourceLabel = referenceAnswerSourceLabel(entity.sourceType, isUserGenerated = true),
+        contentLocale = entity.contentLocale,
+        isUserGenerated = true,
+        targetRoleId = null,
+        companyId = null,
+        isOfficial = false,
+        displayOrder = entity.displayOrder,
+    )
+
+    private fun referenceAnswerSourceLabel(sourceType: String, isUserGenerated: Boolean): String = when {
+        isUserGenerated -> "Your note"
+        sourceType == "ai_generated" -> "AI generated"
+        sourceType == "real_interview_import" -> "Real interview"
+        else -> "Editorial"
+    }
+
+    private fun learningMaterialSourceLabel(sourceType: String, sourceName: String?, isUserGenerated: Boolean): String = when {
+        isUserGenerated -> "Your material"
+        sourceType == "ai_generated" -> "AI generated"
+        !sourceName.isNullOrBlank() -> sourceName
+        else -> "Editorial"
+    }
 }

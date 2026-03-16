@@ -11,6 +11,8 @@ object TestDatabaseCleaner {
                 answer_scores,
                 review_queue,
                 user_question_progress,
+                user_question_learning_materials,
+                user_question_reference_answers,
                 answer_attempts,
                 daily_cards,
                 question_learning_materials,

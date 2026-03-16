@@ -67,6 +67,19 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 - Dedicated question reference-content reads are:
   - `GET /api/questions/{questionId}/reference-answers`
   - `GET /api/questions/{questionId}/learning-materials`
+- Dedicated user-add flows are:
+  - `POST /api/questions/{questionId}/reference-answers`
+  - `POST /api/questions/{questionId}/learning-materials`
+- If shared reference content is missing for the active locale, question detail and dedicated reference-content reads may lazily generate and persist default AI answers/materials on the backend.
+- `QuestionReferenceAnswerDto` now also carries:
+  - `sourceLabel`
+  - `contentLocale`
+  - `isUserGenerated`
+- `LearningMaterialDto` now also carries:
+  - `sourceType`
+  - `sourceLabel`
+  - `contentLocale`
+  - `isUserGenerated`
 - For imported real interview assets, `GET /api/questions/{questionId}/reference-answers` may append one imported answer row with:
   - `sourceType = real_interview_import`
   - `title = Imported real interview answer summary`

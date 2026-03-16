@@ -9,9 +9,11 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -310,6 +312,105 @@ class QuestionApiIntegrationTest {
     }
 
     @Test
+    fun `question detail lazily generates ai reference content when missing`() {
+        val categoryId = idByName("categories", "name", "System Design")
+        val questionId = insertQuestion(
+            categoryId = categoryId,
+            title = "How would you design cache invalidation?",
+            body = "Discuss consistency, invalidation triggers, and tradeoffs.",
+            difficulty = "MEDIUM",
+            qualityStatus = "approved",
+            isActive = true,
+        )
+
+        mockMvc.perform(get("/api/questions/$questionId").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.referenceAnswers[0].sourceType").value("ai_generated"))
+            .andExpect(jsonPath("$.referenceAnswers[0].sourceLabel").value("AI generated"))
+            .andExpect(jsonPath("$.referenceAnswers[0].contentLocale").value("ko"))
+            .andExpect(jsonPath("$.learningMaterials[0].sourceType").value("ai_generated"))
+            .andExpect(jsonPath("$.learningMaterials[0].sourceLabel").value("AI generated"))
+            .andExpect(jsonPath("$.learningMaterials[0].contentLocale").value("ko"))
+            .andExpect(jsonPath("$.learningMaterials[1].relationshipType").exists())
+
+        mockMvc.perform(get("/api/questions/$questionId/reference-answers").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].sourceType").value("ai_generated"))
+            .andExpect(jsonPath("$[1].answerFormat").value("full_answer"))
+
+        mockMvc.perform(get("/api/questions/$questionId/learning-materials").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].sourceType").value("ai_generated"))
+            .andExpect(jsonPath("$[0].isUserGenerated").value(false))
+    }
+
+    @Test
+    fun `authenticated user can add personal reference answers and learning materials`() {
+        val categoryId = idByName("categories", "name", "System Design")
+        val questionId = insertQuestion(
+            categoryId = categoryId,
+            title = "Explain backpressure handling",
+            body = "Focus on overload signals and downstream protection.",
+            difficulty = "MEDIUM",
+            qualityStatus = "approved",
+            isActive = true,
+        )
+
+        mockMvc.perform(
+            post("/api/questions/$questionId/reference-answers")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "title": "내 답변 포인트",
+                      "answerText": "과부하 감지, 큐 길이, 드롭 정책, 재시도 경계를 순서대로 설명한다.",
+                      "answerFormat": "outline"
+                    }
+                    """.trimIndent(),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.sourceType").value("user_added"))
+            .andExpect(jsonPath("$.sourceLabel").value("Your note"))
+            .andExpect(jsonPath("$.isUserGenerated").value(true))
+
+        mockMvc.perform(
+            post("/api/questions/$questionId/learning-materials")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "title": "추가 정리 메모",
+                      "materialType": "note",
+                      "description": "실전 답변 전에 보는 메모",
+                      "contentText": "백프레셔 신호, 제한 전략, graceful degradation 예시를 같이 말한다.",
+                      "relationshipType": "practice",
+                      "estimatedMinutes": 5
+                    }
+                    """.trimIndent(),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.sourceType").value("user_added"))
+            .andExpect(jsonPath("$.sourceLabel").value("Your material"))
+            .andExpect(jsonPath("$.isUserGenerated").value(true))
+
+        mockMvc.perform(get("/api/questions/$questionId/reference-answers").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].sourceType").value("ai_generated"))
+            .andExpect(jsonPath("$[2].sourceType").value("user_added"))
+            .andExpect(jsonPath("$[2].isUserGenerated").value(true))
+
+        mockMvc.perform(get("/api/questions/$questionId/learning-materials").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].sourceType").value("ai_generated"))
+            .andExpect(jsonPath("$[2].sourceType").value("user_added"))
+            .andExpect(jsonPath("$[2].relationshipType").value("practice"))
+    }
+
+    @Test
     fun `detail excludes inactive questions`() {
         val categoryId = idByName("categories", "name", "System Design")
         val questionId = insertQuestion(
@@ -442,12 +543,12 @@ class QuestionApiIntegrationTest {
             .andExpect(jsonPath("$.practicalInterviewContext.sourceInterviewQuestionId").value(interviewRecordQuestionId))
             .andExpect(jsonPath("$.practicalInterviewContext.interviewerProfileId").value(interviewerProfileId))
             .andExpect(jsonPath("$.practicalInterviewContext.topicTags[0]").value("incident"))
-            .andExpect(jsonPath("$.referenceAnswers[0].sourceType").value("real_interview_import"))
-            .andExpect(jsonPath("$.referenceAnswers[0].title").value("Imported real interview answer summary"))
+            .andExpect(jsonPath("$.referenceAnswers[2].sourceType").value("real_interview_import"))
+            .andExpect(jsonPath("$.referenceAnswers[2].title").value("Imported real interview answer summary"))
 
         mockMvc.perform(get("/api/questions/$linkedQuestionId/reference-answers").header("Authorization", authHeader))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$[0].sourceType").value("real_interview_import"))
+            .andExpect(jsonPath("$[2].sourceType").value("real_interview_import"))
 
         mockMvc.perform(get("/api/questions/$linkedQuestionId"))
             .andExpect(status().isNotFound)
