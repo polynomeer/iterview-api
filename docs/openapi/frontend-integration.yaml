@@ -2014,6 +2014,14 @@ components:
           type: integer
           format: int64
           nullable: true
+        deepLink:
+          allOf:
+            - $ref: "#/components/schemas/InterviewRecordReviewQuestionDeepLinkDto"
+          nullable: true
+        replayLaunchPreset:
+          allOf:
+            - $ref: "#/components/schemas/InterviewRecordReplayLaunchPresetDto"
+          nullable: true
     InterviewRecordAnswerQualitySummaryDto:
       type: object
       properties:

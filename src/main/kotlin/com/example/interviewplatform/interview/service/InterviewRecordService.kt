@@ -303,6 +303,7 @@ class InterviewRecordService(
             questionOriginSummary = buildReviewQuestionOriginSummary(questionSummaries),
             replayReadiness = replayReadiness,
             transcriptIssueSummary = buildTranscriptIssueSummary(
+                recordId = record.id,
                 segments = segments,
                 questions = questions,
                 answers = answers,
@@ -389,6 +390,7 @@ class InterviewRecordService(
     }
 
     private fun buildTranscriptIssueSummary(
+        recordId: Long,
         segments: List<InterviewTranscriptSegmentEntity>,
         questions: List<InterviewRecordQuestionEntity>,
         answers: List<InterviewRecordAnswerEntity>,
@@ -411,6 +413,7 @@ class InterviewRecordService(
         lowConfidenceSegments.forEach { issueTypesBySequence.computeIfAbsent(it.sequence) { linkedSetOf() }.add(SEGMENT_ISSUE_LOW_CONFIDENCE) }
         speakerOverrideSegments.forEach { issueTypesBySequence.computeIfAbsent(it.sequence) { linkedSetOf() }.add(SEGMENT_ISSUE_SPEAKER_OVERRIDE) }
         editedSegments.forEach { issueTypesBySequence.computeIfAbsent(it.sequence) { linkedSetOf() }.add(SEGMENT_ISSUE_CONFIRMED_OVERRIDE) }
+        val questionsByRootQuestionId = questions.groupBy { resolveQuestionThreadRootId(it, questionById) }
         return InterviewRecordTranscriptIssueSummaryDto(
             lowConfidenceSegmentCount = lowConfidenceSegments.size,
             lowConfidenceSegmentSequences = lowConfidenceSegments.map { it.sequence },
@@ -420,7 +423,8 @@ class InterviewRecordService(
             editedSegmentSequences = editedSegments.map { it.sequence },
             segmentActions = issueTypesBySequence.entries.map { (sequence, issueTypes) ->
                 val linkedQuestionId = questionIdBySequence[sequence]
-                val threadRootQuestionId = linkedQuestionId?.let(questionById::get)?.let { resolveQuestionThreadRootId(it, questionById) }
+                val linkedQuestion = linkedQuestionId?.let(questionById::get)
+                val threadRootQuestionId = linkedQuestion?.let { resolveQuestionThreadRootId(it, questionById) }
                 InterviewRecordTranscriptSegmentActionDto(
                     sequence = sequence,
                     issueTypes = issueTypes.toList(),
@@ -431,6 +435,13 @@ class InterviewRecordService(
                     },
                     linkedQuestionId = linkedQuestionId,
                     threadRootQuestionId = threadRootQuestionId,
+                    deepLink = linkedQuestion?.toReviewQuestionDeepLink(recordId),
+                    replayLaunchPreset = threadRootQuestionId?.let { rootQuestionId ->
+                        buildThreadReplayLaunchPreset(
+                            recordId = recordId,
+                            threadQuestions = questionsByRootQuestionId[rootQuestionId].orEmpty(),
+                        )
+                    },
                 )
             },
         )
@@ -664,7 +675,7 @@ class InterviewRecordService(
                     "uncertain" in it.confidenceMarkers
                 },
                 recommendedAction = resolveThreadRecommendedAction(sortedThreadSummaries),
-                replayLaunchPreset = buildThreadReplayLaunchPreset(
+                replayLaunchPreset = buildThreadReplayLaunchPresetFromSummaries(
                     recordId = rootSummary.deepLink.sourceInterviewRecordId,
                     threadSummaries = sortedThreadSummaries,
                 ),
@@ -676,7 +687,7 @@ class InterviewRecordService(
         }
     }
 
-    private fun buildThreadReplayLaunchPreset(
+    private fun buildThreadReplayLaunchPresetFromSummaries(
         recordId: Long,
         threadSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
     ): InterviewRecordReplayLaunchPresetDto {
@@ -694,6 +705,35 @@ class InterviewRecordService(
             ),
         )
     }
+
+    private fun buildThreadReplayLaunchPreset(
+        recordId: Long,
+        threadQuestions: List<InterviewRecordQuestionEntity>,
+    ): InterviewRecordReplayLaunchPresetDto {
+        val linkedQuestionIds = threadQuestions.mapNotNull { it.linkedQuestionId }.distinct()
+        return InterviewRecordReplayLaunchPresetDto(
+            sessionType = REVIEW_REPLAY_SESSION_TYPE,
+            sourceInterviewRecordId = recordId,
+            replayMode = REVIEW_REPLAY_MODE_ORIGINAL,
+            recommendedQuestionCount = threadQuestions.size.coerceAtLeast(1),
+            seedQuestionIds = linkedQuestionIds.take(DEFAULT_REPLAY_SEED_COUNT),
+            availableReplayModes = listOf(
+                REVIEW_REPLAY_MODE_ORIGINAL,
+                REVIEW_REPLAY_MODE_PATTERN_SIMILAR,
+                REVIEW_REPLAY_MODE_PRESSURE_VARIANT,
+            ),
+        )
+    }
+
+    private fun InterviewRecordQuestionEntity.toReviewQuestionDeepLink(recordId: Long): InterviewRecordReviewQuestionDeepLinkDto =
+        InterviewRecordReviewQuestionDeepLinkDto(
+            questionDetailQuestionId = linkedQuestionId,
+            archiveSourceType = "real_interview",
+            sourceInterviewRecordId = recordId,
+            sourceInterviewQuestionId = id,
+            canStartReplayMock = true,
+            replaySessionType = REVIEW_REPLAY_SESSION_TYPE,
+        )
 
     private fun resolveRootQuestionId(
         summary: InterviewRecordReviewQuestionSummaryDto,

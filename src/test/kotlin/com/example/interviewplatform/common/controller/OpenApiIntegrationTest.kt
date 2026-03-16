@@ -103,6 +103,8 @@ class OpenApiIntegrationTest {
             .andExpect(jsonPath("$.components.schemas.InterviewRecordReplayReadinessDto").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewRecordTranscriptIssueSummaryDto").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewRecordTranscriptSegmentActionDto").exists())
+            .andExpect(jsonPath("$.components.schemas.InterviewRecordTranscriptSegmentActionDto.properties.deepLink").exists())
+            .andExpect(jsonPath("$.components.schemas.InterviewRecordTranscriptSegmentActionDto.properties.replayLaunchPreset").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewRecordAnswerQualitySummaryDto").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewRecordTimelineNavigationDto").exists())
             .andExpect(jsonPath("$.components.schemas.InterviewRecordTimelineNavigationItemDto").exists())

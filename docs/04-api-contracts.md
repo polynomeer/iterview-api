@@ -1629,6 +1629,8 @@ Current structured extraction semantics:
         - `recommendedAction`
         - `linkedQuestionId`
         - `threadRootQuestionId`
+        - `deepLink`
+        - `replayLaunchPreset`
   - `answerQualitySummary`
     - additive aggregate for answer-quality overview panels
     - includes:

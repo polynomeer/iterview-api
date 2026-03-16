@@ -265,6 +265,7 @@ Implemented practical interview record foundation:
   - `transcriptIssueSummary`
     - use this for transcript review priority panels such as `edited`, `speaker override`, or `low confidence`
     - `segmentActions[]` is additive quick-action metadata for jumping from a flagged transcript row into the related question or follow-up thread without rebuilding anchors on the client
+    - each segment action may also carry `deepLink` and `replayLaunchPreset` so transcript-first review UIs can open question detail or replay directly from the issue row
   - `answerQualitySummary`
     - use this for practical interview answer-quality panels such as `weak`, `quantified`, `structured`, or `trade-off aware`
   - `timelineNavigation`

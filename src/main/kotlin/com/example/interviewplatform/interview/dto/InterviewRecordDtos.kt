@@ -125,6 +125,8 @@ data class InterviewRecordTranscriptSegmentActionDto(
     val recommendedAction: String,
     val linkedQuestionId: Long?,
     val threadRootQuestionId: Long?,
+    val deepLink: InterviewRecordReviewQuestionDeepLinkDto?,
+    val replayLaunchPreset: InterviewRecordReplayLaunchPresetDto?,
 )
 
 data class InterviewRecordAnswerQualitySummaryDto(
