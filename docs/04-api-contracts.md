@@ -1620,6 +1620,12 @@ Current structured extraction semantics:
       - `primaryCtaLabel`
       - `blockedCtaLabel`
       - `blockers[]`
+      - `blockerDetails[]`
+        - `code`
+        - `label`
+        - `description`
+        - `recommendedAction`
+        - `recommendedActionLabel`
   - `reviewLaneSummary`
     - additive dashboard aggregate for transcript/question/thread review lanes
     - includes:

@@ -114,6 +114,15 @@ data class InterviewRecordReplayReadinessDto(
     val primaryCtaLabel: String,
     val blockedCtaLabel: String,
     val blockers: List<String>,
+    val blockerDetails: List<InterviewRecordReplayBlockerDetailDto>,
+)
+
+data class InterviewRecordReplayBlockerDetailDto(
+    val code: String,
+    val label: String,
+    val description: String,
+    val recommendedAction: String,
+    val recommendedActionLabel: String,
 )
 
 data class InterviewRecordTranscriptIssueSummaryDto(

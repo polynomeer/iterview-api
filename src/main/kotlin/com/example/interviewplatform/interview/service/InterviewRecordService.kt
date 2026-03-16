@@ -12,6 +12,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestion
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewLaneItemDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewLaneSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionOriginSummaryDto
+import com.example.interviewplatform.interview.dto.InterviewRecordReplayBlockerDetailDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReplayReadinessDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptSegmentActionDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptIssueSummaryDto
@@ -1031,6 +1032,31 @@ class InterviewRecordService(
             primaryCtaLabel = if (blockers.isEmpty()) "Start replay" else "Review blockers",
             blockedCtaLabel = "Resolve replay blockers",
             blockers = blockers,
+            blockerDetails = blockers.map(::buildReplayBlockerDetail),
+        )
+    }
+
+    private fun buildReplayBlockerDetail(code: String): InterviewRecordReplayBlockerDetailDto = when (code) {
+        REPLAY_BLOCKER_NO_QUESTIONS -> InterviewRecordReplayBlockerDetailDto(
+            code = code,
+            label = "No replayable questions",
+            description = "This interview record does not have imported questions that can seed a replay session yet.",
+            recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
+            recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
+        )
+        REPLAY_BLOCKER_NO_INTERVIEWER_PROFILE -> InterviewRecordReplayBlockerDetailDto(
+            code = code,
+            label = "Missing interviewer profile",
+            description = "Replay needs interviewer tone and probing metadata before it can generate realistic follow-ups.",
+            recommendedAction = REVIEW_ACTION_CONFIRM,
+            recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_CONFIRM),
+        )
+        else -> InterviewRecordReplayBlockerDetailDto(
+            code = code,
+            label = code,
+            description = "Resolve this replay blocker before starting replay.",
+            recommendedAction = REVIEW_ACTION_REVIEW_TRANSCRIPT,
+            recommendedActionLabel = resolveReviewLaneActionLabel(REVIEW_ACTION_REVIEW_TRANSCRIPT),
         )
     }
 

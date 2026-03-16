@@ -285,6 +285,7 @@ Implemented practical interview record foundation:
     - `recommendedReplayModeLabel`, `availableReplayModeLabels`, `presetTitle`, `presetDescription`, and `launchButtonLabel` are additive display helpers so replay launch UI can render recommended-copy without duplicating mode-label rules
   - `replayReadiness`
     - `recommendedReplayModeLabel`, `statusBadgeText`, `statusVariant`, `statusSummary`, `primaryCtaLabel`, and `blockedCtaLabel` are additive display helpers so readiness cards can render replay-ready vs blocked copy without re-deriving backend blocker state
+    - `blockerDetails[]` is additive richer blocker metadata for blocked replay cards, including label, description, and recommended next action copy
   - `provenanceComparisonSummary`
     - use this for deterministic vs AI vs confirmed diff panels without inferring current source precedence on the client
   - `questionSummaries[]`

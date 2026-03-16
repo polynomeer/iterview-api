@@ -1987,6 +1987,18 @@ components:
         blockers:
           type: array
           items: { type: string }
+        blockerDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/InterviewRecordReplayBlockerDetailDto'
+    InterviewRecordReplayBlockerDetailDto:
+      type: object
+      properties:
+        code: { type: string }
+        label: { type: string }
+        description: { type: string }
+        recommendedAction: { type: string }
+        recommendedActionLabel: { type: string }
     InterviewRecordReviewLaneSummaryDto:
       type: object
       properties:
