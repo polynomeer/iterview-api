@@ -5,8 +5,9 @@ spring:
     name: iterview-api
   servlet:
     multipart:
-      max-file-size: ${APP_MULTIPART_MAX_FILE_SIZE:10MB}
-      max-request-size: ${APP_MULTIPART_MAX_REQUEST_SIZE:12MB}
+      # Must be at least as large as the largest domain-specific upload cap.
+      max-file-size: ${APP_MULTIPART_MAX_FILE_SIZE:50MB}
+      max-request-size: ${APP_MULTIPART_MAX_REQUEST_SIZE:55MB}
   jpa:
     hibernate:
       ddl-auto: validate

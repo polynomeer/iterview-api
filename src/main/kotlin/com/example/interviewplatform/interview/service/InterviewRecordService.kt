@@ -47,6 +47,7 @@ import com.example.interviewplatform.resume.repository.ResumeRepository
 import com.example.interviewplatform.resume.repository.ResumeVersionRepository
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -71,6 +72,8 @@ class InterviewRecordService(
     private val resumeVersionRepository: ResumeVersionRepository,
     private val clockService: ClockService,
     private val objectMapper: ObjectMapper,
+    @Value("\${app.upload.interview-audio.max-size-bytes:52428800}")
+    private val interviewAudioUploadMaxSizeBytes: Long,
 ) {
     @Transactional(readOnly = true)
     fun listRecords(userId: Long): List<InterviewRecordListItemDto> {
@@ -2077,6 +2080,9 @@ class InterviewRecordService(
     private fun validateAudio(file: MultipartFile) {
         if (file.isEmpty) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Interview audio file is required")
+        }
+        if (file.size > interviewAudioUploadMaxSizeBytes) {
+            throw ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "Interview audio file must be 50 MB or smaller")
         }
         val fileName = file.originalFilename?.lowercase().orEmpty()
         val supported = fileName.endsWith(".mp3") || fileName.endsWith(".m4a") || fileName.endsWith(".wav") || fileName.endsWith(".mp4")

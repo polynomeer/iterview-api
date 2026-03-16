@@ -52,6 +52,7 @@ import com.example.interviewplatform.skill.repository.SkillCategoryRepository
 import com.example.interviewplatform.skill.repository.SkillRepository
 import com.example.interviewplatform.user.repository.UserRepository
 import jakarta.persistence.EntityManager
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.Resource
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -84,6 +85,8 @@ class ResumeService(
     private val userRepository: UserRepository,
     private val clockService: ClockService,
     private val entityManager: EntityManager,
+    @Value("\${app.upload.resume.max-size-bytes:15728640}")
+    private val resumeUploadMaxSizeBytes: Long,
 ) {
     @Transactional(readOnly = true)
     fun listUserResumes(userId: Long): List<ResumeDto> {
@@ -750,6 +753,9 @@ class ResumeService(
     private fun validatePdf(file: MultipartFile) {
         if (file.isEmpty) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Resume PDF is required")
+        }
+        if (file.size > resumeUploadMaxSizeBytes) {
+            throw ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "Resume PDF must be 15 MB or smaller")
         }
         val fileName = file.originalFilename.orEmpty().lowercase()
         val contentType = file.contentType.orEmpty().lowercase()
