@@ -243,6 +243,7 @@ class InterviewRecordApiIntegrationTest {
             .andExpect(jsonPath("$.followUpThreads[0].weakQuestionCount").value(2))
             .andExpect(jsonPath("$.followUpThreads[0].answeredQuestionCount").value(2))
             .andExpect(jsonPath("$.followUpThreads[0].quantifiedQuestionCount").value(2))
+            .andExpect(jsonPath("$.followUpThreads[0].recommendedAction").value("review_weak_chain"))
             .andExpect(jsonPath("$.followUpThreads[0].structuredQuestionCount").value(0))
             .andExpect(jsonPath("$.followUpThreads[0].tradeoffAwareQuestionCount").value(0))
             .andExpect(jsonPath("$.followUpThreads[0].uncertainQuestionCount").value(0))

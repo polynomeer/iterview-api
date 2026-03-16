@@ -623,6 +623,7 @@ class InterviewRecordService(
                 uncertainQuestionCount = sortedThreadSummaries.count {
                     "uncertain" in it.confidenceMarkers
                 },
+                recommendedAction = resolveThreadRecommendedAction(sortedThreadSummaries),
                 structuringSources = sortedThreadSummaries
                     .flatMap { listOfNotNull(it.questionStructuringSource, it.answerStructuringSource) }
                     .distinct()
@@ -645,6 +646,19 @@ class InterviewRecordService(
             current = parent
         }
         return current.questionId
+    }
+
+    private fun resolveThreadRecommendedAction(
+        threadSummaries: List<InterviewRecordReviewQuestionSummaryDto>,
+    ): String {
+        val hasWeak = threadSummaries.any { it.hasWeakAnswer }
+        val quantifiedCount = threadSummaries.count { "quantified" in it.strengthTags }
+        val answeredCount = threadSummaries.count { it.answerSummary != null }
+        return when {
+            hasWeak -> THREAD_ACTION_REVIEW_WEAK_CHAIN
+            answeredCount > 0 && quantifiedCount > 0 -> THREAD_ACTION_REPLAY_CHAIN
+            else -> THREAD_ACTION_STABLE_CHAIN
+        }
     }
 
     @Transactional
@@ -1489,6 +1503,9 @@ class InterviewRecordService(
         private const val REVIEW_ACTION_CONFIRM = "confirm"
         private const val REVIEW_ACTION_START_REPLAY = "start_replay"
         private const val REVIEW_BLOCKING_REASON_PENDING_TRANSCRIPT_EDITS = "pending_transcript_edits"
+        private const val THREAD_ACTION_REVIEW_WEAK_CHAIN = "review_weak_chain"
+        private const val THREAD_ACTION_REPLAY_CHAIN = "replay_chain"
+        private const val THREAD_ACTION_STABLE_CHAIN = "stable_chain"
         private const val REVIEW_ORIGIN_RESUME_LINKED = "resume_linked"
         private const val REVIEW_ORIGIN_JOB_POSTING_LINKED = "job_posting_linked"
         private const val REVIEW_ORIGIN_HYBRID_LINKED = "hybrid_linked"

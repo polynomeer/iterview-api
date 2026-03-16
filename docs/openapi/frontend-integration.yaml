@@ -2082,6 +2082,7 @@ components:
         structuredQuestionCount: { type: integer }
         tradeoffAwareQuestionCount: { type: integer }
         uncertainQuestionCount: { type: integer }
+        recommendedAction: { type: string }
         structuringSources:
           type: array
           items: { type: string }

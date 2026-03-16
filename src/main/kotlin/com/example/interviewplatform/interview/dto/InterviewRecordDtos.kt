@@ -218,6 +218,7 @@ data class InterviewRecordReviewFollowUpThreadDto(
     val structuredQuestionCount: Int,
     val tradeoffAwareQuestionCount: Int,
     val uncertainQuestionCount: Int,
+    val recommendedAction: String,
     val structuringSources: List<String>,
 )
 
