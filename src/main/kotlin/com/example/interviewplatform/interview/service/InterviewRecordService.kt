@@ -1308,6 +1308,7 @@ class InterviewRecordService(
             sessionType = REVIEW_REPLAY_SESSION_TYPE,
             sourceInterviewRecordId = recordId,
             replayMode = replayReadiness.recommendedReplayMode,
+            recommendedReplayModeLabel = resolveReplayModeLabel(replayReadiness.recommendedReplayMode),
             recommendedQuestionCount = recommendedQuestionCount,
             seedQuestionIds = rootSeedQuestionIds,
             availableReplayModes = listOf(
@@ -1315,6 +1316,10 @@ class InterviewRecordService(
                 REVIEW_REPLAY_MODE_PATTERN_SIMILAR,
                 REVIEW_REPLAY_MODE_PRESSURE_VARIANT,
             ),
+            availableReplayModeLabels = buildReplayModeLabels(),
+            presetTitle = "Replay this interview pattern",
+            presetDescription = "Start from the imported interview flow with the recommended mode and seed questions already selected.",
+            launchButtonLabel = "Start recommended replay",
         )
     }
 
@@ -1485,6 +1490,7 @@ class InterviewRecordService(
             sessionType = REVIEW_REPLAY_SESSION_TYPE,
             sourceInterviewRecordId = recordId,
             replayMode = REVIEW_REPLAY_MODE_ORIGINAL,
+            recommendedReplayModeLabel = resolveReplayModeLabel(REVIEW_REPLAY_MODE_ORIGINAL),
             recommendedQuestionCount = threadSummaries.size.coerceAtLeast(1),
             seedQuestionIds = linkedQuestionIds.take(DEFAULT_REPLAY_SEED_COUNT),
             availableReplayModes = listOf(
@@ -1492,6 +1498,10 @@ class InterviewRecordService(
                 REVIEW_REPLAY_MODE_PATTERN_SIMILAR,
                 REVIEW_REPLAY_MODE_PRESSURE_VARIANT,
             ),
+            availableReplayModeLabels = buildReplayModeLabels(),
+            presetTitle = "Replay this follow-up chain",
+            presetDescription = "Re-run this thread with its linked questions as the seed set so you can practice the same probing path.",
+            launchButtonLabel = "Replay this chain",
         )
     }
 
@@ -1504,6 +1514,7 @@ class InterviewRecordService(
             sessionType = REVIEW_REPLAY_SESSION_TYPE,
             sourceInterviewRecordId = recordId,
             replayMode = REVIEW_REPLAY_MODE_ORIGINAL,
+            recommendedReplayModeLabel = resolveReplayModeLabel(REVIEW_REPLAY_MODE_ORIGINAL),
             recommendedQuestionCount = threadQuestions.size.coerceAtLeast(1),
             seedQuestionIds = linkedQuestionIds.take(DEFAULT_REPLAY_SEED_COUNT),
             availableReplayModes = listOf(
@@ -1511,8 +1522,25 @@ class InterviewRecordService(
                 REVIEW_REPLAY_MODE_PATTERN_SIMILAR,
                 REVIEW_REPLAY_MODE_PRESSURE_VARIANT,
             ),
+            availableReplayModeLabels = buildReplayModeLabels(),
+            presetTitle = "Replay from this transcript issue",
+            presetDescription = "Launch replay from the linked question chain so you can verify the flagged segment in context.",
+            launchButtonLabel = "Open replay from here",
         )
     }
+
+    private fun resolveReplayModeLabel(replayMode: String): String = when (replayMode) {
+        REVIEW_REPLAY_MODE_ORIGINAL -> "Original replay"
+        REVIEW_REPLAY_MODE_PATTERN_SIMILAR -> "Pattern-similar replay"
+        REVIEW_REPLAY_MODE_PRESSURE_VARIANT -> "Pressure-variant replay"
+        else -> replayMode
+    }
+
+    private fun buildReplayModeLabels(): Map<String, String> = listOf(
+        REVIEW_REPLAY_MODE_ORIGINAL,
+        REVIEW_REPLAY_MODE_PATTERN_SIMILAR,
+        REVIEW_REPLAY_MODE_PRESSURE_VARIANT,
+    ).associateWith(::resolveReplayModeLabel)
 
     private fun InterviewRecordQuestionEntity.toReviewQuestionDeepLink(recordId: Long): InterviewRecordReviewQuestionDeepLinkDto =
         InterviewRecordReviewQuestionDeepLinkDto(

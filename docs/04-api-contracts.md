@@ -1726,9 +1726,14 @@ Current structured extraction semantics:
       - `sessionType`
       - `sourceInterviewRecordId`
       - `replayMode`
+      - `recommendedReplayModeLabel`
       - `recommendedQuestionCount`
       - `seedQuestionIds[]`
       - `availableReplayModes[]`
+      - `availableReplayModeLabels`
+      - `presetTitle`
+      - `presetDescription`
+      - `launchButtonLabel`
   - `provenanceComparisonSummary`
     - additive comparison summary for deterministic vs ai_enriched vs confirmed review panels
     - includes:

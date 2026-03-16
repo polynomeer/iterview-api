@@ -282,6 +282,7 @@ Implemented practical interview record foundation:
     - `primaryActionLabel`, `primaryActionTarget`, `primaryActionTargetPayload`, `availableActionTargets`, and `availableActionTargetPayloads` are additive and let the review header CTA reuse the same route/panel/filter semantics as lane cards
   - `replayLaunchPreset`
     - use this to prefill the replay-start modal or direct `POST /api/interview-sessions` call for `replay_mock`
+    - `recommendedReplayModeLabel`, `availableReplayModeLabels`, `presetTitle`, `presetDescription`, and `launchButtonLabel` are additive display helpers so replay launch UI can render recommended-copy without duplicating mode-label rules
   - `provenanceComparisonSummary`
     - use this for deterministic vs AI vs confirmed diff panels without inferring current source precedence on the client
   - `questionSummaries[]`

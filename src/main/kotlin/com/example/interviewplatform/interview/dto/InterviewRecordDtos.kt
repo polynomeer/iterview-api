@@ -229,9 +229,14 @@ data class InterviewRecordReplayLaunchPresetDto(
     val sessionType: String,
     val sourceInterviewRecordId: Long,
     val replayMode: String,
+    val recommendedReplayModeLabel: String,
     val recommendedQuestionCount: Int,
     val seedQuestionIds: List<Long>,
     val availableReplayModes: List<String>,
+    val availableReplayModeLabels: Map<String, String>,
+    val presetTitle: String,
+    val presetDescription: String,
+    val launchButtonLabel: String,
 )
 
 data class InterviewRecordProvenanceComparisonSummaryDto(

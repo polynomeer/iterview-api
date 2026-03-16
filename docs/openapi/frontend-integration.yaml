@@ -2164,6 +2164,7 @@ components:
         sessionType: { type: string }
         sourceInterviewRecordId: { type: integer, format: int64 }
         replayMode: { type: string }
+        recommendedReplayModeLabel: { type: string }
         recommendedQuestionCount: { type: integer }
         seedQuestionIds:
           type: array
@@ -2171,6 +2172,12 @@ components:
         availableReplayModes:
           type: array
           items: { type: string }
+        availableReplayModeLabels:
+          type: object
+          additionalProperties: { type: string }
+        presetTitle: { type: string }
+        presetDescription: { type: string }
+        launchButtonLabel: { type: string }
     InterviewRecordProvenanceComparisonSummaryDto:
       type: object
       properties:
