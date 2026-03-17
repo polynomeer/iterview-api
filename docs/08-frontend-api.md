@@ -70,6 +70,7 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `GET /api/resume-versions/{versionId}/analyses/{analysisId}/exports/{exportId}/file`
 - Resume interview heatmap reads and writes are:
   - `GET /api/resume-versions/{versionId}/question-heatmap`
+  - `GET /api/resume-versions/{versionId}/question-heatmap/overlay-targets`
   - `POST /api/resume-versions/{versionId}/question-heatmap/links`
   - `PATCH /api/resume-versions/{versionId}/question-heatmap/links/{linkId}`
 - resume analysis runs are additive read/write models layered on top of immutable resume versions
@@ -93,7 +94,8 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 - `ResumeQuestionHeatmapDto` now exposes:
   - `summary`
   - `items`
-- current implementation should be treated as anchor-level heat only
+- `ResumeQuestionHeatmapItemDto` now also exposes:
+  - `overlayTargets`
 - each heatmap item currently exposes:
   - anchor identity such as `anchorType`, `anchorRecordId`, and `anchorKey`
   - `label`
@@ -106,6 +108,23 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `pressureQuestionCount`
   - `weaknessCount`
   - `recentQuestionAt`
+  - `overlayTargets`
+  - `linkedQuestions`
+- `ResumeQuestionHeatmapOverlayTargetListDto` exposes flattened overlay targets for hover-driven resume viewers
+- each overlay target currently exposes:
+  - `targetType`
+  - `fieldPath`
+  - `textSnippet`
+  - `textStartOffset`
+  - `textEndOffset`
+  - `sentenceIndex`
+  - `paragraphIndex`
+  - `heatScore`
+  - `normalizedHeatLevel`
+  - `questionCount`
+  - `followUpCount`
+  - `pressureQuestionCount`
+  - `weaknessCount`
   - `linkedQuestions`
 - each heatmap-linked question now also exposes:
   - `linkSource`
@@ -115,11 +134,10 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `main`
   - `follow_up`
 - manual remap links are additive override rows; they do not mutate the imported practical-interview question itself
-- the current backend does not yet expose sentence-level or phrase-level overlay targets for hover cards inside one project or experience block
-- planned next-step frontend direction:
-  - keep the current anchor heatmap as the first layer
-  - add sentence overlay rendering only when the backend exposes text-range targets
-  - support both whole-block questions and sentence-specific question cards in the same viewer
+- current overlay coverage supports:
+  - `block` targets for whole-project or whole-anchor questions
+  - `sentence` targets for sentence-specific hover cards
+- frontend should support both whole-block questions and sentence-specific question cards in the same viewer
 - The current project endpoint should be treated as the stable base for resume-derived project cards.
 - Implemented project payload fields now include:
   - `contentText`

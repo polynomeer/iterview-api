@@ -5,6 +5,7 @@ import com.example.interviewplatform.support.TestDatabaseCleaner
 import com.sun.net.httpserver.HttpServer
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -888,6 +889,128 @@ class ResumeApiIntegrationTest {
         } finally {
             server.stop(0)
         }
+    }
+
+    @Test
+    fun `question heatmap exposes mixed block and sentence overlay targets`() {
+        val resumeId = createResume("Overlay Resume")
+        val versionId = createResumeVersion(
+            resumeId = resumeId,
+            fileUrl = "https://files.example.com/overlay-resume.pdf",
+            summaryText = "Built creator studio pipeline.",
+            rawText = """
+                Kim Resume
+                Mail : overlay@example.com
+                프로젝트
+                크리에이터 스튜디오 개발 2024.01 ~ 2024.10
+                기술스택 Java11, Spring Boot, QueryDSL
+                B2C 오디오 콘텐츠 제작 플랫폼 크리에이터 스튜디오를 신규 구축하여 누구나 쉽게 오디오 콘텐츠를 제작하고 FLO에 배포할 수 있도록 지원
+                콘텐츠 라이프사이클 파이프라인 구조화 및 운영 안정화
+                업로드, 검증, 처리, CDN 반영, 서비스 연계까지 단계가 많아 실패 복구 가능한 End-to-End 파이프라인을 설계했습니다.
+            """.trimIndent(),
+            parsedJson = """{"skills":["Spring Boot"]}""",
+        )
+
+        val projectId = jdbcTemplate.queryForObject(
+            "SELECT id FROM resume_project_snapshots WHERE resume_version_id = ? ORDER BY display_order ASC, id ASC LIMIT 1",
+            Long::class.java,
+            versionId,
+        )!!
+        val recordId = insertInterviewRecord(versionId)
+        val broadQuestionId = insertInterviewRecordQuestion(
+            interviewRecordId = recordId,
+            text = "이 프로젝트에서 가장 어려웠던 점이 무엇이었나요?",
+            questionType = "behavioral",
+            intentTagsJson = """["difficulty","project"]""",
+            derivedFromResumeSection = "project",
+            derivedFromResumeRecordType = "project",
+            derivedFromResumeRecordId = projectId,
+            orderIndex = 0,
+        )
+        val sentenceQuestionId = insertInterviewRecordQuestion(
+            interviewRecordId = recordId,
+            text = "콘텐츠 라이프사이클 파이프라인 구조화 및 운영 안정화가 구체적으로 무엇이었나요?",
+            questionType = "verification",
+            intentTagsJson = """["verification","deep_dive"]""",
+            derivedFromResumeSection = "project",
+            derivedFromResumeRecordType = "project",
+            derivedFromResumeRecordId = projectId,
+            orderIndex = 1,
+        )
+        val sentenceFollowUpId = insertInterviewRecordQuestion(
+            interviewRecordId = recordId,
+            text = "그 구조에서 실패 복구를 위해 어떤 상태 전이를 두셨나요?",
+            questionType = "follow_up",
+            intentTagsJson = """["verification","follow_up"]""",
+            derivedFromResumeSection = "project",
+            derivedFromResumeRecordType = "project",
+            derivedFromResumeRecordId = projectId,
+            parentQuestionId = sentenceQuestionId,
+            orderIndex = 2,
+        )
+        insertInterviewRecordAnswer(
+            interviewRecordQuestionId = broadQuestionId,
+            text = "프로젝트 전반 난이도를 설명했습니다.",
+            weaknessTagsJson = "[]",
+            strengthTagsJson = """["structured"]""",
+            orderIndex = 0,
+        )
+        insertInterviewRecordAnswer(
+            interviewRecordQuestionId = sentenceQuestionId,
+            text = "파이프라인 구조와 운영 안정화를 설명했습니다.",
+            weaknessTagsJson = """["missing_metric"]""",
+            strengthTagsJson = """["structured"]""",
+            orderIndex = 1,
+        )
+        insertInterviewRecordAnswer(
+            interviewRecordQuestionId = sentenceFollowUpId,
+            text = "상태 전이와 복구 흐름을 설명했습니다.",
+            weaknessTagsJson = "[]",
+            strengthTagsJson = """["tradeoff_aware"]""",
+            orderIndex = 2,
+        )
+        insertInterviewRecordFollowUpEdge(recordId, sentenceQuestionId, sentenceFollowUpId)
+
+        val heatmap = mockMvc.perform(get("/api/resume-versions/$versionId/question-heatmap").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items[0].anchorType").value("project"))
+            .andExpect(jsonPath("$.items[0].directQuestionCount").value(3))
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val overlayTargets = heatmap.path("items").first().path("overlayTargets")
+        val anchorBlockTarget = overlayTargets.firstOrNull {
+            it.path("targetType").asText() == "block" && it.path("fieldPath").asText() == "anchor.block"
+        }
+        assertNotNull(anchorBlockTarget)
+        assertEquals(1, anchorBlockTarget!!.path("questionCount").asInt())
+        assertEquals(broadQuestionId, anchorBlockTarget.path("linkedQuestions").first().path("interviewRecordQuestionId").asLong())
+
+        val populatedSentenceTarget = overlayTargets.firstOrNull {
+            it.path("targetType").asText() == "sentence" && it.path("questionCount").asInt() == 2
+        }
+        assertNotNull(populatedSentenceTarget)
+        assertEquals(1, populatedSentenceTarget!!.path("followUpCount").asInt())
+        assertEquals(2, populatedSentenceTarget.path("linkedQuestions").size())
+        assertEquals(sentenceQuestionId, populatedSentenceTarget.path("linkedQuestions")[0].path("interviewRecordQuestionId").asLong())
+        assertEquals(sentenceFollowUpId, populatedSentenceTarget.path("linkedQuestions")[1].path("interviewRecordQuestionId").asLong())
+
+        val overlayTargetList = mockMvc.perform(get("/api/resume-versions/$versionId/question-heatmap/overlay-targets").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.resumeVersionId").value(versionId))
+            .andExpect(jsonPath("$.scope").value("all"))
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val flatSentenceTarget = overlayTargetList.path("items").firstOrNull {
+            it.path("targetType").asText() == "sentence" && it.path("questionCount").asInt() == 2
+        }
+        assertNotNull(flatSentenceTarget)
+        assertEquals(2, flatSentenceTarget!!.path("linkedQuestions").size())
     }
 
     private fun createResume(title: String): Long {

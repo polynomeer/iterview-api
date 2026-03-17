@@ -14,6 +14,12 @@ data class ResumeQuestionHeatmapDto(
     val items: List<ResumeQuestionHeatmapItemDto>,
 )
 
+data class ResumeQuestionHeatmapOverlayTargetListDto(
+    val resumeVersionId: Long,
+    val scope: String,
+    val items: List<ResumeQuestionHeatmapOverlayTargetDto>,
+)
+
 data class ResumeQuestionHeatmapSummaryDto(
     val totalAnchors: Int,
     val totalLinkedQuestions: Int,
@@ -36,6 +42,28 @@ data class ResumeQuestionHeatmapItemDto(
     val pressureQuestionCount: Int,
     val weaknessCount: Int,
     val recentQuestionAt: Instant?,
+    val overlayTargets: List<ResumeQuestionHeatmapOverlayTargetDto>,
+    val linkedQuestions: List<ResumeQuestionHeatmapQuestionDto>,
+)
+
+data class ResumeQuestionHeatmapOverlayTargetDto(
+    val id: Long?,
+    val anchorType: String,
+    val anchorRecordId: Long?,
+    val anchorKey: String?,
+    val targetType: String,
+    val fieldPath: String,
+    val textSnippet: String,
+    val textStartOffset: Int?,
+    val textEndOffset: Int?,
+    val sentenceIndex: Int?,
+    val paragraphIndex: Int?,
+    val heatScore: Double,
+    val normalizedHeatLevel: String,
+    val questionCount: Int,
+    val followUpCount: Int,
+    val pressureQuestionCount: Int,
+    val weaknessCount: Int,
     val linkedQuestions: List<ResumeQuestionHeatmapQuestionDto>,
 )
 

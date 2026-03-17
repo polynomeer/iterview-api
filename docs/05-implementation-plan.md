@@ -175,10 +175,13 @@ Current step status:
 - implemented:
   - `resume_document_overlay_targets` persistence
   - block and sentence target generation during resume extraction and re-extraction
-- next:
   - public read API for overlay targets
   - question-to-overlay linking
   - additive `overlayTargets` on heatmap reads
+- remaining recommended next steps:
+  - sentence-level manual remap or phrase-level remap refinement
+  - optional phrase or keyword overlay target types
+  - richer filter params such as weakness-only or interview-date windows
 
 ## Phase 2 - Question Tree and Follow-Up Relationships
 1. add Flyway migration for `question_relationships`

@@ -66,11 +66,13 @@
 - the heatmap can distinguish direct question volume, follow-up density, pressure questions, and weak-answer hotspots
 - a practical interview question can be manually remapped to another parsed resume anchor without mutating the original imported question row
 - heatmap filtering can distinguish all questions, main questions, and follow-up questions
-- the current anchor-level heatmap can later expand into sentence-level overlays without breaking the existing summary contract
+- the anchor-level heatmap expands into sentence-level overlays without breaking the existing summary contract
 - the future resume viewer should be able to show both:
   - whole-project or whole-experience question coverage
   - sentence-specific hover cards for precise question triggers
-- resume extraction can persist internal block and sentence overlay targets without requiring raw PDF coordinate extraction
+- resume extraction persists block and sentence overlay targets without requiring raw PDF coordinate extraction
+- the backend exposes both nested `overlayTargets` and a flattened overlay-target read for hover-oriented resume viewers
+- project-wide questions can remain linked to a whole-anchor `block` target while sentence-specific questions attach to one `sentence` target
 - scoring rules remain centralized in one service
 
 ## Review Queue and Learning Loop

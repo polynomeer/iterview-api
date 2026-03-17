@@ -12,11 +12,15 @@ import com.example.interviewplatform.resume.dto.CreateResumeQuestionHeatmapLinkR
 import com.example.interviewplatform.resume.dto.ResumeQuestionHeatmapDto
 import com.example.interviewplatform.resume.dto.ResumeQuestionHeatmapItemDto
 import com.example.interviewplatform.resume.dto.ResumeQuestionHeatmapLinkDto
+import com.example.interviewplatform.resume.dto.ResumeQuestionHeatmapOverlayTargetDto
+import com.example.interviewplatform.resume.dto.ResumeQuestionHeatmapOverlayTargetListDto
 import com.example.interviewplatform.resume.dto.ResumeQuestionHeatmapQuestionDto
 import com.example.interviewplatform.resume.dto.ResumeQuestionHeatmapSummaryDto
 import com.example.interviewplatform.resume.dto.UpdateResumeQuestionHeatmapLinkRequest
+import com.example.interviewplatform.resume.entity.ResumeDocumentOverlayTargetEntity
 import com.example.interviewplatform.resume.entity.ResumeQuestionHeatmapLinkEntity
 import com.example.interviewplatform.resume.repository.ResumeCompetencyItemRepository
+import com.example.interviewplatform.resume.repository.ResumeDocumentOverlayTargetRepository
 import com.example.interviewplatform.resume.repository.ResumeExperienceSnapshotRepository
 import com.example.interviewplatform.resume.repository.ResumeProfileSnapshotRepository
 import com.example.interviewplatform.resume.repository.ResumeProjectSnapshotRepository
@@ -38,6 +42,7 @@ class ResumeQuestionHeatmapService(
     private val resumeVersionRepository: ResumeVersionRepository,
     private val resumeProfileSnapshotRepository: ResumeProfileSnapshotRepository,
     private val resumeCompetencyItemRepository: ResumeCompetencyItemRepository,
+    private val resumeDocumentOverlayTargetRepository: ResumeDocumentOverlayTargetRepository,
     private val resumeSkillSnapshotRepository: ResumeSkillSnapshotRepository,
     private val resumeExperienceSnapshotRepository: ResumeExperienceSnapshotRepository,
     private val resumeProjectSnapshotRepository: ResumeProjectSnapshotRepository,
@@ -52,16 +57,11 @@ class ResumeQuestionHeatmapService(
 ) {
     @Transactional(readOnly = true)
     fun getHeatmap(userId: Long, versionId: Long, scope: String): ResumeQuestionHeatmapDto {
-        requireOwnedVersion(userId, versionId)
-        val normalizedScope = scope.trim().lowercase()
-        if (normalizedScope !in supportedScopes) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported heatmap scope: $scope")
-        }
-        val records = interviewRecordRepository.findByUserIdAndLinkedResumeVersionIdOrderByCreatedAtDesc(userId, versionId)
-        if (records.isEmpty()) {
+        val context = buildHeatmapContext(userId, versionId, scope)
+        if (context.items.isEmpty()) {
             return ResumeQuestionHeatmapDto(
                 resumeVersionId = versionId,
-                scope = normalizedScope,
+                scope = context.scope,
                 summary = ResumeQuestionHeatmapSummaryDto(
                     totalAnchors = 0,
                     totalLinkedQuestions = 0,
@@ -72,98 +72,34 @@ class ResumeQuestionHeatmapService(
                 items = emptyList(),
             )
         }
-        val questions = interviewRecordQuestionRepository.findByInterviewRecordIdInOrderByInterviewRecordIdAscOrderIndexAsc(records.map { it.id })
-        val filteredQuestions = questions.filter { question ->
-            when (normalizedScope) {
-                "main" -> question.parentQuestionId == null
-                "follow_up" -> question.parentQuestionId != null
-                else -> true
-            }
-        }
-        if (filteredQuestions.isEmpty()) {
-            return ResumeQuestionHeatmapDto(
-                resumeVersionId = versionId,
-                scope = normalizedScope,
-                summary = ResumeQuestionHeatmapSummaryDto(0, 0, null, null, null),
-                items = emptyList(),
-            )
-        }
-
-        val answers = interviewRecordAnswerRepository.findByInterviewRecordQuestionIdIn(filteredQuestions.map { it.id })
-            .associateBy { it.interviewRecordQuestionId }
-        val followUpEdges = interviewRecordFollowUpEdgeRepository.findByInterviewRecordIdInOrderByInterviewRecordIdAscIdAsc(records.map { it.id })
-        val outgoingFollowUpCount = followUpEdges.groupingBy { it.fromQuestionId }.eachCount()
-        val manualLinks = resumeQuestionHeatmapLinkRepository.findByResumeVersionIdAndActiveTrue(versionId)
-            .associateBy { it.interviewRecordQuestionId }
-        val recordsById = records.associateBy { it.id }
-        val projects = resumeProjectSnapshotRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(versionId)
-        val anchorResolver = AnchorResolver(
-            profile = resumeProfileSnapshotRepository.findByResumeVersionId(versionId),
-            competencies = resumeCompetencyItemRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(versionId),
-            skills = resumeSkillSnapshotRepository.findByResumeVersionIdOrderByIdAsc(versionId),
-            experiences = resumeExperienceSnapshotRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(versionId),
-            projects = projects,
-            projectTagsByProjectId = resumeProjectTagRepository
-                .findByResumeProjectSnapshotIdInOrderByResumeProjectSnapshotIdAscDisplayOrderAscIdAsc(projects.map { it.id })
-                .groupBy { it.resumeProjectSnapshotId },
-        )
-
-        val aggregated = linkedMapOf<AnchorIdentity, MutableHeatmapAccumulator>()
-        filteredQuestions.forEach { question ->
-            val record = recordsById[question.interviewRecordId] ?: return@forEach
-            val resolution = resolveAnchor(question, manualLinks[question.id], anchorResolver) ?: return@forEach
-            val anchor = resolution.anchor
-            val answer = answers[question.id]
-            val weaknessTags = decodeStringList(answer?.weaknessTagsJson)
-            val pressure = isPressureQuestion(question)
-            val followUpCount = outgoingFollowUpCount[question.id] ?: 0
-            val questionDto = ResumeQuestionHeatmapQuestionDto(
-                interviewRecordQuestionId = question.id,
-                sourceInterviewRecordId = question.interviewRecordId,
-                linkedQuestionId = question.linkedQuestionId,
-                text = question.text,
-                questionType = question.questionType,
-                isFollowUp = question.parentQuestionId != null,
-                followUpCount = followUpCount,
-                pressureQuestion = pressure,
-                weakAnswer = weaknessTags.isNotEmpty(),
-                weaknessTags = weaknessTags,
-                interviewDate = record.interviewDate,
-                linkSource = resolution.linkSource,
-                confidenceScore = resolution.confidenceScore,
-            )
-            val key = AnchorIdentity(anchor.anchorType, anchor.anchorRecordId, anchor.anchorKey)
-            val accumulator = aggregated.getOrPut(key) {
-                MutableHeatmapAccumulator(
-                    anchorType = anchor.anchorType,
-                    anchorRecordId = anchor.anchorRecordId,
-                    anchorKey = anchor.anchorKey,
-                    label = anchor.label,
-                    snippet = anchor.snippet,
-                )
-            }
-            accumulator.directQuestionCount += 1
-            accumulator.followUpCount += followUpCount
-            accumulator.pressureQuestionCount += if (pressure) 1 else 0
-            accumulator.weaknessCount += if (weaknessTags.isNotEmpty()) 1 else 0
-            accumulator.distinctInterviewIds += question.interviewRecordId
-            accumulator.recentQuestionAt = maxOfNotNull(accumulator.recentQuestionAt, record.createdAt)
-            accumulator.questions += questionDto
-        }
-
-        val items = aggregated.values.map { it.toDto() }.sortedByDescending { it.heatScore }
         val summary = ResumeQuestionHeatmapSummaryDto(
-            totalAnchors = items.size,
-            totalLinkedQuestions = items.sumOf { it.directQuestionCount },
-            hottestAnchorLabel = items.maxByOrNull { it.heatScore }?.label,
-            mostFollowedUpAnchorLabel = items.maxByOrNull { it.followUpCount }?.label,
-            weakestAnchorLabel = items.maxByOrNull { it.weaknessCount }?.label,
+            totalAnchors = context.items.size,
+            totalLinkedQuestions = context.items.sumOf { it.directQuestionCount },
+            hottestAnchorLabel = context.items.maxByOrNull { it.heatScore }?.label,
+            mostFollowedUpAnchorLabel = context.items.maxByOrNull { it.followUpCount }?.label,
+            weakestAnchorLabel = context.items.maxByOrNull { it.weaknessCount }?.label,
         )
         return ResumeQuestionHeatmapDto(
             resumeVersionId = versionId,
-            scope = normalizedScope,
+            scope = context.scope,
             summary = summary,
-            items = items,
+            items = context.items,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getOverlayTargets(userId: Long, versionId: Long, scope: String): ResumeQuestionHeatmapOverlayTargetListDto {
+        val context = buildHeatmapContext(userId, versionId, scope)
+        return ResumeQuestionHeatmapOverlayTargetListDto(
+            resumeVersionId = versionId,
+            scope = context.scope,
+            items = context.items.flatMap { it.overlayTargets }
+                .sortedWith(
+                    compareBy<ResumeQuestionHeatmapOverlayTargetDto> { it.anchorType }
+                        .thenBy { it.anchorRecordId ?: Long.MAX_VALUE }
+                        .thenBy { it.fieldPath }
+                        .thenBy { it.sentenceIndex ?: -1 },
+                ),
         )
     }
 
@@ -309,6 +245,235 @@ class ResumeQuestionHeatmapService(
         runCatching { objectMapper.readValue(raw.orEmpty(), object : TypeReference<List<String>>() {}) }
             .getOrDefault(emptyList())
 
+    private fun buildHeatmapContext(userId: Long, versionId: Long, scope: String): HeatmapContext {
+        requireOwnedVersion(userId, versionId)
+        val normalizedScope = scope.trim().lowercase()
+        if (normalizedScope !in supportedScopes) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported heatmap scope: $scope")
+        }
+        val records = interviewRecordRepository.findByUserIdAndLinkedResumeVersionIdOrderByCreatedAtDesc(userId, versionId)
+        if (records.isEmpty()) {
+            return HeatmapContext(normalizedScope, emptyList())
+        }
+
+        val allQuestions = interviewRecordQuestionRepository.findByInterviewRecordIdInOrderByInterviewRecordIdAscOrderIndexAsc(records.map { it.id })
+        val filteredQuestions = allQuestions.filter { question ->
+            when (normalizedScope) {
+                "main" -> question.parentQuestionId == null
+                "follow_up" -> question.parentQuestionId != null
+                else -> true
+            }
+        }
+        if (filteredQuestions.isEmpty()) {
+            return HeatmapContext(normalizedScope, emptyList())
+        }
+
+        val answers = interviewRecordAnswerRepository.findByInterviewRecordQuestionIdIn(filteredQuestions.map { it.id })
+            .associateBy { it.interviewRecordQuestionId }
+        val followUpEdges = interviewRecordFollowUpEdgeRepository.findByInterviewRecordIdInOrderByInterviewRecordIdAscIdAsc(records.map { it.id })
+        val outgoingFollowUpCount = followUpEdges.groupingBy { it.fromQuestionId }.eachCount()
+        val manualLinks = resumeQuestionHeatmapLinkRepository.findByResumeVersionIdAndActiveTrue(versionId)
+            .associateBy { it.interviewRecordQuestionId }
+        val recordsById = records.associateBy { it.id }
+        val projects = resumeProjectSnapshotRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(versionId)
+        val anchorResolver = AnchorResolver(
+            profile = resumeProfileSnapshotRepository.findByResumeVersionId(versionId),
+            competencies = resumeCompetencyItemRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(versionId),
+            skills = resumeSkillSnapshotRepository.findByResumeVersionIdOrderByIdAsc(versionId),
+            experiences = resumeExperienceSnapshotRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(versionId),
+            projects = projects,
+            projectTagsByProjectId = resumeProjectTagRepository
+                .findByResumeProjectSnapshotIdInOrderByResumeProjectSnapshotIdAscDisplayOrderAscIdAsc(projects.map { it.id })
+                .groupBy { it.resumeProjectSnapshotId },
+        )
+        val overlayTargetsByAnchor = resumeDocumentOverlayTargetRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(versionId)
+            .groupBy { AnchorIdentity(it.anchorType, it.anchorRecordId, it.anchorKey) }
+
+        val aggregated = linkedMapOf<AnchorIdentity, MutableHeatmapAccumulator>()
+        val overlaySelectionByQuestionId = mutableMapOf<Long, OverlayTargetKey>()
+
+        filteredQuestions.forEach { question ->
+            val record = recordsById[question.interviewRecordId] ?: return@forEach
+            val resolution = resolveAnchor(question, manualLinks[question.id], anchorResolver) ?: return@forEach
+            val anchor = resolution.anchor
+            val key = AnchorIdentity(anchor.anchorType, anchor.anchorRecordId, anchor.anchorKey)
+            val accumulator = aggregated.getOrPut(key) {
+                MutableHeatmapAccumulator(
+                    anchorType = anchor.anchorType,
+                    anchorRecordId = anchor.anchorRecordId,
+                    anchorKey = anchor.anchorKey,
+                    label = anchor.label,
+                    snippet = anchor.snippet,
+                    overlayTargets = buildOverlayAccumulators(anchor, overlayTargetsByAnchor[key].orEmpty()),
+                )
+            }
+            val answer = answers[question.id]
+            val weaknessTags = decodeStringList(answer?.weaknessTagsJson)
+            val pressure = isPressureQuestion(question)
+            val followUpCount = outgoingFollowUpCount[question.id] ?: 0
+            val questionDto = ResumeQuestionHeatmapQuestionDto(
+                interviewRecordQuestionId = question.id,
+                sourceInterviewRecordId = question.interviewRecordId,
+                linkedQuestionId = question.linkedQuestionId,
+                text = question.text,
+                questionType = question.questionType,
+                isFollowUp = question.parentQuestionId != null,
+                followUpCount = followUpCount,
+                pressureQuestion = pressure,
+                weakAnswer = weaknessTags.isNotEmpty(),
+                weaknessTags = weaknessTags,
+                interviewDate = record.interviewDate,
+                linkSource = resolution.linkSource,
+                confidenceScore = resolution.confidenceScore,
+            )
+            val overlayTargetKey = selectOverlayTarget(
+                question = question,
+                accumulator = accumulator,
+                parentOverlayTargetKey = question.parentQuestionId?.let(overlaySelectionByQuestionId::get),
+            )
+            overlaySelectionByQuestionId[question.id] = overlayTargetKey
+
+            accumulator.directQuestionCount += 1
+            accumulator.followUpCount += followUpCount
+            accumulator.pressureQuestionCount += if (pressure) 1 else 0
+            accumulator.weaknessCount += if (weaknessTags.isNotEmpty()) 1 else 0
+            accumulator.distinctInterviewIds += question.interviewRecordId
+            accumulator.recentQuestionAt = maxOfNotNull(accumulator.recentQuestionAt, record.createdAt)
+            accumulator.questions += questionDto
+            accumulator.overlayTargets.getValue(overlayTargetKey).apply {
+                questionCount += 1
+                this.followUpCount += followUpCount
+                pressureQuestionCount += if (pressure) 1 else 0
+                weaknessCount += if (weaknessTags.isNotEmpty()) 1 else 0
+                questions += questionDto
+            }
+        }
+
+        return HeatmapContext(
+            scope = normalizedScope,
+            items = aggregated.values.map { it.toDto() }.sortedByDescending { it.heatScore },
+        )
+    }
+
+    private fun buildOverlayAccumulators(
+        anchor: ResolvedAnchor,
+        persistedTargets: List<ResumeDocumentOverlayTargetEntity>,
+    ): LinkedHashMap<OverlayTargetKey, MutableOverlayTargetAccumulator> {
+        val targets = linkedMapOf<OverlayTargetKey, MutableOverlayTargetAccumulator>()
+        val anchorBlockTargets = persistedTargets.filter { it.targetType == "block" && it.fieldPath == wholeAnchorFieldPath }
+        val normalizedTargets = if (anchorBlockTargets.isNotEmpty()) {
+            persistedTargets
+        } else {
+            listOf(
+                ResumeDocumentOverlayTargetEntity(
+                    id = 0,
+                    resumeVersionId = 0,
+                    anchorType = anchor.anchorType,
+                    anchorRecordId = anchor.anchorRecordId,
+                    anchorKey = anchor.anchorKey,
+                    targetType = "block",
+                    fieldPath = wholeAnchorFieldPath,
+                    textSnippet = anchor.snippet ?: anchor.label,
+                    textStartOffset = null,
+                    textEndOffset = null,
+                    sentenceIndex = null,
+                    paragraphIndex = null,
+                    displayOrder = Int.MIN_VALUE,
+                    createdAt = clockService.now(),
+                    updatedAt = clockService.now(),
+                ),
+            ) + persistedTargets
+        }
+        normalizedTargets.sortedWith(compareBy<ResumeDocumentOverlayTargetEntity> { it.displayOrder }.thenBy { it.id }).forEach { target ->
+            val key = OverlayTargetKey(target.id.takeIf { it != 0L }, target.targetType, target.fieldPath, target.sentenceIndex)
+            targets[key] = MutableOverlayTargetAccumulator(target)
+        }
+        return targets
+    }
+
+    private fun selectOverlayTarget(
+        question: InterviewRecordQuestionEntity,
+        accumulator: MutableHeatmapAccumulator,
+        parentOverlayTargetKey: OverlayTargetKey?,
+    ): OverlayTargetKey {
+        val sentenceTargets = accumulator.overlayTargets.filterValues { it.targetType == "sentence" }
+        val bestSentenceMatch = sentenceTargets.maxByOrNull { (_, target) -> scoreOverlayTargetMatch(question, target.textSnippet) }
+        val bestSentenceScore = bestSentenceMatch?.let { scoreOverlayTargetMatch(question, it.value.textSnippet) } ?: 0
+        val bestSentenceTarget = bestSentenceMatch?.value
+        val parentOverlayTarget = parentOverlayTargetKey?.let(accumulator.overlayTargets::get)
+        val parentSentenceScore = parentOverlayTargetKey
+            ?.takeIf { it.targetType == "sentence" }
+            ?.let { parentOverlayTarget }
+            ?.let { scoreOverlayTargetMatch(question, it.textSnippet) }
+            ?: 0
+        if (question.parentQuestionId != null && parentOverlayTargetKey != null && parentOverlayTargetKey.targetType == "sentence" && parentOverlayTarget != null) {
+            if (bestSentenceTarget != null && bestSentenceTarget.textSnippet.length >= genericSentenceSnippetThreshold) {
+                return parentOverlayTargetKey
+            }
+            if (parentSentenceScore >= parentSentenceMatchThreshold && parentSentenceScore + parentSentenceBias >= bestSentenceScore) {
+                return parentOverlayTargetKey
+            }
+        }
+        if (bestSentenceScore >= sentenceMatchThreshold) {
+            return bestSentenceMatch!!.key
+        }
+        if (question.parentQuestionId != null && parentOverlayTargetKey != null && parentOverlayTargetKey.targetType == "sentence" && parentOverlayTarget != null) {
+            return parentOverlayTargetKey
+        }
+        return accumulator.overlayTargets.entries
+            .firstOrNull { it.value.targetType == "block" && it.value.fieldPath == wholeAnchorFieldPath }
+            ?.key
+            ?: accumulator.overlayTargets.entries.first().key
+    }
+
+    private fun scoreOverlayTargetMatch(question: InterviewRecordQuestionEntity, targetText: String): Int {
+        val questionText = buildString {
+            append(question.text)
+            append(' ')
+            append(question.normalizedText.orEmpty())
+            decodeStringList(question.topicTagsJson).forEach {
+                append(' ')
+                append(it)
+            }
+        }
+        val normalizedQuestionText = normalizeOverlayMatchText(questionText)
+        val normalizedTargetText = normalizeOverlayMatchText(targetText)
+        val tokenScore = buildList {
+            add(normalizedTargetText)
+            normalizedTargetText.split(' ').filter { it.length >= 2 }.forEach(::add)
+        }.distinct().count { token -> token.isNotBlank() && normalizedQuestionText.contains(token) }
+        val phraseScore = buildOverlayPhraseCandidates(questionText)
+            .count { phrase -> phrase.length >= 6 && normalizedTargetText.contains(phrase) }
+        val exactishBonus = when {
+            normalizedQuestionText.isNotBlank() && normalizedTargetText.contains(normalizedQuestionText) -> 6
+            normalizedTargetText.isNotBlank() && normalizedQuestionText.contains(normalizedTargetText) -> 4
+            else -> 0
+        }
+        return tokenScore + phraseScore + exactishBonus
+    }
+
+    private fun normalizeOverlayMatchText(value: String): String =
+        value.lowercase()
+            .replace(Regex("[^\\p{L}\\p{N}\\s]"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+
+    private fun buildOverlayPhraseCandidates(value: String): List<String> {
+        val words = normalizeOverlayMatchText(value)
+            .split(' ')
+            .filter { it.length >= 2 }
+        if (words.size < 2) {
+            return emptyList()
+        }
+        val candidates = mutableListOf<String>()
+        for (size in minOf(5, words.size) downTo 2) {
+            for (index in 0..words.size - size) {
+                candidates += words.subList(index, index + size).joinToString(" ")
+            }
+        }
+        return candidates.distinct()
+    }
+
     private fun ResumeQuestionHeatmapLinkEntity.toDto(): ResumeQuestionHeatmapLinkDto = ResumeQuestionHeatmapLinkDto(
         id = id,
         resumeVersionId = resumeVersionId,
@@ -336,6 +501,11 @@ class ResumeQuestionHeatmapService(
         private val manualConfidenceScore: BigDecimal = BigDecimal("1.0000")
         private val inferredConfidenceScore: BigDecimal = BigDecimal("0.9000")
         private val heuristicConfidenceScore: BigDecimal = BigDecimal("0.6500")
+        private const val wholeAnchorFieldPath = "anchor.block"
+        private const val sentenceMatchThreshold = 2
+        private const val parentSentenceMatchThreshold = 1
+        private const val parentSentenceBias = 1
+        private const val genericSentenceSnippetThreshold = 80
     }
 }
 
@@ -439,6 +609,7 @@ private class MutableHeatmapAccumulator(
     val anchorKey: String?,
     val label: String,
     val snippet: String?,
+    val overlayTargets: LinkedHashMap<OverlayTargetKey, MutableOverlayTargetAccumulator>,
 ) {
     var directQuestionCount: Int = 0
     var followUpCount: Int = 0
@@ -473,6 +644,7 @@ private class MutableHeatmapAccumulator(
             pressureQuestionCount = pressureQuestionCount,
             weaknessCount = weaknessCount,
             recentQuestionAt = recentQuestionAt,
+            overlayTargets = overlayTargets.values.map { it.toDto() },
             linkedQuestions = questions.sortedWith(
                 compareByDescending<ResumeQuestionHeatmapQuestionDto> { it.followUpCount }
                     .thenByDescending { it.weakAnswer }
@@ -481,3 +653,72 @@ private class MutableHeatmapAccumulator(
         )
     }
 }
+
+private class MutableOverlayTargetAccumulator(
+    target: ResumeDocumentOverlayTargetEntity,
+) {
+    val id: Long? = target.id.takeIf { it != 0L }
+    val anchorType: String = target.anchorType
+    val anchorRecordId: Long? = target.anchorRecordId
+    val anchorKey: String? = target.anchorKey
+    val targetType: String = target.targetType
+    val fieldPath: String = target.fieldPath
+    val textSnippet: String = target.textSnippet
+    val textStartOffset: Int? = target.textStartOffset
+    val textEndOffset: Int? = target.textEndOffset
+    val sentenceIndex: Int? = target.sentenceIndex
+    val paragraphIndex: Int? = target.paragraphIndex
+    var questionCount: Int = 0
+    var followUpCount: Int = 0
+    var pressureQuestionCount: Int = 0
+    var weaknessCount: Int = 0
+    val questions: MutableList<ResumeQuestionHeatmapQuestionDto> = mutableListOf()
+
+    fun toDto(): ResumeQuestionHeatmapOverlayTargetDto {
+        val heatScore = questionCount.toDouble() +
+            (followUpCount * 1.5) +
+            (pressureQuestionCount * 2.0) +
+            (weaknessCount * 1.5)
+        return ResumeQuestionHeatmapOverlayTargetDto(
+            id = id,
+            anchorType = anchorType,
+            anchorRecordId = anchorRecordId,
+            anchorKey = anchorKey,
+            targetType = targetType,
+            fieldPath = fieldPath,
+            textSnippet = textSnippet,
+            textStartOffset = textStartOffset,
+            textEndOffset = textEndOffset,
+            sentenceIndex = sentenceIndex,
+            paragraphIndex = paragraphIndex,
+            heatScore = BigDecimal(heatScore).setScale(2, RoundingMode.HALF_UP).toDouble(),
+            normalizedHeatLevel = when {
+                heatScore >= 8.0 -> "critical"
+                heatScore >= 5.0 -> "high"
+                heatScore >= 2.0 -> "medium"
+                else -> "low"
+            },
+            questionCount = questionCount,
+            followUpCount = followUpCount,
+            pressureQuestionCount = pressureQuestionCount,
+            weaknessCount = weaknessCount,
+            linkedQuestions = questions.sortedWith(
+                compareByDescending<ResumeQuestionHeatmapQuestionDto> { it.followUpCount }
+                    .thenByDescending { it.weakAnswer }
+                    .thenByDescending { it.interviewRecordQuestionId },
+            ),
+        )
+    }
+}
+
+private data class OverlayTargetKey(
+    val id: Long?,
+    val targetType: String,
+    val fieldPath: String,
+    val sentenceIndex: Int?,
+)
+
+private data class HeatmapContext(
+    val scope: String,
+    val items: List<ResumeQuestionHeatmapItemDto>,
+)

@@ -67,6 +67,7 @@ Authenticated endpoints:
 - `GET /api/resume-versions/{versionId}/analyses/{analysisId}`
 - `PATCH /api/resume-versions/{versionId}/analyses/{analysisId}/suggestions/{suggestionId}`
 - `GET /api/resume-versions/{versionId}/question-heatmap`
+- `GET /api/resume-versions/{versionId}/question-heatmap/overlay-targets`
 - `POST /api/resume-versions/{versionId}/question-heatmap/links`
 - `PATCH /api/resume-versions/{versionId}/question-heatmap/links/{linkId}`
 - `POST /api/resume-versions/{versionId}/activate`
@@ -425,6 +426,7 @@ Response highlights:
 - `items[].pressureQuestionCount`
 - `items[].weaknessCount`
 - `items[].recentQuestionAt`
+- `items[].overlayTargets[]`
 - `items[].linkedQuestions[]`
 
 Notes:
@@ -432,8 +434,47 @@ Notes:
 - the heatmap aggregates linked practical interview questions by parsed resume anchor
 - active manual override links take precedence over inferred or heuristic anchor resolution
 - the current backend intentionally skips questions that cannot be mapped to a stable resume anchor
-- current implementation is anchor-level, not sentence-range-level
-- one returned item may represent a full project, experience, skill, competency, or summary anchor rather than one precise sentence
+- each anchor item still represents one stable parsed resume anchor such as a project, experience, skill, competency, or summary block
+- `overlayTargets[]` now adds a second layer inside each anchor:
+  - `block` targets for project-wide or anchor-wide questions
+  - `sentence` targets for sentence-specific hover overlays
+- if a question does not match one sentence strongly, it falls back to the anchor-wide `block` target
+- follow-up questions can inherit the selected sentence target from their parent question
+
+#### `GET /api/resume-versions/{versionId}/question-heatmap/overlay-targets`
+Auth:
+- required
+
+Query params:
+- `scope`
+  - `all`
+  - `main`
+  - `follow_up`
+
+Response highlights:
+- `items[].anchorType`
+- `items[].anchorRecordId`
+- `items[].anchorKey`
+- `items[].targetType`
+- `items[].fieldPath`
+- `items[].textSnippet`
+- `items[].textStartOffset`
+- `items[].textEndOffset`
+- `items[].sentenceIndex`
+- `items[].paragraphIndex`
+- `items[].heatScore`
+- `items[].normalizedHeatLevel`
+- `items[].questionCount`
+- `items[].followUpCount`
+- `items[].pressureQuestionCount`
+- `items[].weaknessCount`
+- `items[].linkedQuestions[]`
+
+Notes:
+- this is the flattened overlay read for resume viewer hover states
+- `targetType = block` means the question belongs to the whole anchor, not one sentence
+- `targetType = sentence` means the question should be shown when that sentence is hovered or focused
+- the same `linkedQuestions[]` shape is reused so the frontend can share question-card rendering between anchor cards and sentence overlays
 
 #### `POST /api/resume-versions/{versionId}/question-heatmap/links`
 Auth:
@@ -468,49 +509,21 @@ Notes:
 - can move the effective anchor or deactivate one manual override
 - deactivating one manual override falls back to inferred or heuristic anchor resolution on subsequent reads
 
-### Planned Next Step - Sentence Overlay Heatmap
-Planned only, not yet implemented:
+### Sentence Overlay Heatmap
+Implemented:
 
-- current `question-heatmap` is sufficient for block-level heat and question grouping
-- the next API slice should add sentence or phrase overlay targets so the frontend can:
-  - highlight one exact sentence inside a project or experience block
-  - show hover question previews on that sentence
-  - still keep project-wide questions attached to the whole block
-
-Recommended future read shape:
-- one anchor summary response
-- one nested `overlayTargets[]`
-- each overlay target can represent:
+- `GET /api/resume-versions/{versionId}/question-heatmap` now includes nested `overlayTargets[]`
+- `GET /api/resume-versions/{versionId}/question-heatmap/overlay-targets` exposes the same overlay targets as a flattened list
+- each overlay target currently represents:
   - `block`
   - `sentence`
-  - `phrase`
-  - `keyword`
 
-Recommended future endpoint direction:
-- `GET /api/resume-versions/{versionId}/question-heatmap/overlay-targets`
-- or extend `GET /api/resume-versions/{versionId}/question-heatmap` with additive `overlayTargets`
-
-Recommended future overlay target fields:
-- `id`
-- `anchorType`
-- `anchorRecordId`
-- `anchorKey`
-- `targetType`
-- `fieldPath`
-- `textSnippet`
-- `textStartOffset`
-- `textEndOffset`
-- `sentenceIndex`
-- `paragraphIndex`
-- `heatScore`
-- `normalizedHeatLevel`
-- `linkedQuestions[]`
-
-Recommended behavior:
+Current behavior:
 - project-wide questions remain linked to a `block` target
-- sentence-specific questions link to a `sentence` target
+- sentence-specific questions link to a `sentence` target when the text match is strong enough
+- follow-up questions can stay attached to the parent sentence target when appropriate
 - the frontend can render both layers at once:
-  - whole-project tint
+  - whole-project or whole-anchor tint
   - sentence hover popovers
 
 Notes:
