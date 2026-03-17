@@ -178,6 +178,27 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 - frontend should support both whole-block questions and sentence-specific question cards in the same viewer
 - frontend should also treat `phrase` and `keyword` as valid overlay target types rather than unsupported noise
 - for `targetType`-filtered reads, frontend should treat `filterSummary` as the source of truth for chip counts and applied filter badges
+
+## Local Heatmap Demo
+- the backend does not render the hover UI by itself; the current sentence/phrase/keyword overlay viewer must be implemented in the frontend
+- for local integration, `local` profile startup now seeds one demo account:
+  - email: `demo-heatmap@iterview.local`
+  - password: `demo1234!`
+- seeded resume title:
+  - `Heatmap Overlay Demo Resume`
+- recommended verification flow:
+  - `POST /api/auth/login`
+  - `GET /api/resumes`
+  - find the resume titled `Heatmap Overlay Demo Resume`
+  - fetch its active version
+  - `GET /api/resume-versions/{versionId}/question-heatmap`
+  - `GET /api/resume-versions/{versionId}/question-heatmap/overlay-targets?targetType=sentence`
+- the seeded local demo intentionally includes:
+  - one whole-project `block` question
+  - one sentence-remapped overlay question
+  - one follow-up chain
+  - one Redis keyword-focused question
+  - one older interview from another company for filter demos
 - The current project endpoint should be treated as the stable base for resume-derived project cards.
 - Implemented project payload fields now include:
   - `contentText`
