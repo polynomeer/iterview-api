@@ -16,7 +16,12 @@ data class ResumeAnalysisDto(
     val suggestedHeadline: String?,
     val suggestedSummary: String?,
     val recommendedFormatType: String?,
+    val generationSource: String,
+    val llmModel: String?,
+    val analysisNotes: List<String>,
+    val tailoredDocument: ResumeTailoredDocumentDto?,
     val suggestions: List<ResumeAnalysisSuggestionDto>,
+    val exports: List<ResumeAnalysisExportDto>,
     val createdAt: Instant,
     val updatedAt: Instant,
 )

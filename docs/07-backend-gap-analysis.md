@@ -32,7 +32,6 @@ This is the stable baseline and should remain operational throughout the extensi
 - no persisted resume certification items
 - no persisted resume award items
 - no persisted resume risk items
-- no persisted export file history for tailored resume PDF outputs yet
 - no question relationship table for follow-up trees
 - no question-to-skill mapping table
 - no `answer_analyses` table
@@ -44,7 +43,6 @@ This is the stable baseline and should remain operational throughout the extensi
 ### Missing APIs
 - no latest resume helper endpoint
 - no resume intelligence read APIs for skills, experiences, and risks
-- no tailored-resume export or PDF-generation domain yet
 - no question tree endpoint
 - no recommended follow-up or resume-based question endpoints
 - no answer analysis retrieval endpoint
@@ -140,8 +138,8 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
   - `GET /api/resume-versions/{versionId}/analyses/{analysisId}`
   - `PATCH /api/resume-versions/{versionId}/analyses/{analysisId}/suggestions/{suggestionId}`
 - current gap:
-  - no tailored resume export file records
-  - no server-side PDF generation
+  - no DOCX or HTML export format yet
+  - no dedicated async export pipeline yet
   - no persisted full rewritten resume document body separate from suggestion rows
 
 ### Phase 4 - Question Tree and Recommendation

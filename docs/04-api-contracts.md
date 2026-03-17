@@ -266,6 +266,11 @@ Response:
 
 #### `GET /api/job-postings/{jobPostingId}`
 - returns one saved job posting with parsed requirements, responsibilities, and keywords
+- link-based inputs now also return fetch metadata:
+  - `fetchStatus`
+  - `fetchedTitle`
+  - `fetchErrorMessage`
+  - `fetchedAt`
 
 Notes:
 - this remains the primary current-user aggregate
@@ -331,11 +336,18 @@ Response highlights:
 - `suggestedHeadline`
 - `suggestedSummary`
 - `recommendedFormatType`
+- `generationSource`
+- `llmModel`
+- `analysisNotes`
+- `tailoredDocument`
 - `suggestions[]`
+- `exports[]`
 
 Notes:
 - analyses are persisted separately from immutable `resume_versions`
 - one resume version may have multiple analyses for different job postings
+- if OpenAI resume analysis generation is configured, rewritten suggestions and tailored document content may be AI-generated
+- if not configured, deterministic fallback generation still persists a tailored document and rewrite suggestions
 
 #### `GET /api/resume-versions/{versionId}/analyses`
 - returns persisted analysis summaries ordered by `createdAt desc`
@@ -357,6 +369,28 @@ Request:
 Notes:
 - toggles suggestion acceptance state only
 - does not mutate the source `resume_versions` row or extracted resume snapshots
+- the backend refreshes the persisted tailored document view after acceptance changes
+
+#### `POST /api/resume-versions/{versionId}/analyses/{analysisId}/exports`
+Auth:
+- required
+
+Request:
+```json
+{
+  "exportType": "pdf"
+}
+```
+
+Notes:
+- generates a server-side PDF from the persisted tailored document
+- persists export history for later download and audit
+
+#### `GET /api/resume-versions/{versionId}/analyses/{analysisId}/exports`
+- returns export history for one analysis ordered by `createdAt desc`
+
+#### `GET /api/resume-versions/{versionId}/analyses/{analysisId}/exports/{exportId}/file`
+- returns the generated export file stream
 
 Notes:
 - supported file types are PNG, JPEG, WEBP, and GIF

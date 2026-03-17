@@ -2,6 +2,7 @@ package com.example.interviewplatform.resume.controller
 
 import com.example.interviewplatform.auth.service.TokenService
 import com.example.interviewplatform.support.TestDatabaseCleaner
+import com.sun.net.httpserver.HttpServer
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -30,6 +31,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.io.ByteArrayOutputStream
+import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
 
 @SpringBootTest
@@ -523,6 +525,7 @@ class ResumeApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.companyName").value("Example Corp"))
             .andExpect(jsonPath("$.roleName").value("Backend Platform Engineer"))
+            .andExpect(jsonPath("$.fetchStatus").value("provided"))
             .andExpect(jsonPath("$.parsedKeywords").isArray)
             .andReturn()
             .response
@@ -542,7 +545,10 @@ class ResumeApiIntegrationTest {
             .andExpect(jsonPath("$.jobPostingId").value(jobPostingId))
             .andExpect(jsonPath("$.status").value("completed"))
             .andExpect(jsonPath("$.overallScore").isNumber)
+            .andExpect(jsonPath("$.generationSource").value("deterministic"))
             .andExpect(jsonPath("$.strongMatches").isArray)
+            .andExpect(jsonPath("$.tailoredDocument.title").isString)
+            .andExpect(jsonPath("$.tailoredDocument.sections.length()").value(org.hamcrest.Matchers.greaterThan(1)))
             .andExpect(jsonPath("$.suggestions.length()").value(org.hamcrest.Matchers.greaterThan(1)))
             .andReturn()
             .response
@@ -561,6 +567,7 @@ class ResumeApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.matchSummary").isString)
             .andExpect(jsonPath("$.recommendedFormatType").isString)
+            .andExpect(jsonPath("$.exports.length()").value(0))
 
         mockMvc.perform(
             patch("/api/resume-versions/$versionId/analyses/$analysisId/suggestions/$suggestionId")
@@ -570,6 +577,79 @@ class ResumeApiIntegrationTest {
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.suggestions[0].accepted").value(true))
+
+        val export = mockMvc.perform(
+            post("/api/resume-versions/$versionId/analyses/$analysisId/exports")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(mapOf("exportType" to "pdf"))),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.exportType").value("pdf"))
+            .andExpect(jsonPath("$.fileUrl").value("/api/resume-versions/$versionId/analyses/$analysisId/exports/1/file"))
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val exportId = export["id"].asLong()
+        mockMvc.perform(get("/api/resume-versions/$versionId/analyses/$analysisId/exports").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].id").value(exportId))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/analyses/$analysisId/exports/$exportId/file").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect {
+                assertEquals("application/pdf", it.response.contentType)
+                assertTrue(it.response.contentAsByteArray.isNotEmpty())
+                assertEquals("%PDF", it.response.contentAsByteArray.copyOfRange(0, 4).toString(StandardCharsets.UTF_8))
+            }
+    }
+
+    @Test
+    fun `link job posting input fetches source text before parsing`() {
+        seedSkillCategory("BACKEND", "Backend", 1)
+        seedSkill("Spring Boot", "BACKEND")
+        val server = HttpServer.create(InetSocketAddress(0), 0)
+        server.createContext("/jd") { exchange ->
+            val body = """
+                <html>
+                <head><title>Fetch Corp - Senior Backend Engineer</title></head>
+                <body>
+                <h1>Senior Backend Engineer</h1>
+                <p>Build backend APIs with Spring Boot and Redis.</p>
+                <p>Preferred: Kafka operations experience.</p>
+                </body>
+                </html>
+            """.trimIndent().toByteArray(StandardCharsets.UTF_8)
+            exchange.sendResponseHeaders(200, body.size.toLong())
+            exchange.responseBody.use { it.write(body) }
+        }
+        server.start()
+        try {
+            val sourceUrl = "http://127.0.0.1:${server.address.port}/jd"
+            mockMvc.perform(
+                post("/api/job-postings")
+                    .header("Authorization", authHeader)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        objectMapper.writeValueAsString(
+                            mapOf(
+                                "inputType" to "link",
+                                "sourceUrl" to sourceUrl,
+                            ),
+                        ),
+                    ),
+            )
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.sourceUrl").value(sourceUrl))
+                .andExpect(jsonPath("$.fetchStatus").value("fetched"))
+                .andExpect(jsonPath("$.fetchedTitle").value("Fetch Corp - Senior Backend Engineer"))
+                .andExpect(jsonPath("$.rawText").isNotEmpty)
+                .andExpect(jsonPath("$.parsedKeywords").isArray)
+        } finally {
+            server.stop(0)
+        }
     }
 
     private fun createResume(title: String): Long {

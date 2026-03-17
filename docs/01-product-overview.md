@@ -75,11 +75,13 @@ This is an additive evolution of the current backend, not a new product line.
 
 ### 2A. Resume Tailoring Workspace
 - accept one saved job posting as a reusable analysis context
-- parse job posting text or link metadata into keywords, requirements, and responsibilities
+- parse job posting text or fetched link content into keywords, requirements, and responsibilities
 - compare one immutable `resumeVersionId` against one saved job posting without mutating the source resume version
 - persist analysis runs so users can revisit earlier company-specific recommendations
 - return concrete rewrite suggestions for headline, summary, projects, skills, and quantified achievements
 - let the frontend mark suggestions as accepted without overwriting the original resume version
+- persist one tailored resume document view per analysis so the frontend can render editing and preview screens without rebuilding heuristics
+- generate downloadable PDF exports from that tailored document and keep export history per analysis
 
 ### 3. Mock Interview Loop
 - support AI-driven mock interviews grounded in the active resume version

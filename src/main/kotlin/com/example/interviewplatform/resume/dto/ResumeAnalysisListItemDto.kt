@@ -11,5 +11,7 @@ data class ResumeAnalysisListItemDto(
     val matchSummary: String,
     val suggestedHeadline: String?,
     val recommendedFormatType: String?,
+    val generationSource: String,
+    val llmModel: String?,
     val createdAt: Instant,
 )

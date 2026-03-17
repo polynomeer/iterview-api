@@ -102,11 +102,18 @@ Acceptance intent:
    - `GET /api/resume-versions/{versionId}/analyses`
    - `GET /api/resume-versions/{versionId}/analyses/{analysisId}`
    - `PATCH /api/resume-versions/{versionId}/analyses/{analysisId}/suggestions/{suggestionId}`
+   - `POST /api/resume-versions/{versionId}/analyses/{analysisId}/exports`
+   - `GET /api/resume-versions/{versionId}/analyses/{analysisId}/exports`
+   - `GET /api/resume-versions/{versionId}/analyses/{analysisId}/exports/{exportId}/file`
+7. add link fetch support for `job_postings` and persist fetch metadata
+8. persist one tailored document view per analysis and use it as the single source for preview/export
+9. add OpenAI-backed rewrite generation with deterministic fallback
 
 Acceptance intent:
 - immutable resume versions stay unchanged while analyses are stored separately
 - one saved job posting can drive multiple analyses across different resume versions
 - suggestion acceptance is persisted without overwriting source resume content
+- tailored document preview and PDF export reuse the same persisted normalized output
 
 ## Phase 2 - Question Tree and Follow-Up Relationships
 1. add Flyway migration for `question_relationships`

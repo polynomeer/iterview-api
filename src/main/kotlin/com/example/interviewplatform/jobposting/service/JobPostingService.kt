@@ -19,6 +19,7 @@ import java.net.URI
 class JobPostingService(
     private val jobPostingRepository: JobPostingRepository,
     private val skillRepository: SkillRepository,
+    private val jobPostingContentFetchService: JobPostingContentFetchService,
     private val objectMapper: ObjectMapper,
     private val clockService: ClockService,
 ) {
@@ -41,11 +42,13 @@ class JobPostingService(
         if (rawText == null && sourceUrl == null) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Either rawText or sourceUrl is required")
         }
+        val fetchResult = resolvePostingText(normalizedInputType, rawText, sourceUrl)
         val parsed = parseJobPosting(
-            rawText = rawText,
+            rawText = fetchResult.rawText,
             sourceUrl = sourceUrl,
             companyName = request.companyName?.trim()?.takeIf { it.isNotEmpty() },
             roleName = request.roleName?.trim()?.takeIf { it.isNotEmpty() },
+            fetchedTitle = fetchResult.fetchedTitle,
         )
         val now = clockService.now()
         val saved = jobPostingRepository.save(
@@ -53,7 +56,11 @@ class JobPostingService(
                 userId = userId,
                 inputType = normalizedInputType,
                 sourceUrl = sourceUrl,
-                rawText = rawText,
+                rawText = fetchResult.rawText,
+                fetchStatus = fetchResult.fetchStatus,
+                fetchedTitle = fetchResult.fetchedTitle,
+                fetchErrorMessage = fetchResult.fetchErrorMessage,
+                fetchedAt = fetchResult.fetchedAt,
                 companyName = parsed.companyName,
                 roleName = parsed.roleName,
                 parsedRequirementsJson = objectMapper.writeValueAsString(parsed.requirements),
@@ -86,6 +93,7 @@ class JobPostingService(
         sourceUrl: String?,
         companyName: String?,
         roleName: String?,
+        fetchedTitle: String?,
     ): ParsedJobPosting {
         val normalizedText = rawText.orEmpty()
         val lines = normalizedText.lines().map { it.trim() }.filter { it.isNotEmpty() }
@@ -123,9 +131,11 @@ class JobPostingService(
 
         val inferredCompanyName = companyName
             ?: sourceUrl?.let(::inferCompanyFromUrl)
+            ?: fetchedTitle?.substringBefore(" - ")?.trim()?.takeIf { it.isNotEmpty() }
             ?: lines.firstOrNull { it.length <= 60 && !it.contains(":") }
 
         val inferredRoleName = roleName
+            ?: fetchedTitle?.substringAfter(" - ", "")?.trim()?.takeIf { it.isNotEmpty() }
             ?: lines.firstOrNull { roleHints.any { hint -> it.contains(hint, ignoreCase = true) } }
 
         val summary = buildString {
@@ -162,6 +172,46 @@ class JobPostingService(
         runCatching { objectMapper.readValue(raw, object : TypeReference<List<String>>() {}) }
             .getOrDefault(emptyList())
 
+    private fun resolvePostingText(
+        inputType: String,
+        rawText: String?,
+        sourceUrl: String?,
+    ): ResolvedJobPostingText {
+        if (inputType == "text") {
+            return ResolvedJobPostingText(
+                rawText = rawText.orEmpty(),
+                fetchStatus = "provided",
+                fetchedTitle = null,
+                fetchErrorMessage = null,
+                fetchedAt = null,
+            )
+        }
+        val normalizedUrl = sourceUrl ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "sourceUrl is required for link input")
+        if (!rawText.isNullOrBlank()) {
+            return ResolvedJobPostingText(
+                rawText = rawText,
+                fetchStatus = "provided",
+                fetchedTitle = null,
+                fetchErrorMessage = null,
+                fetchedAt = null,
+            )
+        }
+        val fetchedAt = clockService.now()
+        return runCatching { jobPostingContentFetchService.fetch(normalizedUrl) }
+            .map { fetched ->
+                ResolvedJobPostingText(
+                    rawText = fetched.rawText,
+                    fetchStatus = "fetched",
+                    fetchedTitle = fetched.title,
+                    fetchErrorMessage = null,
+                    fetchedAt = fetchedAt,
+                )
+            }
+            .getOrElse { error ->
+                throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Failed to fetch job posting from sourceUrl: ${error.message}")
+            }
+    }
+
     private companion object {
         private val supportedInputTypes = setOf("text", "link")
         private val roleHints = listOf("engineer", "developer", "backend", "frontend", "platform", "data", "manager", "개발자", "엔지니어")
@@ -177,4 +227,12 @@ private data class ParsedJobPosting(
     val keywords: List<String>,
     val responsibilities: List<String>,
     val summary: String,
+)
+
+private data class ResolvedJobPostingText(
+    val rawText: String,
+    val fetchStatus: String,
+    val fetchedTitle: String?,
+    val fetchErrorMessage: String?,
+    val fetchedAt: java.time.Instant?,
 )

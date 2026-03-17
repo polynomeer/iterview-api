@@ -22,6 +22,14 @@ class JobPostingEntity(
     val sourceUrl: String? = null,
     @Column(name = "raw_text")
     val rawText: String? = null,
+    @Column(name = "fetch_status", nullable = false)
+    val fetchStatus: String,
+    @Column(name = "fetched_title")
+    val fetchedTitle: String? = null,
+    @Column(name = "fetch_error_message")
+    val fetchErrorMessage: String? = null,
+    @Column(name = "fetched_at")
+    val fetchedAt: Instant? = null,
     @Column(name = "company_name")
     val companyName: String? = null,
     @Column(name = "role_name")

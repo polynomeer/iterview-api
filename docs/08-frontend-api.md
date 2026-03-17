@@ -65,13 +65,27 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `GET /api/resume-versions/{versionId}/analyses`
   - `GET /api/resume-versions/{versionId}/analyses/{analysisId}`
   - `PATCH /api/resume-versions/{versionId}/analyses/{analysisId}/suggestions/{suggestionId}`
+  - `POST /api/resume-versions/{versionId}/analyses/{analysisId}/exports`
+  - `GET /api/resume-versions/{versionId}/analyses/{analysisId}/exports`
+  - `GET /api/resume-versions/{versionId}/analyses/{analysisId}/exports/{exportId}/file`
 - resume analysis runs are additive read/write models layered on top of immutable resume versions
 - current backend scope for resume tailoring is:
   - save and parse one job posting
   - compare one resume version to that job posting
-  - persist summary metrics and section-level rewrite suggestions
+  - persist summary metrics, tailored document content, and section-level rewrite suggestions
   - persist suggestion acceptance state
-- current backend does not yet generate final tailored PDF exports or persist a fully rewritten resume document body
+- persist export history and generate PDF exports from one tailored analysis
+- `JobPostingDto` now also carries:
+  - `fetchStatus`
+  - `fetchedTitle`
+  - `fetchErrorMessage`
+  - `fetchedAt`
+- `ResumeAnalysisDto` now also carries:
+  - `generationSource`
+  - `llmModel`
+  - `analysisNotes`
+  - `tailoredDocument`
+  - `exports`
 - The current project endpoint should be treated as the stable base for resume-derived project cards.
 - Implemented project payload fields now include:
   - `contentText`

@@ -958,6 +958,10 @@ Columns:
 - `input_type`
 - `source_url`
 - `raw_text`
+- `fetch_status`
+- `fetched_title`
+- `fetch_error_message`
+- `fetched_at`
 - `company_name`
 - `role_name`
 - `parsed_requirements_json`
@@ -990,12 +994,20 @@ Columns:
 - `suggested_headline`
 - `suggested_summary`
 - `recommended_format_type`
+- `generation_source`
+- `llm_model`
+- `tailored_content_json`
+- `tailored_plain_text`
+- `section_order_json`
+- `diff_summary`
+- `analysis_notes_json`
 - `created_at`
 - `updated_at`
 
 Notes:
 - one resume version can have many analysis runs for different companies or roles
 - one job posting can be reused across many resume versions
+- tailored document content is persisted here so export generation and frontend preview can reuse the same normalized output
 
 ### `resume_analysis_suggestions`
 - persist section-level rewrite suggestions derived from one `resume_analyses` row
@@ -1016,6 +1028,26 @@ Columns:
 Notes:
 - suggestion acceptance should not overwrite immutable resume version source content
 - this table is the stable backend source for per-line accept state in a future resume tailoring UI
+
+### `resume_analysis_exports`
+- persist one generated file output for one tailored resume analysis
+
+Columns:
+- `id`
+- `user_id`
+- `resume_analysis_id`
+- `export_type`
+- `format_type`
+- `file_name`
+- `storage_key`
+- `file_size_bytes`
+- `checksum_sha256`
+- `page_count`
+- `created_at`
+
+Notes:
+- export history is additive and does not mutate the underlying immutable `resume_versions` row
+- the first implementation stores PDF exports generated from the persisted tailored document
 - `question_relationships(parent_question_id, display_order)`
 - `question_relationships(child_question_id)`
 - `question_skill_mappings(question_id)`

@@ -48,6 +48,7 @@
 - richer answer analysis, when introduced, is persisted separately from the current score row
 - saved job postings can be created from text or link-style input without mutating resume records
 - one saved job posting can expose parsed requirements, responsibilities, and keywords
+- link-based job postings can fetch and persist readable source text plus fetch metadata
 - one resume version can have multiple persisted analysis runs without losing immutable version history
 - a resume analysis can persist:
   - overall match score
@@ -59,6 +60,8 @@
   - recommended format type
 - a resume analysis can persist section-level rewrite suggestions separately from the main analysis row
 - accepting one suggestion must not rewrite the source `resume_versions` record or extracted resume snapshot tables
+- each analysis can persist one tailored document view with stable section order and preview-ready section content
+- the backend can generate and persist PDF export history for one tailored analysis
 - scoring rules remain centralized in one service
 
 ## Review Queue and Learning Loop

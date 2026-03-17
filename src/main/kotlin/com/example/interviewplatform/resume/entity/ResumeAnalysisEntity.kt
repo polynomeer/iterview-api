@@ -40,6 +40,20 @@ class ResumeAnalysisEntity(
     val suggestedSummary: String? = null,
     @Column(name = "recommended_format_type")
     val recommendedFormatType: String? = null,
+    @Column(name = "generation_source", nullable = false)
+    val generationSource: String,
+    @Column(name = "llm_model")
+    val llmModel: String? = null,
+    @Column(name = "tailored_content_json")
+    val tailoredContentJson: String? = null,
+    @Column(name = "tailored_plain_text")
+    val tailoredPlainText: String? = null,
+    @Column(name = "section_order_json", nullable = false)
+    val sectionOrderJson: String,
+    @Column(name = "diff_summary")
+    val diffSummary: String? = null,
+    @Column(name = "analysis_notes_json", nullable = false)
+    val analysisNotesJson: String,
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant,
     @Column(name = "updated_at", nullable = false)

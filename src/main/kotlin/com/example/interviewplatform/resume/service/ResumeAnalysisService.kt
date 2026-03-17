@@ -2,13 +2,19 @@ package com.example.interviewplatform.resume.service
 
 import com.example.interviewplatform.common.service.ClockService
 import com.example.interviewplatform.jobposting.repository.JobPostingRepository
+import com.example.interviewplatform.resume.dto.CreateResumeAnalysisExportRequest
 import com.example.interviewplatform.resume.dto.CreateResumeAnalysisRequest
 import com.example.interviewplatform.resume.dto.ResumeAnalysisDto
+import com.example.interviewplatform.resume.dto.ResumeAnalysisExportDto
 import com.example.interviewplatform.resume.dto.ResumeAnalysisListItemDto
+import com.example.interviewplatform.resume.dto.ResumeTailoredDocumentDto
+import com.example.interviewplatform.resume.dto.ResumeTailoredDocumentSectionDto
 import com.example.interviewplatform.resume.dto.UpdateResumeAnalysisSuggestionRequest
 import com.example.interviewplatform.resume.entity.ResumeAnalysisEntity
+import com.example.interviewplatform.resume.entity.ResumeAnalysisExportEntity
 import com.example.interviewplatform.resume.entity.ResumeAnalysisSuggestionEntity
 import com.example.interviewplatform.resume.mapper.ResumeAnalysisMapper
+import com.example.interviewplatform.resume.repository.ResumeAnalysisExportRepository
 import com.example.interviewplatform.resume.repository.ResumeAnalysisRepository
 import com.example.interviewplatform.resume.repository.ResumeAnalysisSuggestionRepository
 import com.example.interviewplatform.resume.repository.ResumeCompetencyItemRepository
@@ -21,6 +27,7 @@ import com.example.interviewplatform.resume.repository.ResumeSkillSnapshotReposi
 import com.example.interviewplatform.resume.repository.ResumeVersionRepository
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.springframework.core.io.Resource
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -39,6 +46,10 @@ class ResumeAnalysisService(
     private val jobPostingRepository: JobPostingRepository,
     private val resumeAnalysisRepository: ResumeAnalysisRepository,
     private val resumeAnalysisSuggestionRepository: ResumeAnalysisSuggestionRepository,
+    private val resumeAnalysisExportRepository: ResumeAnalysisExportRepository,
+    private val resumeAnalysisGenerationClient: ResumeAnalysisGenerationClient,
+    private val resumeAnalysisPdfExportService: ResumeAnalysisPdfExportService,
+    private val resumeAnalysisExportFileStorageService: ResumeAnalysisExportFileStorageService,
     private val objectMapper: ObjectMapper,
     private val clockService: ClockService,
 ) {
@@ -55,7 +66,7 @@ class ResumeAnalysisService(
         if (analysis.resumeVersionId != versionId) {
             throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume analysis not found: $analysisId")
         }
-        return toDetailDto(analysis)
+        return toDetailDto(analysis, versionId)
     }
 
     @Transactional
@@ -66,23 +77,10 @@ class ResumeAnalysisService(
                 ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Job posting not found: $jobPostingId")
         }
         val resumeSnapshot = buildResumeSnapshot(version.id)
-        val jobPostingSnapshot = jobPosting?.let { posting ->
-            JobPostingSnapshot(
-                keywords = decodeStringList(posting.parsedKeywordsJson),
-                requirements = decodeStringList(posting.parsedRequirementsJson),
-                responsibilities = decodeStringList(posting.parsedResponsibilitiesJson),
-                companyName = posting.companyName,
-                roleName = posting.roleName,
-            )
-        } ?: JobPostingSnapshot(
-            keywords = emptyList(),
-            requirements = emptyList(),
-            responsibilities = emptyList(),
-            companyName = null,
-            roleName = null,
-        )
+        val postingSnapshot = buildJobPostingSnapshot(jobPosting)
+        val deterministic = generateDeterministicAnalysis(resumeSnapshot, postingSnapshot, request.preferredFormatType)
+        val generated = enrichAnalysis(deterministic, resumeSnapshot, postingSnapshot)
 
-        val generated = generateAnalysis(resumeSnapshot, jobPostingSnapshot, request.preferredFormatType)
         val now = clockService.now()
         val savedAnalysis = resumeAnalysisRepository.save(
             ResumeAnalysisEntity(
@@ -90,15 +88,22 @@ class ResumeAnalysisService(
                 resumeVersionId = version.id,
                 jobPostingId = jobPosting?.id,
                 status = STATUS_COMPLETED,
-                overallScore = generated.overallScore,
+                overallScore = deterministic.overallScore,
                 matchSummary = generated.matchSummary,
-                strongMatchesJson = objectMapper.writeValueAsString(generated.strongMatches),
-                missingKeywordsJson = objectMapper.writeValueAsString(generated.missingKeywords),
-                weakSignalsJson = objectMapper.writeValueAsString(generated.weakSignals),
-                recommendedFocusAreasJson = objectMapper.writeValueAsString(generated.recommendedFocusAreas),
+                strongMatchesJson = objectMapper.writeValueAsString(deterministic.strongMatches),
+                missingKeywordsJson = objectMapper.writeValueAsString(deterministic.missingKeywords),
+                weakSignalsJson = objectMapper.writeValueAsString(deterministic.weakSignals),
+                recommendedFocusAreasJson = objectMapper.writeValueAsString(deterministic.recommendedFocusAreas),
                 suggestedHeadline = generated.suggestedHeadline,
                 suggestedSummary = generated.suggestedSummary,
                 recommendedFormatType = generated.recommendedFormatType,
+                generationSource = generated.generationSource,
+                llmModel = generated.llmModel,
+                tailoredContentJson = objectMapper.writeValueAsString(generated.tailoredDocument.sections.map(::toPersistedSection)),
+                tailoredPlainText = generated.tailoredDocument.plainText,
+                sectionOrderJson = objectMapper.writeValueAsString(generated.tailoredDocument.sectionOrder),
+                diffSummary = generated.diffSummary,
+                analysisNotesJson = objectMapper.writeValueAsString(generated.analysisNotes),
                 createdAt = now,
                 updatedAt = now,
             ),
@@ -119,7 +124,7 @@ class ResumeAnalysisService(
                 )
             },
         )
-        return toDetailDto(savedAnalysis)
+        return toDetailDto(savedAnalysis, versionId)
     }
 
     @Transactional
@@ -153,7 +158,89 @@ class ResumeAnalysisService(
                 updatedAt = now,
             ),
         )
-        return toDetailDto(analysis)
+        val refreshed = refreshTailoredDocument(analysis, now)
+        return toDetailDto(refreshed, versionId)
+    }
+
+    @Transactional(readOnly = true)
+    fun listExports(userId: Long, versionId: Long, analysisId: Long): List<ResumeAnalysisExportDto> {
+        requireOwnedVersion(userId, versionId)
+        val analysis = requireOwnedAnalysis(userId, analysisId)
+        if (analysis.resumeVersionId != versionId) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume analysis not found: $analysisId")
+        }
+        return resumeAnalysisExportRepository.findByResumeAnalysisIdOrderByCreatedAtDescIdDesc(analysis.id)
+            .map { ResumeAnalysisMapper.toExportDto(it, versionId, analysisId) }
+    }
+
+    @Transactional
+    fun createExport(
+        userId: Long,
+        versionId: Long,
+        analysisId: Long,
+        request: CreateResumeAnalysisExportRequest,
+    ): ResumeAnalysisExportDto {
+        requireOwnedVersion(userId, versionId)
+        val analysis = requireOwnedAnalysis(userId, analysisId)
+        if (analysis.resumeVersionId != versionId) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume analysis not found: $analysisId")
+        }
+        if (request.exportType != "pdf") {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported exportType: ${request.exportType}")
+        }
+        val tailoredDocument = requireTailoredDocument(analysis)
+        val exported = resumeAnalysisPdfExportService.export(tailoredDocument)
+        val now = clockService.now()
+        val companySlug = tailoredDocument.targetCompany?.lowercase()?.replace(Regex("[^a-z0-9]+"), "-")?.trim('-')
+        val fileName = buildString {
+            append(companySlug ?: "tailored-resume")
+            append("-analysis-")
+            append(analysis.id)
+            append(".pdf")
+        }
+        val stored = resumeAnalysisExportFileStorageService.store(
+            userId = userId,
+            analysisId = analysis.id,
+            fileName = fileName,
+            content = exported.content,
+            now = now,
+        )
+        val saved = resumeAnalysisExportRepository.save(
+            ResumeAnalysisExportEntity(
+                userId = userId,
+                resumeAnalysisId = analysis.id,
+                exportType = request.exportType,
+                formatType = analysis.recommendedFormatType,
+                fileName = fileName,
+                storageKey = stored.storageKey,
+                fileSizeBytes = stored.fileSizeBytes,
+                checksumSha256 = stored.checksumSha256,
+                pageCount = exported.pageCount,
+                createdAt = now,
+            ),
+        )
+        return ResumeAnalysisMapper.toExportDto(saved, versionId, analysisId)
+    }
+
+    @Transactional(readOnly = true)
+    fun downloadExport(
+        userId: Long,
+        versionId: Long,
+        analysisId: Long,
+        exportId: Long,
+    ): DownloadedResumeAnalysisExport {
+        requireOwnedVersion(userId, versionId)
+        val analysis = requireOwnedAnalysis(userId, analysisId)
+        if (analysis.resumeVersionId != versionId) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume analysis not found: $analysisId")
+        }
+        val export = resumeAnalysisExportRepository.findByIdAndResumeAnalysisId(exportId, analysis.id)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume analysis export not found: $exportId")
+        return DownloadedResumeAnalysisExport(
+            fileName = export.fileName,
+            contentType = "application/pdf",
+            resource = resumeAnalysisExportFileStorageService.load(export.storageKey),
+        )
     }
 
     private fun requireOwnedVersion(userId: Long, versionId: Long) =
@@ -170,16 +257,27 @@ class ResumeAnalysisService(
         resumeAnalysisRepository.findByIdAndUserId(analysisId, userId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume analysis not found: $analysisId")
 
-    private fun toDetailDto(entity: ResumeAnalysisEntity): ResumeAnalysisDto =
-        ResumeAnalysisMapper.toDetailDto(
+    private fun toDetailDto(entity: ResumeAnalysisEntity, versionId: Long): ResumeAnalysisDto {
+        val suggestions = resumeAnalysisSuggestionRepository.findByResumeAnalysisIdOrderByDisplayOrderAscIdAsc(entity.id)
+            .map(ResumeAnalysisMapper::toSuggestionDto)
+        val exports = resumeAnalysisExportRepository.findByResumeAnalysisIdOrderByCreatedAtDescIdDesc(entity.id)
+            .map { ResumeAnalysisMapper.toExportDto(it, versionId, entity.id) }
+        return ResumeAnalysisMapper.toDetailDto(
             entity = entity,
             strongMatches = decodeStringList(entity.strongMatchesJson),
             missingKeywords = decodeStringList(entity.missingKeywordsJson),
             weakSignals = decodeStringList(entity.weakSignalsJson),
             recommendedFocusAreas = decodeStringList(entity.recommendedFocusAreasJson),
-            suggestions = resumeAnalysisSuggestionRepository.findByResumeAnalysisIdOrderByDisplayOrderAscIdAsc(entity.id)
-                .map(ResumeAnalysisMapper::toSuggestionDto),
+            analysisNotes = decodeStringList(entity.analysisNotesJson),
+            tailoredDocument = entity.toTailoredDocument(
+                suggestions = suggestions,
+                targetCompany = entity.jobPostingId?.let { jobPostingRepository.findById(it).orElse(null)?.companyName },
+                targetRole = entity.jobPostingId?.let { jobPostingRepository.findById(it).orElse(null)?.roleName },
+            ),
+            suggestions = suggestions,
+            exports = exports,
         )
+    }
 
     private fun buildResumeSnapshot(versionId: Long): ResumeSnapshot {
         val profile = resumeProfileSnapshotRepository.findByResumeVersionId(versionId)
@@ -202,6 +300,20 @@ class ResumeAnalysisService(
             .filter { it.isNotEmpty() }
             .distinct()
 
+        val experienceHighlights = experiences.mapNotNull { experience ->
+            val label = listOfNotNull(experience.roleName, experience.companyName).joinToString(" @ ").trim()
+            label.takeIf { it.isNotBlank() }
+        }
+        val projectHighlights = projects.map { project ->
+            buildString {
+                append(project.title)
+                project.contentText?.takeIf { it.isNotBlank() }?.let {
+                    append(": ")
+                    append(it.take(160))
+                }
+            }
+        }
+
         return ResumeSnapshot(
             headlineSource = profile?.headline ?: profile?.fullName ?: experiences.firstOrNull()?.roleName,
             summarySource = profile?.summaryText ?: competencies.firstOrNull()?.description ?: experiences.firstOrNull()?.summaryText,
@@ -210,15 +322,35 @@ class ResumeAnalysisService(
                 .count { it.contains(Regex("\\d")) },
             riskSignals = risks.map { it.riskType.replace('_', ' ').lowercase() },
             topProjectTitles = projects.map { it.title }.take(3),
-            topExperienceTitles = experiences.mapNotNull { it.roleName ?: it.companyName }.take(3),
+            topExperienceTitles = experienceHighlights.take(3),
+            experienceHighlights = experienceHighlights,
+            projectHighlights = projectHighlights,
+            skillHighlights = skills.map { it.skillName }.take(12),
         )
     }
 
-    private fun generateAnalysis(
+    private fun buildJobPostingSnapshot(jobPosting: com.example.interviewplatform.jobposting.entity.JobPostingEntity?): JobPostingSnapshot =
+        jobPosting?.let { posting ->
+            JobPostingSnapshot(
+                keywords = decodeStringList(posting.parsedKeywordsJson),
+                requirements = decodeStringList(posting.parsedRequirementsJson),
+                responsibilities = decodeStringList(posting.parsedResponsibilitiesJson),
+                companyName = posting.companyName,
+                roleName = posting.roleName,
+            )
+        } ?: JobPostingSnapshot(
+            keywords = emptyList(),
+            requirements = emptyList(),
+            responsibilities = emptyList(),
+            companyName = null,
+            roleName = null,
+        )
+
+    private fun generateDeterministicAnalysis(
         resume: ResumeSnapshot,
         posting: JobPostingSnapshot,
         preferredFormatType: String?,
-    ): GeneratedResumeAnalysis {
+    ): DeterministicResumeAnalysis {
         val postingKeywords = (posting.keywords + posting.requirements.flatMap(::extractInlineKeywords)).distinct()
         val matchedKeywords = postingKeywords.filter { keyword ->
             resume.resumeKeywords.any { it.equals(keyword, ignoreCase = true) }
@@ -265,18 +397,16 @@ class ResumeAnalysisService(
         val suggestedSummary = buildString {
             append(resume.summarySource ?: "운영과 문제 해결 경험을 가진 개발자입니다.")
             if (matchedKeywords.isNotEmpty()) {
-                append(" ")
-                append("특히 ${matchedKeywords.take(3).joinToString(", ")} 관련 경험을 중심으로 포지션 적합도를 강화할 수 있습니다.")
+                append(" 특히 ${matchedKeywords.take(3).joinToString(", ")} 관련 경험을 중심으로 포지션 적합도를 강화할 수 있습니다.")
             }
             if (missingKeywords.isNotEmpty()) {
-                append(" ")
-                append("현재 이력서에서는 ${missingKeywords.take(2).joinToString(", ")} 관련 표현이 약합니다.")
+                append(" 현재 이력서에서는 ${missingKeywords.take(2).joinToString(", ")} 관련 표현이 약합니다.")
             }
         }
 
         val suggestions = buildList {
             add(
-                GeneratedSuggestion(
+                ResumeAnalysisSuggestionSeed(
                     sectionKey = "headline",
                     originalText = resume.headlineSource,
                     suggestedText = suggestedHeadline,
@@ -285,7 +415,7 @@ class ResumeAnalysisService(
                 ),
             )
             add(
-                GeneratedSuggestion(
+                ResumeAnalysisSuggestionSeed(
                     sectionKey = "summary",
                     originalText = resume.summarySource,
                     suggestedText = suggestedSummary,
@@ -295,7 +425,7 @@ class ResumeAnalysisService(
             )
             if (resume.topProjectTitles.isNotEmpty()) {
                 add(
-                    GeneratedSuggestion(
+                    ResumeAnalysisSuggestionSeed(
                         sectionKey = "projects",
                         originalText = resume.topProjectTitles.joinToString(", "),
                         suggestedText = "${resume.topProjectTitles.first()} 프로젝트를 상단으로 올리고, 사용 기술과 성과 지표를 한 문장으로 바로 이어서 배치하세요.",
@@ -306,7 +436,7 @@ class ResumeAnalysisService(
             }
             if (missingKeywords.isNotEmpty()) {
                 add(
-                    GeneratedSuggestion(
+                    ResumeAnalysisSuggestionSeed(
                         sectionKey = "skills",
                         originalText = resume.resumeKeywords.joinToString(", ").takeIf { it.isNotBlank() },
                         suggestedText = "보유 경험 안에서 ${missingKeywords.take(3).joinToString(", ")}와 연결되는 기술 또는 역할 표현을 명시적으로 추가하세요.",
@@ -317,7 +447,7 @@ class ResumeAnalysisService(
             }
             if (resume.quantifiedEvidenceCount == 0) {
                 add(
-                    GeneratedSuggestion(
+                    ResumeAnalysisSuggestionSeed(
                         sectionKey = "achievements",
                         originalText = null,
                         suggestedText = "주요 프로젝트마다 응답속도, 처리량, 비용, 배포시간 같은 수치형 결과를 최소 1개 이상 넣어 성과를 정량화하세요.",
@@ -342,7 +472,30 @@ class ResumeAnalysisService(
             }
         }.trim()
 
-        return GeneratedResumeAnalysis(
+        val sectionOrder = sectionOrderForFormat(recommendedFormatType)
+        val analysisNotes = buildList {
+            if (matchedKeywords.isNotEmpty()) add("공고 핵심 키워드 ${matchedKeywords.take(3).joinToString(", ")}를 상단 요약과 프로젝트 서두에 반복 노출하세요.")
+            if (missingKeywords.isNotEmpty()) add("누락 키워드 ${missingKeywords.take(3).joinToString(", ")}는 허위 추가가 아니라 실제 경험과 연결된 표현으로만 보강해야 합니다.")
+        }
+        val diffSummary = buildString {
+            append("원본 이력서의 핵심 경험은 유지하면서 ")
+            append(sectionOrder.joinToString(" → "))
+            append(" 순서로 재배치했습니다.")
+        }
+        val tailoredDocument = buildTailoredDocument(
+            companyName = posting.companyName,
+            roleName = posting.roleName,
+            formatType = recommendedFormatType,
+            headline = suggestedHeadline,
+            summary = suggestedSummary,
+            sectionOrder = sectionOrder,
+            resume = resume,
+            suggestions = suggestions,
+            analysisNotes = analysisNotes,
+            diffSummary = diffSummary,
+        )
+
+        return DeterministicResumeAnalysis(
             overallScore = overallScore,
             matchSummary = matchSummary,
             strongMatches = matchedKeywords.take(8),
@@ -352,9 +505,234 @@ class ResumeAnalysisService(
             suggestedHeadline = suggestedHeadline,
             suggestedSummary = suggestedSummary,
             recommendedFormatType = recommendedFormatType,
+            analysisNotes = analysisNotes,
+            diffSummary = diffSummary,
             suggestions = suggestions,
+            sectionOrder = sectionOrder,
+            tailoredDocument = tailoredDocument,
         )
     }
+
+    private fun enrichAnalysis(
+        deterministic: DeterministicResumeAnalysis,
+        resume: ResumeSnapshot,
+        posting: JobPostingSnapshot,
+    ): ResumeAnalysisGenerationResult {
+        if (!resumeAnalysisGenerationClient.isEnabled()) {
+            return ResumeAnalysisGenerationResult(
+                matchSummary = deterministic.matchSummary,
+                suggestedHeadline = deterministic.suggestedHeadline,
+                suggestedSummary = deterministic.suggestedSummary,
+                recommendedFormatType = deterministic.recommendedFormatType,
+                analysisNotes = deterministic.analysisNotes,
+                diffSummary = deterministic.diffSummary,
+                suggestions = deterministic.suggestions,
+                tailoredDocument = deterministic.tailoredDocument,
+                generationSource = "deterministic",
+                llmModel = null,
+            )
+        }
+        val input = ResumeAnalysisGenerationInput(
+            companyName = posting.companyName,
+            roleName = posting.roleName,
+            resumeKeywords = resume.resumeKeywords,
+            postingKeywords = posting.keywords,
+            strongMatches = deterministic.strongMatches,
+            missingKeywords = deterministic.missingKeywords,
+            weakSignals = deterministic.weakSignals,
+            recommendedFocusAreas = deterministic.recommendedFocusAreas,
+            suggestedHeadline = deterministic.suggestedHeadline,
+            suggestedSummary = deterministic.suggestedSummary,
+            recommendedFormatType = deterministic.recommendedFormatType,
+            suggestions = deterministic.suggestions,
+            preferredSectionOrder = deterministic.sectionOrder,
+            topExperienceTitles = resume.topExperienceTitles,
+            topProjectTitles = resume.topProjectTitles,
+        )
+        return runCatching { resumeAnalysisGenerationClient.generate(input) }
+            .getOrElse {
+                ResumeAnalysisGenerationResult(
+                    matchSummary = deterministic.matchSummary,
+                    suggestedHeadline = deterministic.suggestedHeadline,
+                    suggestedSummary = deterministic.suggestedSummary,
+                    recommendedFormatType = deterministic.recommendedFormatType,
+                    analysisNotes = deterministic.analysisNotes,
+                    diffSummary = deterministic.diffSummary,
+                    suggestions = deterministic.suggestions,
+                    tailoredDocument = deterministic.tailoredDocument,
+                    generationSource = "deterministic",
+                    llmModel = null,
+                )
+            }
+    }
+
+    private fun refreshTailoredDocument(analysis: ResumeAnalysisEntity, now: java.time.Instant): ResumeAnalysisEntity {
+        val suggestions = resumeAnalysisSuggestionRepository.findByResumeAnalysisIdOrderByDisplayOrderAscIdAsc(analysis.id)
+        val acceptedSections = decodePersistedSections(analysis.tailoredContentJson).map { section ->
+            val matchingSuggestions = suggestions.filter { it.sectionKey == section.sectionKey && it.accepted }
+            if (matchingSuggestions.isEmpty()) {
+                section
+            } else {
+                TailoredResumeSection(
+                    sectionKey = section.sectionKey,
+                    title = section.title,
+                    lines = matchingSuggestions.map { it.suggestedText } + section.lines.drop(1),
+                )
+            }
+        }
+        val plainText = acceptedSections.joinToString("\n\n") { section ->
+            buildString {
+                append(section.title)
+                append('\n')
+                append(section.lines.joinToString("\n"))
+            }
+        }
+        val refreshed = ResumeAnalysisEntity(
+            id = analysis.id,
+            userId = analysis.userId,
+            resumeVersionId = analysis.resumeVersionId,
+            jobPostingId = analysis.jobPostingId,
+            status = analysis.status,
+            overallScore = analysis.overallScore,
+            matchSummary = analysis.matchSummary,
+            strongMatchesJson = analysis.strongMatchesJson,
+            missingKeywordsJson = analysis.missingKeywordsJson,
+            weakSignalsJson = analysis.weakSignalsJson,
+            recommendedFocusAreasJson = analysis.recommendedFocusAreasJson,
+            suggestedHeadline = analysis.suggestedHeadline,
+            suggestedSummary = analysis.suggestedSummary,
+            recommendedFormatType = analysis.recommendedFormatType,
+            generationSource = analysis.generationSource,
+            llmModel = analysis.llmModel,
+            tailoredContentJson = objectMapper.writeValueAsString(acceptedSections.map(::toPersistedSection)),
+            tailoredPlainText = plainText,
+            sectionOrderJson = analysis.sectionOrderJson,
+            diffSummary = analysis.diffSummary,
+            analysisNotesJson = analysis.analysisNotesJson,
+            createdAt = analysis.createdAt,
+            updatedAt = now,
+        )
+        return resumeAnalysisRepository.save(refreshed)
+    }
+
+    private fun requireTailoredDocument(analysis: ResumeAnalysisEntity): TailoredResumeDocument =
+        analysis.toTailoredDocument(
+            suggestions = resumeAnalysisSuggestionRepository.findByResumeAnalysisIdOrderByDisplayOrderAscIdAsc(analysis.id)
+                .map(ResumeAnalysisMapper::toSuggestionDto),
+            targetCompany = analysis.jobPostingId?.let { jobPostingRepository.findById(it).orElse(null)?.companyName },
+            targetRole = analysis.jobPostingId?.let { jobPostingRepository.findById(it).orElse(null)?.roleName },
+        )?.let(::toServiceDocument)
+            ?: throw ResponseStatusException(HttpStatus.CONFLICT, "Resume analysis does not have a tailored document")
+
+    private fun ResumeAnalysisEntity.toTailoredDocument(
+        suggestions: List<com.example.interviewplatform.resume.dto.ResumeAnalysisSuggestionDto>,
+        targetCompany: String?,
+        targetRole: String?,
+    ): ResumeTailoredDocumentDto? {
+        val sections = decodePersistedSections(tailoredContentJson)
+        if (sections.isEmpty()) {
+            return null
+        }
+        return ResumeTailoredDocumentDto(
+            title = suggestedHeadline ?: targetRole ?: "Tailored Resume",
+            targetCompany = targetCompany,
+            targetRole = targetRole,
+            formatType = recommendedFormatType ?: "experience_focused",
+            sectionOrder = decodeStringList(sectionOrderJson),
+            summary = suggestedSummary,
+            diffSummary = diffSummary,
+            analysisNotes = decodeStringList(analysisNotesJson),
+            sections = sections.map { section ->
+                ResumeTailoredDocumentSectionDto(
+                    sectionKey = section.sectionKey,
+                    title = section.title,
+                    lines = section.lines,
+                )
+            },
+            plainText = tailoredPlainText,
+        )
+    }
+
+    private fun buildTailoredDocument(
+        companyName: String?,
+        roleName: String?,
+        formatType: String,
+        headline: String?,
+        summary: String?,
+        sectionOrder: List<String>,
+        resume: ResumeSnapshot,
+        suggestions: List<ResumeAnalysisSuggestionSeed>,
+        analysisNotes: List<String>,
+        diffSummary: String?,
+    ): TailoredResumeDocument {
+        val sectionMap = linkedMapOf(
+            "summary" to TailoredResumeSection("summary", "Summary", listOfNotNull(summary)),
+            "experience" to TailoredResumeSection("experience", "Experience", resume.experienceHighlights.ifEmpty { listOf("핵심 경력 항목을 보강하세요.") }),
+            "projects" to TailoredResumeSection("projects", "Projects", resume.projectHighlights.ifEmpty { listOf("대표 프로젝트를 먼저 배치하세요.") }),
+            "skills" to TailoredResumeSection("skills", "Skills", listOf(resume.skillHighlights.joinToString(", ").ifBlank { "핵심 기술을 명시하세요." })),
+            "achievements" to TailoredResumeSection("achievements", "Achievements", suggestions.filter { it.sectionKey == "achievements" }.map { it.suggestedText }.ifEmpty { listOf("정량 성과를 프로젝트별로 보강하세요.") }),
+        )
+        val orderedSections = sectionOrder.mapNotNull(sectionMap::get) + sectionMap.filterKeys { it !in sectionOrder }.values
+        val plainText = buildString {
+            appendLine(headline ?: roleName ?: "Tailored Resume")
+            orderedSections.forEach { section ->
+                appendLine()
+                appendLine(section.title)
+                section.lines.forEach { appendLine("- $it") }
+            }
+        }.trim()
+        return TailoredResumeDocument(
+            title = headline ?: roleName ?: "Tailored Resume",
+            targetCompany = companyName,
+            targetRole = roleName,
+            formatType = formatType,
+            sectionOrder = orderedSections.map { it.sectionKey },
+            summary = summary,
+            diffSummary = diffSummary,
+            analysisNotes = analysisNotes,
+            sections = orderedSections,
+            plainText = plainText,
+        )
+    }
+
+    private fun decodePersistedSections(raw: String?): List<TailoredResumeSection> =
+        runCatching {
+            objectMapper.readValue(raw.orEmpty(), object : TypeReference<List<PersistedTailoredSection>>() {})
+        }.getOrDefault(emptyList())
+            .map { section ->
+                TailoredResumeSection(
+                    sectionKey = section.sectionKey,
+                    title = section.title,
+                    lines = section.lines,
+                )
+            }
+
+    private fun toPersistedSection(section: TailoredResumeSection): PersistedTailoredSection =
+        PersistedTailoredSection(
+            sectionKey = section.sectionKey,
+            title = section.title,
+            lines = section.lines,
+        )
+
+    private fun toServiceDocument(dto: ResumeTailoredDocumentDto): TailoredResumeDocument =
+        TailoredResumeDocument(
+            title = dto.title,
+            targetCompany = dto.targetCompany,
+            targetRole = dto.targetRole,
+            formatType = dto.formatType,
+            sectionOrder = dto.sectionOrder,
+            summary = dto.summary,
+            diffSummary = dto.diffSummary,
+            analysisNotes = dto.analysisNotes,
+            sections = dto.sections.map { section ->
+                TailoredResumeSection(
+                    sectionKey = section.sectionKey,
+                    title = section.title,
+                    lines = section.lines,
+                )
+            },
+            plainText = dto.plainText.orEmpty(),
+        )
 
     private fun decodeStringList(raw: String): List<String> =
         runCatching { objectMapper.readValue(raw, object : TypeReference<List<String>>() {}) }
@@ -363,10 +741,23 @@ class ResumeAnalysisService(
     private fun extractInlineKeywords(line: String): List<String> =
         Regex("""[A-Za-z][A-Za-z0-9+.#/-]{2,}""").findAll(line).map { it.value }.toList()
 
+    private fun sectionOrderForFormat(formatType: String): List<String> = when (formatType) {
+        "project_focused" -> listOf("summary", "projects", "experience", "skills", "achievements")
+        "technical_focused" -> listOf("summary", "skills", "experience", "projects", "achievements")
+        "concise" -> listOf("summary", "experience", "skills")
+        else -> listOf("summary", "experience", "projects", "skills", "achievements")
+    }
+
     private companion object {
         private const val STATUS_COMPLETED = "completed"
     }
 }
+
+data class DownloadedResumeAnalysisExport(
+    val fileName: String,
+    val contentType: String,
+    val resource: Resource,
+)
 
 private data class ResumeSnapshot(
     val headlineSource: String?,
@@ -376,6 +767,9 @@ private data class ResumeSnapshot(
     val riskSignals: List<String>,
     val topProjectTitles: List<String>,
     val topExperienceTitles: List<String>,
+    val experienceHighlights: List<String>,
+    val projectHighlights: List<String>,
+    val skillHighlights: List<String>,
 )
 
 private data class JobPostingSnapshot(
@@ -386,7 +780,7 @@ private data class JobPostingSnapshot(
     val roleName: String?,
 )
 
-private data class GeneratedResumeAnalysis(
+private data class DeterministicResumeAnalysis(
     val overallScore: Int,
     val matchSummary: String,
     val strongMatches: List<String>,
@@ -395,14 +789,16 @@ private data class GeneratedResumeAnalysis(
     val recommendedFocusAreas: List<String>,
     val suggestedHeadline: String?,
     val suggestedSummary: String?,
-    val recommendedFormatType: String?,
-    val suggestions: List<GeneratedSuggestion>,
+    val recommendedFormatType: String,
+    val analysisNotes: List<String>,
+    val diffSummary: String?,
+    val suggestions: List<ResumeAnalysisSuggestionSeed>,
+    val sectionOrder: List<String>,
+    val tailoredDocument: TailoredResumeDocument,
 )
 
-private data class GeneratedSuggestion(
+private data class PersistedTailoredSection(
     val sectionKey: String,
-    val originalText: String?,
-    val suggestedText: String,
-    val reason: String,
-    val suggestionType: String,
+    val title: String,
+    val lines: List<String>,
 )

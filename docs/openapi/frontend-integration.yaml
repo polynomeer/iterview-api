@@ -407,6 +407,69 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResumeAnalysisDto"
+  /api/resume-versions/{versionId}/analyses/{analysisId}/exports:
+    get:
+      tags: [Resume]
+      summary: List tailored resume exports for one analysis
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+        - name: analysisId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: Export history for one analysis
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResumeAnalysisExportDto"
+    post:
+      tags: [Resume]
+      summary: Create one tailored resume export for one analysis
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+        - name: analysisId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateResumeAnalysisExportRequest"
+      responses:
+        "200":
+          description: Created export metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeAnalysisExportDto"
+  /api/resume-versions/{versionId}/analyses/{analysisId}/exports/{exportId}/file:
+    get:
+      tags: [Resume]
+      summary: Download one tailored resume export file
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+        - name: analysisId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: exportId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: Export file stream
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
   /api/resume-versions/{versionId}/re-extract:
     post:
       tags: [Resume]
@@ -1408,6 +1471,10 @@ components:
         inputType: { type: string }
         sourceUrl: { type: string, nullable: true }
         rawText: { type: string, nullable: true }
+        fetchStatus: { type: string }
+        fetchedTitle: { type: string, nullable: true }
+        fetchErrorMessage: { type: string, nullable: true }
+        fetchedAt: { type: string, format: date-time, nullable: true }
         companyName: { type: string, nullable: true }
         roleName: { type: string, nullable: true }
         parsedRequirements:
@@ -1445,6 +1512,8 @@ components:
         matchSummary: { type: string }
         suggestedHeadline: { type: string, nullable: true }
         recommendedFormatType: { type: string, nullable: true }
+        generationSource: { type: string }
+        llmModel: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
     ResumeAnalysisSuggestionDto:
       type: object
@@ -1457,6 +1526,51 @@ components:
         suggestionType: { type: string }
         accepted: { type: boolean }
         displayOrder: { type: integer }
+        createdAt: { type: string, format: date-time }
+    ResumeTailoredDocumentSectionDto:
+      type: object
+      properties:
+        sectionKey: { type: string }
+        title: { type: string }
+        lines:
+          type: array
+          items: { type: string }
+    ResumeTailoredDocumentDto:
+      type: object
+      properties:
+        title: { type: string }
+        targetCompany: { type: string, nullable: true }
+        targetRole: { type: string, nullable: true }
+        formatType: { type: string }
+        sectionOrder:
+          type: array
+          items: { type: string }
+        summary: { type: string, nullable: true }
+        diffSummary: { type: string, nullable: true }
+        analysisNotes:
+          type: array
+          items: { type: string }
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeTailoredDocumentSectionDto"
+        plainText: { type: string, nullable: true }
+    CreateResumeAnalysisExportRequest:
+      type: object
+      properties:
+        exportType: { type: string }
+    ResumeAnalysisExportDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        resumeAnalysisId: { type: integer, format: int64 }
+        exportType: { type: string }
+        formatType: { type: string, nullable: true }
+        fileName: { type: string }
+        fileUrl: { type: string }
+        fileSizeBytes: { type: integer, format: int64 }
+        checksumSha256: { type: string }
+        pageCount: { type: integer, nullable: true }
         createdAt: { type: string, format: date-time }
     ResumeAnalysisDto:
       type: object
@@ -1482,10 +1596,23 @@ components:
         suggestedHeadline: { type: string, nullable: true }
         suggestedSummary: { type: string, nullable: true }
         recommendedFormatType: { type: string, nullable: true }
+        generationSource: { type: string }
+        llmModel: { type: string, nullable: true }
+        analysisNotes:
+          type: array
+          items: { type: string }
+        tailoredDocument:
+          allOf:
+            - $ref: "#/components/schemas/ResumeTailoredDocumentDto"
+          nullable: true
         suggestions:
           type: array
           items:
             $ref: "#/components/schemas/ResumeAnalysisSuggestionDto"
+        exports:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeAnalysisExportDto"
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     QuestionDetailResponse:
