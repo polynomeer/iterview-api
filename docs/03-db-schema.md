@@ -948,6 +948,74 @@ Columns:
 - `resume_award_items(resume_version_id, display_order)`
 - `resume_risk_items(resume_version_id, severity)`
 - `resume_versions(resume_id, llm_extraction_status)`
+
+### `job_postings`
+- persist one user-saved hiring context that can later drive resume tailoring, question generation, or interview planning
+
+Columns:
+- `id`
+- `user_id`
+- `input_type`
+- `source_url`
+- `raw_text`
+- `company_name`
+- `role_name`
+- `parsed_requirements_json`
+- `parsed_nice_to_have_json`
+- `parsed_keywords_json`
+- `parsed_responsibilities_json`
+- `parsed_summary`
+- `created_at`
+- `updated_at`
+
+Notes:
+- keep the original job posting text when available so later parsers or LLM upgrades can re-run without another user upload
+- parsed fields are additive normalized views, not replacements for the original source text
+
+### `resume_analyses`
+- persist one resume-to-JD analysis run without mutating the source `resume_versions` row
+
+Columns:
+- `id`
+- `user_id`
+- `resume_version_id`
+- `job_posting_id`
+- `status`
+- `overall_score`
+- `match_summary`
+- `strong_matches_json`
+- `missing_keywords_json`
+- `weak_signals_json`
+- `recommended_focus_areas_json`
+- `suggested_headline`
+- `suggested_summary`
+- `recommended_format_type`
+- `created_at`
+- `updated_at`
+
+Notes:
+- one resume version can have many analysis runs for different companies or roles
+- one job posting can be reused across many resume versions
+
+### `resume_analysis_suggestions`
+- persist section-level rewrite suggestions derived from one `resume_analyses` row
+
+Columns:
+- `id`
+- `resume_analysis_id`
+- `section_key`
+- `original_text`
+- `suggested_text`
+- `reason`
+- `suggestion_type`
+- `accepted`
+- `display_order`
+- `created_at`
+- `updated_at`
+
+Notes:
+- suggestion acceptance should not overwrite immutable resume version source content
+- this table is the stable backend source for per-line accept state in a future resume tailoring UI
 - `question_relationships(parent_question_id, display_order)`
 - `question_relationships(child_question_id)`
 - `question_skill_mappings(question_id)`

@@ -24,6 +24,7 @@ import org.springframework.mock.web.MockMultipartFile
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
@@ -475,6 +476,100 @@ class ResumeApiIntegrationTest {
         mockMvc.perform(get("/api/resume-versions/$versionId/skills").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.items.length()").value(0))
+    }
+
+    @Test
+    fun `job posting and resume analysis endpoints persist tailored analysis suggestions`() {
+        seedSkillCategory("BACKEND", "Backend", 1)
+        seedSkill("Spring Boot", "BACKEND")
+        seedSkill("Redis", "BACKEND")
+        seedSkill("Kafka", "BACKEND")
+
+        val resumeId = createResume("Tailored Resume")
+        val versionId = createResumeVersion(
+            resumeId = resumeId,
+            fileUrl = "https://files.example.com/tailored-resume.pdf",
+            summaryText = "Built Spring Boot APIs and improved Redis cache latency by 40%.",
+            rawText = """
+                Kim Resume
+                Backend engineer
+                Built Spring Boot APIs and improved Redis cache latency by 40%.
+                Led checkout migration project and reduced latency by 40%.
+            """.trimIndent(),
+            parsedJson = """{"skills":["Spring Boot","Redis"]}""",
+        )
+
+        val jobPosting = mockMvc.perform(
+            post("/api/job-postings")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "inputType" to "text",
+                            "companyName" to "Example Corp",
+                            "roleName" to "Backend Platform Engineer",
+                            "rawText" to """
+                                Responsibilities
+                                - Build backend APIs with Spring Boot
+                                - Improve cache and messaging throughput with Redis and Kafka
+                                Preferred
+                                - Kafka operations experience
+                            """.trimIndent(),
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.companyName").value("Example Corp"))
+            .andExpect(jsonPath("$.roleName").value("Backend Platform Engineer"))
+            .andExpect(jsonPath("$.parsedKeywords").isArray)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val jobPostingId = jobPosting["id"].asLong()
+
+        val analysis = mockMvc.perform(
+            post("/api/resume-versions/$versionId/analyses")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(mapOf("jobPostingId" to jobPostingId))),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.resumeVersionId").value(versionId))
+            .andExpect(jsonPath("$.jobPostingId").value(jobPostingId))
+            .andExpect(jsonPath("$.status").value("completed"))
+            .andExpect(jsonPath("$.overallScore").isNumber)
+            .andExpect(jsonPath("$.strongMatches").isArray)
+            .andExpect(jsonPath("$.suggestions.length()").value(org.hamcrest.Matchers.greaterThan(1)))
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val analysisId = analysis["id"].asLong()
+        val suggestionId = analysis["suggestions"][0]["id"].asLong()
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/analyses").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].id").value(analysisId))
+            .andExpect(jsonPath("$[0].jobPostingId").value(jobPostingId))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/analyses/$analysisId").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.matchSummary").isString)
+            .andExpect(jsonPath("$.recommendedFormatType").isString)
+
+        mockMvc.perform(
+            patch("/api/resume-versions/$versionId/analyses/$analysisId/suggestions/$suggestionId")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(mapOf("accepted" to true))),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.suggestions[0].accepted").value(true))
     }
 
     private fun createResume(title: String): Long {

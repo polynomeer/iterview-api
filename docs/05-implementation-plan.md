@@ -72,6 +72,42 @@ Acceptance intent:
 - extraction metadata is traceable for later prompt tuning
 - project lists extracted from one version remain queryable with their own content, tags, and category metadata
 
+## Phase 1B - Job-Aware Resume Analysis
+1. add Flyway migration for:
+   - `job_postings`
+   - `resume_analyses`
+   - `resume_analysis_suggestions`
+2. add a job-posting parsing boundary that accepts text or link-style input and returns:
+   - requirements
+   - nice-to-have items
+   - keywords
+   - responsibilities
+   - inferred company and role metadata
+3. persist one analysis run per `resumeVersionId` with optional `jobPostingId`
+4. generate deterministic analysis output first:
+   - match score
+   - strong matches
+   - missing keywords
+   - weak signals
+   - recommended focus areas
+   - suggested headline
+   - suggested summary
+   - recommended format type
+5. persist section-level rewrite suggestions separately from the analysis header row
+6. expose additive APIs for:
+   - `POST /api/job-postings`
+   - `GET /api/job-postings`
+   - `GET /api/job-postings/{jobPostingId}`
+   - `POST /api/resume-versions/{versionId}/analyses`
+   - `GET /api/resume-versions/{versionId}/analyses`
+   - `GET /api/resume-versions/{versionId}/analyses/{analysisId}`
+   - `PATCH /api/resume-versions/{versionId}/analyses/{analysisId}/suggestions/{suggestionId}`
+
+Acceptance intent:
+- immutable resume versions stay unchanged while analyses are stored separately
+- one saved job posting can drive multiple analyses across different resume versions
+- suggestion acceptance is persisted without overwriting source resume content
+
 ## Phase 2 - Question Tree and Follow-Up Relationships
 1. add Flyway migration for `question_relationships`
 2. seed follow-up relationships for high-value core questions

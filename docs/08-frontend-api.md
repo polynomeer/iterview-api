@@ -39,6 +39,10 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 - The backend path names are `/api/skills/radar` and `/api/skills/gaps`.
 - Resume PDF upload is `POST /api/resumes/{resumeId}/versions/upload` with `multipart/form-data`.
 - Resume version polling is `GET /api/resume-versions/{versionId}`.
+- Saved job posting context is:
+  - `POST /api/job-postings`
+  - `GET /api/job-postings`
+  - `GET /api/job-postings/{jobPostingId}`
 - Resume extraction status is `GET /api/resume-versions/{versionId}/extraction`.
 - Resume file download is authenticated at `GET /api/resume-versions/{versionId}/file`.
 - Resume re-extraction is `POST /api/resume-versions/{versionId}/re-extract`.
@@ -56,6 +60,18 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `GET /api/resume-versions/{versionId}/certifications`
   - `GET /api/resume-versions/{versionId}/awards`
   - `GET /api/resume-versions/{versionId}/risks`
+- Resume tailoring analysis reads and writes are:
+  - `POST /api/resume-versions/{versionId}/analyses`
+  - `GET /api/resume-versions/{versionId}/analyses`
+  - `GET /api/resume-versions/{versionId}/analyses/{analysisId}`
+  - `PATCH /api/resume-versions/{versionId}/analyses/{analysisId}/suggestions/{suggestionId}`
+- resume analysis runs are additive read/write models layered on top of immutable resume versions
+- current backend scope for resume tailoring is:
+  - save and parse one job posting
+  - compare one resume version to that job posting
+  - persist summary metrics and section-level rewrite suggestions
+  - persist suggestion acceptance state
+- current backend does not yet generate final tailored PDF exports or persist a fully rewritten resume document body
 - The current project endpoint should be treated as the stable base for resume-derived project cards.
 - Implemented project payload fields now include:
   - `contentText`

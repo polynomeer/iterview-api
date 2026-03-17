@@ -45,6 +45,9 @@ Authenticated endpoints:
 - `PUT /api/me/target-companies`
 - `GET /api/resumes`
 - `POST /api/resumes`
+- `GET /api/job-postings`
+- `POST /api/job-postings`
+- `GET /api/job-postings/{jobPostingId}`
 - `POST /api/resumes/{resumeId}/versions`
 - `POST /api/resumes/{resumeId}/versions/upload`
 - `GET /api/resume-versions/{versionId}`
@@ -59,6 +62,10 @@ Authenticated endpoints:
 - `GET /api/resume-versions/{versionId}/education`
 - `GET /api/resume-versions/{versionId}/certifications`
 - `GET /api/resume-versions/{versionId}/awards`
+- `GET /api/resume-versions/{versionId}/analyses`
+- `POST /api/resume-versions/{versionId}/analyses`
+- `GET /api/resume-versions/{versionId}/analyses/{analysisId}`
+- `PATCH /api/resume-versions/{versionId}/analyses/{analysisId}/suggestions/{suggestionId}`
 - `POST /api/resume-versions/{versionId}/activate`
 - `GET /api/home`
 - `POST /api/daily-cards/{dailyCardId}/open`
@@ -217,6 +224,49 @@ Response:
 }
 ```
 
+### Job Posting
+#### `POST /api/job-postings`
+Auth:
+- required
+
+Request:
+```json
+{
+  "inputType": "text",
+  "companyName": "Example Corp",
+  "roleName": "Backend Platform Engineer",
+  "rawText": "Responsibilities\n- Build backend APIs with Spring Boot\n- Improve cache throughput with Redis and Kafka"
+}
+```
+
+Response:
+```json
+{
+  "id": 1,
+  "inputType": "text",
+  "sourceUrl": null,
+  "rawText": "Responsibilities\n- Build backend APIs with Spring Boot\n- Improve cache throughput with Redis and Kafka",
+  "companyName": "Example Corp",
+  "roleName": "Backend Platform Engineer",
+  "parsedRequirements": [
+    "- Build backend APIs with Spring Boot",
+    "- Improve cache throughput with Redis and Kafka"
+  ],
+  "parsedNiceToHave": [],
+  "parsedKeywords": ["Spring Boot", "Redis", "Kafka"],
+  "parsedResponsibilities": ["Responsibilities"],
+  "parsedSummary": "Backend Platform Engineer focused on Spring Boot, Redis, Kafka.",
+  "createdAt": "2026-03-17T10:00:00Z",
+  "updatedAt": "2026-03-17T10:00:00Z"
+}
+```
+
+#### `GET /api/job-postings`
+- returns the current user's saved job postings ordered by `createdAt desc`
+
+#### `GET /api/job-postings/{jobPostingId}`
+- returns one saved job posting with parsed requirements, responsibilities, and keywords
+
 Notes:
 - this remains the primary current-user aggregate
 - future readiness or radar summaries should be additive fields, not a replacement payload
@@ -257,6 +307,56 @@ Response:
   "uploadedAt": "2026-03-12T01:00:00Z"
 }
 ```
+
+### Resume Analysis
+#### `POST /api/resume-versions/{versionId}/analyses`
+Auth:
+- required
+
+Request:
+```json
+{
+  "jobPostingId": 1,
+  "preferredFormatType": "technical_focused"
+}
+```
+
+Response highlights:
+- `overallScore`
+- `matchSummary`
+- `strongMatches`
+- `missingKeywords`
+- `weakSignals`
+- `recommendedFocusAreas`
+- `suggestedHeadline`
+- `suggestedSummary`
+- `recommendedFormatType`
+- `suggestions[]`
+
+Notes:
+- analyses are persisted separately from immutable `resume_versions`
+- one resume version may have multiple analyses for different job postings
+
+#### `GET /api/resume-versions/{versionId}/analyses`
+- returns persisted analysis summaries ordered by `createdAt desc`
+
+#### `GET /api/resume-versions/{versionId}/analyses/{analysisId}`
+- returns one persisted analysis with section-level suggestion rows
+
+#### `PATCH /api/resume-versions/{versionId}/analyses/{analysisId}/suggestions/{suggestionId}`
+Auth:
+- required
+
+Request:
+```json
+{
+  "accepted": true
+}
+```
+
+Notes:
+- toggles suggestion acceptance state only
+- does not mutate the source `resume_versions` row or extracted resume snapshots
 
 Notes:
 - supported file types are PNG, JPEG, WEBP, and GIF

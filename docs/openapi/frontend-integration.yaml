@@ -14,6 +14,7 @@ tags:
   - name: Profile
   - name: Home
   - name: Resume
+  - name: Job Posting
   - name: Questions
   - name: Answers
   - name: Skills
@@ -75,6 +76,51 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResumeDto"
+  /api/job-postings:
+    get:
+      tags: [Job Posting]
+      summary: List saved job postings
+      responses:
+        "200":
+          description: Job posting list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JobPostingDto"
+    post:
+      tags: [Job Posting]
+      summary: Create and parse one job posting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJobPostingRequest"
+      responses:
+        "200":
+          description: Parsed job posting detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobPostingDto"
+  /api/job-postings/{jobPostingId}:
+    get:
+      tags: [Job Posting]
+      summary: Get one saved job posting
+      parameters:
+        - name: jobPostingId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: Job posting detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobPostingDto"
   /api/resumes/{resumeId}/versions/upload:
     post:
       tags: [Resume]
@@ -284,6 +330,83 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResumeRiskItemResponseDto"
+  /api/resume-versions/{versionId}/analyses:
+    get:
+      tags: [Resume]
+      summary: List persisted analyses for one resume version
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Resume analysis list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResumeAnalysisListItemDto"
+    post:
+      tags: [Resume]
+      summary: Create one job-aware analysis for a resume version
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateResumeAnalysisRequest"
+      responses:
+        "200":
+          description: Resume analysis detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeAnalysisDto"
+  /api/resume-versions/{versionId}/analyses/{analysisId}:
+    get:
+      tags: [Resume]
+      summary: Get one persisted resume analysis
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+        - name: analysisId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: Resume analysis detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeAnalysisDto"
+  /api/resume-versions/{versionId}/analyses/{analysisId}/suggestions/{suggestionId}:
+    patch:
+      tags: [Resume]
+      summary: Accept or unaccept one resume analysis suggestion
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+        - name: analysisId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: suggestionId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateResumeAnalysisSuggestionRequest"
+      responses:
+        "200":
+          description: Updated resume analysis detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeAnalysisDto"
   /api/resume-versions/{versionId}/re-extract:
     post:
       tags: [Resume]
@@ -1270,6 +1393,101 @@ components:
         title: { type: string }
         description: { type: string }
         severity: { type: string }
+    CreateJobPostingRequest:
+      type: object
+      properties:
+        inputType: { type: string }
+        sourceUrl: { type: string, nullable: true }
+        rawText: { type: string, nullable: true }
+        companyName: { type: string, nullable: true }
+        roleName: { type: string, nullable: true }
+    JobPostingDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        inputType: { type: string }
+        sourceUrl: { type: string, nullable: true }
+        rawText: { type: string, nullable: true }
+        companyName: { type: string, nullable: true }
+        roleName: { type: string, nullable: true }
+        parsedRequirements:
+          type: array
+          items: { type: string }
+        parsedNiceToHave:
+          type: array
+          items: { type: string }
+        parsedKeywords:
+          type: array
+          items: { type: string }
+        parsedResponsibilities:
+          type: array
+          items: { type: string }
+        parsedSummary: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateResumeAnalysisRequest:
+      type: object
+      properties:
+        jobPostingId: { type: integer, format: int64, nullable: true }
+        preferredFormatType: { type: string, nullable: true }
+    UpdateResumeAnalysisSuggestionRequest:
+      type: object
+      properties:
+        accepted: { type: boolean }
+    ResumeAnalysisListItemDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        resumeVersionId: { type: integer, format: int64 }
+        jobPostingId: { type: integer, format: int64, nullable: true }
+        status: { type: string }
+        overallScore: { type: integer }
+        matchSummary: { type: string }
+        suggestedHeadline: { type: string, nullable: true }
+        recommendedFormatType: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    ResumeAnalysisSuggestionDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        sectionKey: { type: string }
+        originalText: { type: string, nullable: true }
+        suggestedText: { type: string }
+        reason: { type: string }
+        suggestionType: { type: string }
+        accepted: { type: boolean }
+        displayOrder: { type: integer }
+        createdAt: { type: string, format: date-time }
+    ResumeAnalysisDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        resumeVersionId: { type: integer, format: int64 }
+        jobPostingId: { type: integer, format: int64, nullable: true }
+        status: { type: string }
+        overallScore: { type: integer }
+        matchSummary: { type: string }
+        strongMatches:
+          type: array
+          items: { type: string }
+        missingKeywords:
+          type: array
+          items: { type: string }
+        weakSignals:
+          type: array
+          items: { type: string }
+        recommendedFocusAreas:
+          type: array
+          items: { type: string }
+        suggestedHeadline: { type: string, nullable: true }
+        suggestedSummary: { type: string, nullable: true }
+        recommendedFormatType: { type: string, nullable: true }
+        suggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeAnalysisSuggestionDto"
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
     QuestionDetailResponse:
       type: object
       properties:

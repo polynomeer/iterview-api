@@ -13,6 +13,8 @@ Implemented today:
 - user-question progress aggregation
 - retry queue, archive, home, and feed
 - Flyway migrations, reference seeds, and API integration tests
+- saved job-posting parsing APIs
+- persisted resume analysis runs and suggestion acceptance APIs
 
 This is the stable baseline and should remain operational throughout the extension work.
 
@@ -30,6 +32,7 @@ This is the stable baseline and should remain operational throughout the extensi
 - no persisted resume certification items
 - no persisted resume award items
 - no persisted resume risk items
+- no persisted export file history for tailored resume PDF outputs yet
 - no question relationship table for follow-up trees
 - no question-to-skill mapping table
 - no `answer_analyses` table
@@ -41,6 +44,7 @@ This is the stable baseline and should remain operational throughout the extensi
 ### Missing APIs
 - no latest resume helper endpoint
 - no resume intelligence read APIs for skills, experiences, and risks
+- no tailored-resume export or PDF-generation domain yet
 - no question tree endpoint
 - no recommended follow-up or resume-based question endpoints
 - no answer analysis retrieval endpoint
@@ -125,6 +129,20 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
 - add a placeholder parsing/extraction boundary that can read `parsed_json` today
 - add a provider-agnostic LLM extraction boundary after raw PDF parsing so mapping quality can improve without changing controllers
 - keep resume versions immutable
+
+### Phase 3A - Job-Aware Resume Analysis
+- implemented:
+  - `POST /api/job-postings`
+  - `GET /api/job-postings`
+  - `GET /api/job-postings/{jobPostingId}`
+  - `POST /api/resume-versions/{versionId}/analyses`
+  - `GET /api/resume-versions/{versionId}/analyses`
+  - `GET /api/resume-versions/{versionId}/analyses/{analysisId}`
+  - `PATCH /api/resume-versions/{versionId}/analyses/{analysisId}/suggestions/{suggestionId}`
+- current gap:
+  - no tailored resume export file records
+  - no server-side PDF generation
+  - no persisted full rewritten resume document body separate from suggestion rows
 
 ### Phase 4 - Question Tree and Recommendation
 - implement tree loading from `question_relationships`

@@ -46,6 +46,19 @@
 - progress row is inserted or updated
 - retry scheduling occurs when score or answer mode requires it
 - richer answer analysis, when introduced, is persisted separately from the current score row
+- saved job postings can be created from text or link-style input without mutating resume records
+- one saved job posting can expose parsed requirements, responsibilities, and keywords
+- one resume version can have multiple persisted analysis runs without losing immutable version history
+- a resume analysis can persist:
+  - overall match score
+  - strong matches
+  - missing keywords
+  - weak signals
+  - recommended focus areas
+  - suggested headline and summary
+  - recommended format type
+- a resume analysis can persist section-level rewrite suggestions separately from the main analysis row
+- accepting one suggestion must not rewrite the source `resume_versions` record or extracted resume snapshot tables
 - scoring rules remain centralized in one service
 
 ## Review Queue and Learning Loop

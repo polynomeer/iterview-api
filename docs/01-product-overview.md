@@ -5,6 +5,7 @@ This project is an interview preparation backend for experienced software engine
 
 The updated product direction is:
 - resume-driven interview preparation
+- job-posting-aware resume analysis and tailoring
 - answer-driven learning and retry loops
 - skill radar and gap analysis
 - question tree and follow-up visualization
@@ -72,6 +73,14 @@ This is an additive evolution of the current backend, not a new product line.
 - attach question-linked learning materials that explain concepts, tradeoffs, and background knowledge
 - let users understand both breadth and depth of their preparation
 
+### 2A. Resume Tailoring Workspace
+- accept one saved job posting as a reusable analysis context
+- parse job posting text or link metadata into keywords, requirements, and responsibilities
+- compare one immutable `resumeVersionId` against one saved job posting without mutating the source resume version
+- persist analysis runs so users can revisit earlier company-specific recommendations
+- return concrete rewrite suggestions for headline, summary, projects, skills, and quantified achievements
+- let the frontend mark suggestions as accepted without overwriting the original resume version
+
 ### 3. Mock Interview Loop
 - support AI-driven mock interviews grounded in the active resume version
 - let the user explicitly choose which resume version to use before starting an interview
@@ -124,6 +133,8 @@ This is an additive evolution of the current backend, not a new product line.
 - LLM-backed structured extraction from parsed resume raw text
 - extraction confidence, traceability, and failure visibility for resume signal mapping
 - richer resume extraction snapshots for skills, experiences, and resume risks
+- saved job-posting parsing and resume-to-JD analysis runs
+- persisted resume rewrite suggestions and acceptance state for one analysis run
 - richer structured resume sections for profile, contacts, education, awards, certifications, and project-level achievements
 - richer project records extracted from resume PDFs, including title, content, tags, and category classification
 - question relationship modeling for follow-up trees

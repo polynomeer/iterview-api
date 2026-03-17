@@ -19,4 +19,14 @@ interface ResumeVersionRepository : JpaRepository<ResumeVersionEntity, Long> {
     @Modifying
     @Query("update ResumeVersionEntity rv set rv.isActive = true where rv.id = :versionId")
     fun activateByVersionId(versionId: Long): Int
+
+    @Query(
+        """
+        select r.userId
+        from ResumeVersionEntity rv
+        join ResumeEntity r on r.id = rv.resumeId
+        where rv.id = :versionId
+        """,
+    )
+    fun findResumeOwnerIdByVersionId(versionId: Long): Long?
 }
