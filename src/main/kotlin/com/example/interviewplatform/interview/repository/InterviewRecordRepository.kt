@@ -7,6 +7,7 @@ import java.time.Instant
 
 interface InterviewRecordRepository : JpaRepository<InterviewRecordEntity, Long> {
     fun findByUserIdOrderByCreatedAtDesc(userId: Long): List<InterviewRecordEntity>
+    fun findByUserIdAndLinkedResumeVersionIdOrderByCreatedAtDesc(userId: Long, linkedResumeVersionId: Long): List<InterviewRecordEntity>
 
     fun findByIdAndUserId(id: Long, userId: Long): InterviewRecordEntity?
 

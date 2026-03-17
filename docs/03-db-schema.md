@@ -106,6 +106,26 @@ Current interpretation:
 - `parsed_json` is currently a bridge field for structured extraction output and should evolve into a trace or debug artifact rather than the only structured contract
 - future resume intelligence should hang off `resume_version_id`
 
+### `resume_question_heatmap_links`
+- `id`
+- `user_id`
+- `resume_version_id`
+- `interview_record_question_id`
+- `anchor_type`
+- `anchor_record_id`
+- `anchor_key`
+- `link_source`
+- `confidence_score`
+- `active`
+- `created_at`
+- `updated_at`
+
+Current interpretation:
+- this is the additive manual-override table for resume interview heatmaps
+- one practical-interview question can be manually remapped to one effective resume anchor without mutating the imported interview question row
+- automatic heatmap aggregation is computed on read from practical interview questions plus this override table
+- `anchor_type` currently supports parsed resume anchors such as `project`, `experience`, `skill`, `competency`, and `summary`
+
 Recommended additive columns for LLM-backed structured extraction:
 - `llm_extraction_status`
 - `llm_extraction_started_at`

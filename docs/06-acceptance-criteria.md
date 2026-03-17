@@ -62,6 +62,10 @@
 - accepting one suggestion must not rewrite the source `resume_versions` record or extracted resume snapshot tables
 - each analysis can persist one tailored document view with stable section order and preview-ready section content
 - the backend can generate and persist PDF export history for one tailored analysis
+- one resume version can expose a practical-interview heatmap grouped by parsed resume anchors
+- the heatmap can distinguish direct question volume, follow-up density, pressure questions, and weak-answer hotspots
+- a practical interview question can be manually remapped to another parsed resume anchor without mutating the original imported question row
+- heatmap filtering can distinguish all questions, main questions, and follow-up questions
 - scoring rules remain centralized in one service
 
 ## Review Queue and Learning Loop

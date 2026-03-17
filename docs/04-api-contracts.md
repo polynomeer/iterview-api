@@ -66,6 +66,9 @@ Authenticated endpoints:
 - `POST /api/resume-versions/{versionId}/analyses`
 - `GET /api/resume-versions/{versionId}/analyses/{analysisId}`
 - `PATCH /api/resume-versions/{versionId}/analyses/{analysisId}/suggestions/{suggestionId}`
+- `GET /api/resume-versions/{versionId}/question-heatmap`
+- `POST /api/resume-versions/{versionId}/question-heatmap/links`
+- `PATCH /api/resume-versions/{versionId}/question-heatmap/links/{linkId}`
 - `POST /api/resume-versions/{versionId}/activate`
 - `GET /api/home`
 - `POST /api/daily-cards/{dailyCardId}/open`
@@ -391,6 +394,77 @@ Notes:
 
 #### `GET /api/resume-versions/{versionId}/analyses/{analysisId}/exports/{exportId}/file`
 - returns the generated export file stream
+
+### Resume Question Heatmap
+#### `GET /api/resume-versions/{versionId}/question-heatmap`
+Auth:
+- required
+
+Query params:
+- `scope`
+  - `all`
+  - `main`
+  - `follow_up`
+
+Response highlights:
+- `summary.totalAnchors`
+- `summary.totalLinkedQuestions`
+- `summary.hottestAnchorLabel`
+- `summary.mostFollowedUpAnchorLabel`
+- `summary.weakestAnchorLabel`
+- `items[].anchorType`
+- `items[].anchorRecordId`
+- `items[].anchorKey`
+- `items[].label`
+- `items[].snippet`
+- `items[].heatScore`
+- `items[].normalizedHeatLevel`
+- `items[].directQuestionCount`
+- `items[].followUpCount`
+- `items[].distinctInterviewCount`
+- `items[].pressureQuestionCount`
+- `items[].weaknessCount`
+- `items[].recentQuestionAt`
+- `items[].linkedQuestions[]`
+
+Notes:
+- this is an additive read model layered on top of immutable `resume_versions`
+- the heatmap aggregates linked practical interview questions by parsed resume anchor
+- active manual override links take precedence over inferred or heuristic anchor resolution
+- the current backend intentionally skips questions that cannot be mapped to a stable resume anchor
+
+#### `POST /api/resume-versions/{versionId}/question-heatmap/links`
+Auth:
+- required
+
+Request:
+```json
+{
+  "interviewRecordQuestionId": 100,
+  "anchorType": "project",
+  "anchorRecordId": 12,
+  "confidenceScore": 0.97
+}
+```
+
+Notes:
+- creates or replaces one manual heatmap link for one practical interview question
+- the linked question must belong to a practical interview record already connected to the same `resumeVersionId`
+
+#### `PATCH /api/resume-versions/{versionId}/question-heatmap/links/{linkId}`
+Auth:
+- required
+
+Request:
+```json
+{
+  "active": false
+}
+```
+
+Notes:
+- can move the effective anchor or deactivate one manual override
+- deactivating one manual override falls back to inferred or heuristic anchor resolution on subsequent reads
 
 Notes:
 - supported file types are PNG, JPEG, WEBP, and GIF

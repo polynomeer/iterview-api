@@ -108,12 +108,44 @@ Acceptance intent:
 7. add link fetch support for `job_postings` and persist fetch metadata
 8. persist one tailored document view per analysis and use it as the single source for preview/export
 9. add OpenAI-backed rewrite generation with deterministic fallback
+10. add one resume-question heatmap read model that aggregates practical interview question pressure back onto parsed resume anchors
+11. add one manual remap API for correcting question-to-resume anchor linkage without mutating imported practical interview rows
 
 Acceptance intent:
 - immutable resume versions stay unchanged while analyses are stored separately
 - one saved job posting can drive multiple analyses across different resume versions
 - suggestion acceptance is persisted without overwriting source resume content
 - tailored document preview and PDF export reuse the same persisted normalized output
+
+## Phase 1C - Resume Interview Heatmap
+1. add Flyway migration for:
+   - `resume_question_heatmap_links`
+2. aggregate practical interview questions by parsed resume anchor such as:
+   - project
+   - experience
+   - skill
+   - competency
+   - summary
+3. expose additive APIs for:
+   - `GET /api/resume-versions/{versionId}/question-heatmap`
+   - `POST /api/resume-versions/{versionId}/question-heatmap/links`
+   - `PATCH /api/resume-versions/{versionId}/question-heatmap/links/{linkId}`
+4. support scope filters such as:
+   - `all`
+   - `main`
+   - `follow_up`
+5. score each anchor using:
+   - direct question count
+   - follow-up count
+   - pressure-question count
+   - distinct interview count
+   - weak-answer count
+6. allow manual override links to correct bad inferred mappings from imported practical interviews
+
+Acceptance intent:
+- the heatmap is additive and does not rewrite immutable resume snapshots
+- manual remaps do not mutate imported practical interview question text
+- practical interview review and resume review can share the same parsed anchor ids
 
 ## Phase 2 - Question Tree and Follow-Up Relationships
 1. add Flyway migration for `question_relationships`

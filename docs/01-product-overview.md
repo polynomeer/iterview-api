@@ -6,6 +6,7 @@ This project is an interview preparation backend for experienced software engine
 The updated product direction is:
 - resume-driven interview preparation
 - job-posting-aware resume analysis and tailoring
+- resume interview heatmaps that show which resume anchors triggered the most practical questions
 - answer-driven learning and retry loops
 - skill radar and gap analysis
 - question tree and follow-up visualization
@@ -82,6 +83,9 @@ This is an additive evolution of the current backend, not a new product line.
 - let the frontend mark suggestions as accepted without overwriting the original resume version
 - persist one tailored resume document view per analysis so the frontend can render editing and preview screens without rebuilding heuristics
 - generate downloadable PDF exports from that tailored document and keep export history per analysis
+- map practical interview questions back onto parsed resume anchors such as projects, experiences, skills, competencies, and summary blocks
+- expose one heatmap read model that highlights frequently challenged resume anchors, follow-up density, and weak-defense hotspots
+- allow manual correction when one imported practical-interview question was linked to the wrong resume anchor
 
 ### 3. Mock Interview Loop
 - support AI-driven mock interviews grounded in the active resume version

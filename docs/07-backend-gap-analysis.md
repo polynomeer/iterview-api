@@ -15,6 +15,7 @@ Implemented today:
 - Flyway migrations, reference seeds, and API integration tests
 - saved job-posting parsing APIs
 - persisted resume analysis runs and suggestion acceptance APIs
+- resume interview heatmap aggregation and manual remap APIs
 
 This is the stable baseline and should remain operational throughout the extension work.
 
@@ -141,6 +142,16 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
   - no DOCX or HTML export format yet
   - no dedicated async export pipeline yet
   - no persisted full rewritten resume document body separate from suggestion rows
+
+### Phase 3B - Resume Interview Heatmap
+- implemented:
+  - `GET /api/resume-versions/{versionId}/question-heatmap`
+  - `POST /api/resume-versions/{versionId}/question-heatmap/links`
+  - `PATCH /api/resume-versions/{versionId}/question-heatmap/links/{linkId}`
+- current gap:
+  - no sentence-offset or PDF-coordinate overlay yet
+  - no company/date/weakness-only filter params beyond `scope`
+  - no precomputed anchor summary table; aggregation is computed on read from practical interview data plus manual overrides
 
 ### Phase 4 - Question Tree and Recommendation
 - implement tree loading from `question_relationships`

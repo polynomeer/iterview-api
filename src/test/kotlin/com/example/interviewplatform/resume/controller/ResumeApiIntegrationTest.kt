@@ -607,6 +607,154 @@ class ResumeApiIntegrationTest {
     }
 
     @Test
+    fun `resume question heatmap aggregates linked interview questions and supports manual remap`() {
+        seedSkillCategory("BACKEND", "Backend", 1)
+        seedSkill("Redis", "BACKEND")
+
+        val resumeId = createResume("Heatmap Resume")
+        val versionId = createResumeVersion(
+            resumeId = resumeId,
+            fileUrl = "https://files.example.com/heatmap-resume.pdf",
+            summaryText = "Backend engineer with payments and platform experience",
+            rawText = """
+                Heatmap Kim
+                Mail : heatmap@example.com
+                경력
+                Acme Corp - Backend Engineer 2023.01 ~ 현재
+                Led platform and backend API work for commerce systems.
+                프로젝트
+                Payments Platform Revamp 2024.02 ~ 2024.12
+                기술스택 Kotlin, Spring Boot, Redis
+                Rebuilt payment APIs, cache strategy, and settlement workflow.
+            """.trimIndent(),
+            parsedJson = """{"skills":["Redis"]}""",
+        )
+
+        val projectId = jdbcTemplate.queryForObject(
+            "SELECT id FROM resume_project_snapshots WHERE resume_version_id = ? ORDER BY display_order ASC, id ASC LIMIT 1",
+            Long::class.java,
+            versionId,
+        )!!
+        val experienceId = jdbcTemplate.queryForObject(
+            "SELECT id FROM resume_experience_snapshots WHERE resume_version_id = ? ORDER BY display_order ASC, id ASC LIMIT 1",
+            Long::class.java,
+            versionId,
+        )!!
+        val recordId = insertInterviewRecord(versionId)
+        val mainQuestionId = insertInterviewRecordQuestion(
+            interviewRecordId = recordId,
+            text = "Payments Platform Revamp에서 Redis 캐시 전략을 왜 그렇게 설계했나요?",
+            questionType = "verification",
+            intentTagsJson = """["verification","deep_dive"]""",
+            derivedFromResumeSection = "project",
+            derivedFromResumeRecordType = "project",
+            derivedFromResumeRecordId = projectId,
+            orderIndex = 0,
+        )
+        val followUpQuestionId = insertInterviewRecordQuestion(
+            interviewRecordId = recordId,
+            text = "그 선택이 정산 지연이나 장애 대응에는 어떤 trade-off를 만들었나요?",
+            questionType = "follow_up",
+            intentTagsJson = """["tradeoff"]""",
+            derivedFromResumeSection = "project",
+            derivedFromResumeRecordType = "project",
+            derivedFromResumeRecordId = projectId,
+            parentQuestionId = mainQuestionId,
+            orderIndex = 1,
+        )
+        insertInterviewRecordAnswer(
+            interviewRecordQuestionId = mainQuestionId,
+            text = "캐시 적중률을 올렸지만 invalidation 설계 설명이 약했습니다.",
+            weaknessTagsJson = """["missing_metric","weak_tradeoff"]""",
+            strengthTagsJson = """["structured"]""",
+            orderIndex = 0,
+        )
+        insertInterviewRecordAnswer(
+            interviewRecordQuestionId = followUpQuestionId,
+            text = "정산 지연과 캐시 최신성 trade-off를 설명했습니다.",
+            weaknessTagsJson = "[]",
+            strengthTagsJson = """["tradeoff_aware"]""",
+            orderIndex = 1,
+        )
+        insertInterviewRecordFollowUpEdge(recordId, mainQuestionId, followUpQuestionId)
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/question-heatmap").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.resumeVersionId").value(versionId))
+            .andExpect(jsonPath("$.scope").value("all"))
+            .andExpect(jsonPath("$.summary.totalAnchors").value(1))
+            .andExpect(jsonPath("$.summary.totalLinkedQuestions").value(2))
+            .andExpect(jsonPath("$.summary.hottestAnchorLabel").value("Payments Platform Revamp"))
+            .andExpect(jsonPath("$.items[0].anchorType").value("project"))
+            .andExpect(jsonPath("$.items[0].anchorRecordId").value(projectId))
+            .andExpect(jsonPath("$.items[0].directQuestionCount").value(2))
+            .andExpect(jsonPath("$.items[0].followUpCount").value(1))
+            .andExpect(jsonPath("$.items[0].pressureQuestionCount").value(1))
+            .andExpect(jsonPath("$.items[0].weaknessCount").value(1))
+            .andExpect(jsonPath("$.items[0].normalizedHeatLevel").value("high"))
+            .andExpect(jsonPath("$.items[0].linkedQuestions[0].linkSource").value("inferred"))
+            .andExpect(jsonPath("$.items[0].linkedQuestions[0].confidenceScore").value(0.9))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/question-heatmap?scope=follow_up").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.summary.totalLinkedQuestions").value(1))
+            .andExpect(jsonPath("$.items[0].directQuestionCount").value(1))
+
+        val linkId = mockMvc.perform(
+            post("/api/resume-versions/$versionId/question-heatmap/links")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "interviewRecordQuestionId" to mainQuestionId,
+                            "anchorType" to "experience",
+                            "anchorRecordId" to experienceId,
+                            "confidenceScore" to "0.9700",
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.anchorType").value("experience"))
+            .andExpect(jsonPath("$.anchorRecordId").value(experienceId))
+            .andExpect(jsonPath("$.linkSource").value("manual"))
+            .andExpect(jsonPath("$.confidenceScore").value(0.97))
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+            .get("id")
+            .asLong()
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/question-heatmap").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.summary.totalAnchors").value(2))
+            .andExpect(jsonPath("$.summary.hottestAnchorLabel").value("Backend Engineer @ Acme Corp"))
+            .andExpect(jsonPath("$.items[0].anchorType").value("experience"))
+            .andExpect(jsonPath("$.items[0].anchorRecordId").value(experienceId))
+            .andExpect(jsonPath("$.items[0].directQuestionCount").value(1))
+            .andExpect(jsonPath("$.items[0].linkedQuestions[0].linkSource").value("manual"))
+            .andExpect(jsonPath("$.items[0].linkedQuestions[0].confidenceScore").value(0.97))
+
+        mockMvc.perform(
+            patch("/api/resume-versions/$versionId/question-heatmap/links/$linkId")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"active":false}"""),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.active").value(false))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/question-heatmap").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.summary.totalAnchors").value(1))
+            .andExpect(jsonPath("$.summary.hottestAnchorLabel").value("Payments Platform Revamp"))
+            .andExpect(jsonPath("$.items[0].anchorType").value("project"))
+            .andExpect(jsonPath("$.items[0].directQuestionCount").value(2))
+    }
+
+    @Test
     fun `link job posting input fetches source text before parsing`() {
         seedSkillCategory("BACKEND", "Backend", 1)
         seedSkill("Spring Boot", "BACKEND")
@@ -770,6 +918,104 @@ class ResumeApiIntegrationTest {
             title,
         )
     }
+
+    private fun insertInterviewRecord(linkedResumeVersionId: Long): Long =
+        jdbcTemplate.queryForObject(
+            """
+            INSERT INTO interview_records (
+                user_id, company_name, role_name, interview_date, interview_type,
+                raw_transcript, cleaned_transcript, confirmed_transcript, transcript_status,
+                analysis_status, linked_resume_version_id, structuring_stage, created_at, updated_at
+            ) VALUES (
+                1, 'Acme Corp', 'Backend Engineer', DATE '2026-03-10', 'onsite',
+                'transcript', 'transcript', 'transcript', 'confirmed',
+                'completed', ?, 'confirmed', now(), now()
+            ) RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            linkedResumeVersionId,
+        )!!
+
+    private fun insertInterviewRecordQuestion(
+        interviewRecordId: Long,
+        text: String,
+        questionType: String,
+        intentTagsJson: String,
+        derivedFromResumeSection: String?,
+        derivedFromResumeRecordType: String?,
+        derivedFromResumeRecordId: Long?,
+        orderIndex: Int,
+        parentQuestionId: Long? = null,
+    ): Long =
+        jdbcTemplate.queryForObject(
+            """
+            INSERT INTO interview_record_questions (
+                interview_record_id, text, normalized_text, question_type, topic_tags_json, intent_tags_json,
+                derived_from_resume_section, derived_from_resume_record_type, derived_from_resume_record_id,
+                parent_question_id, structuring_source, order_index, created_at, updated_at
+            ) VALUES (
+                ?, ?, lower(?), ?, '["redis","payments"]', ?,
+                ?, ?, ?, ?, 'confirmed', ?, now(), now()
+            ) RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            interviewRecordId,
+            text,
+            text,
+            questionType,
+            intentTagsJson,
+            derivedFromResumeSection,
+            derivedFromResumeRecordType,
+            derivedFromResumeRecordId,
+            parentQuestionId,
+            orderIndex,
+        )!!
+
+    private fun insertInterviewRecordAnswer(
+        interviewRecordQuestionId: Long,
+        text: String,
+        weaknessTagsJson: String,
+        strengthTagsJson: String,
+        orderIndex: Int,
+    ): Long =
+        jdbcTemplate.queryForObject(
+            """
+            INSERT INTO interview_record_answers (
+                interview_record_question_id, text, normalized_text, summary,
+                confidence_markers_json, weakness_tags_json, strength_tags_json,
+                structuring_source, order_index, created_at, updated_at
+            ) VALUES (
+                ?, ?, lower(?), ?, '[]', ?, ?, 'confirmed', ?, now(), now()
+            ) RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            interviewRecordQuestionId,
+            text,
+            text,
+            text.take(120),
+            weaknessTagsJson,
+            strengthTagsJson,
+            orderIndex,
+        )!!
+
+    private fun insertInterviewRecordFollowUpEdge(
+        interviewRecordId: Long,
+        fromQuestionId: Long,
+        toQuestionId: Long,
+    ): Long =
+        jdbcTemplate.queryForObject(
+            """
+            INSERT INTO interview_record_follow_up_edges (
+                interview_record_id, from_question_id, to_question_id, relation_type, trigger_type, created_at
+            ) VALUES (
+                ?, ?, ?, 'follow_up', 'answer_probe', now()
+            ) RETURNING id
+            """.trimIndent(),
+            Long::class.java,
+            interviewRecordId,
+            fromQuestionId,
+            toQuestionId,
+        )!!
 
     private fun createPdf(lines: List<String>): ByteArray {
         val document = PDDocument()

@@ -330,6 +330,65 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResumeRiskItemResponseDto"
+  /api/resume-versions/{versionId}/question-heatmap:
+    get:
+      tags: [Resume]
+      summary: Get resume interview heatmap for one resume version
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+        - name: scope
+          in: query
+          required: false
+          schema: { type: string, default: all }
+      responses:
+        "200":
+          description: Resume question heatmap
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeQuestionHeatmapDto"
+  /api/resume-versions/{versionId}/question-heatmap/links:
+    post:
+      tags: [Resume]
+      summary: Create or replace one manual heatmap link
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateResumeQuestionHeatmapLinkRequest"
+      responses:
+        "200":
+          description: Resume heatmap link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeQuestionHeatmapLinkDto"
+  /api/resume-versions/{versionId}/question-heatmap/links/{linkId}:
+    patch:
+      tags: [Resume]
+      summary: Update one manual heatmap link
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+        - name: linkId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateResumeQuestionHeatmapLinkRequest"
+      responses:
+        "200":
+          description: Updated resume heatmap link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeQuestionHeatmapLinkDto"
   /api/resume-versions/{versionId}/analyses:
     get:
       tags: [Resume]
@@ -1497,6 +1556,22 @@ components:
       properties:
         jobPostingId: { type: integer, format: int64, nullable: true }
         preferredFormatType: { type: string, nullable: true }
+    CreateResumeQuestionHeatmapLinkRequest:
+      type: object
+      properties:
+        interviewRecordQuestionId: { type: integer, format: int64 }
+        anchorType: { type: string }
+        anchorRecordId: { type: integer, format: int64, nullable: true }
+        anchorKey: { type: string, nullable: true }
+        confidenceScore: { type: number, nullable: true }
+    UpdateResumeQuestionHeatmapLinkRequest:
+      type: object
+      properties:
+        anchorType: { type: string, nullable: true }
+        anchorRecordId: { type: integer, format: int64, nullable: true }
+        anchorKey: { type: string, nullable: true }
+        confidenceScore: { type: number, nullable: true }
+        active: { type: boolean, nullable: true }
     UpdateResumeAnalysisSuggestionRequest:
       type: object
       properties:
@@ -1572,6 +1647,77 @@ components:
         checksumSha256: { type: string }
         pageCount: { type: integer, nullable: true }
         createdAt: { type: string, format: date-time }
+    ResumeQuestionHeatmapSummaryDto:
+      type: object
+      properties:
+        totalAnchors: { type: integer }
+        totalLinkedQuestions: { type: integer }
+        hottestAnchorLabel: { type: string, nullable: true }
+        mostFollowedUpAnchorLabel: { type: string, nullable: true }
+        weakestAnchorLabel: { type: string, nullable: true }
+    ResumeQuestionHeatmapQuestionDto:
+      type: object
+      properties:
+        interviewRecordQuestionId: { type: integer, format: int64 }
+        sourceInterviewRecordId: { type: integer, format: int64 }
+        linkedQuestionId: { type: integer, format: int64, nullable: true }
+        text: { type: string }
+        questionType: { type: string }
+        isFollowUp: { type: boolean }
+        followUpCount: { type: integer }
+        pressureQuestion: { type: boolean }
+        weakAnswer: { type: boolean }
+        weaknessTags:
+          type: array
+          items: { type: string }
+        interviewDate: { type: string, format: date, nullable: true }
+        linkSource: { type: string }
+        confidenceScore: { type: number, nullable: true }
+    ResumeQuestionHeatmapItemDto:
+      type: object
+      properties:
+        anchorType: { type: string }
+        anchorRecordId: { type: integer, format: int64, nullable: true }
+        anchorKey: { type: string, nullable: true }
+        label: { type: string }
+        snippet: { type: string, nullable: true }
+        heatScore: { type: number }
+        normalizedHeatLevel: { type: string }
+        directQuestionCount: { type: integer }
+        followUpCount: { type: integer }
+        distinctInterviewCount: { type: integer }
+        pressureQuestionCount: { type: integer }
+        weaknessCount: { type: integer }
+        recentQuestionAt: { type: string, format: date-time, nullable: true }
+        linkedQuestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeQuestionHeatmapQuestionDto"
+    ResumeQuestionHeatmapLinkDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        resumeVersionId: { type: integer, format: int64 }
+        interviewRecordQuestionId: { type: integer, format: int64 }
+        anchorType: { type: string }
+        anchorRecordId: { type: integer, format: int64, nullable: true }
+        anchorKey: { type: string, nullable: true }
+        linkSource: { type: string }
+        confidenceScore: { type: number, nullable: true }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ResumeQuestionHeatmapDto:
+      type: object
+      properties:
+        resumeVersionId: { type: integer, format: int64 }
+        scope: { type: string }
+        summary:
+          $ref: "#/components/schemas/ResumeQuestionHeatmapSummaryDto"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeQuestionHeatmapItemDto"
     ResumeAnalysisDto:
       type: object
       properties:

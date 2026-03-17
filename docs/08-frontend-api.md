@@ -68,6 +68,10 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `POST /api/resume-versions/{versionId}/analyses/{analysisId}/exports`
   - `GET /api/resume-versions/{versionId}/analyses/{analysisId}/exports`
   - `GET /api/resume-versions/{versionId}/analyses/{analysisId}/exports/{exportId}/file`
+- Resume interview heatmap reads and writes are:
+  - `GET /api/resume-versions/{versionId}/question-heatmap`
+  - `POST /api/resume-versions/{versionId}/question-heatmap/links`
+  - `PATCH /api/resume-versions/{versionId}/question-heatmap/links/{linkId}`
 - resume analysis runs are additive read/write models layered on top of immutable resume versions
 - current backend scope for resume tailoring is:
   - save and parse one job posting
@@ -86,6 +90,30 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `analysisNotes`
   - `tailoredDocument`
   - `exports`
+- `ResumeQuestionHeatmapDto` now exposes:
+  - `summary`
+  - `items`
+- each heatmap item currently exposes:
+  - anchor identity such as `anchorType`, `anchorRecordId`, and `anchorKey`
+  - `label`
+  - `snippet`
+  - `heatScore`
+  - `normalizedHeatLevel`
+  - `directQuestionCount`
+  - `followUpCount`
+  - `distinctInterviewCount`
+  - `pressureQuestionCount`
+  - `weaknessCount`
+  - `recentQuestionAt`
+  - `linkedQuestions`
+- each heatmap-linked question now also exposes:
+  - `linkSource`
+  - `confidenceScore`
+- current heatmap scope query values are:
+  - `all`
+  - `main`
+  - `follow_up`
+- manual remap links are additive override rows; they do not mutate the imported practical-interview question itself
 - The current project endpoint should be treated as the stable base for resume-derived project cards.
 - Implemented project payload fields now include:
   - `contentText`
