@@ -171,6 +171,15 @@ Acceptance intent:
 - hoverable sentence overlays do not require raw PDF coordinate extraction
 - manual correction can eventually happen at sentence-range level without mutating source resume text
 
+Current step status:
+- implemented:
+  - `resume_document_overlay_targets` persistence
+  - block and sentence target generation during resume extraction and re-extraction
+- next:
+  - public read API for overlay targets
+  - question-to-overlay linking
+  - additive `overlayTargets` on heatmap reads
+
 ## Phase 2 - Question Tree and Follow-Up Relationships
 1. add Flyway migration for `question_relationships`
 2. seed follow-up relationships for high-value core questions

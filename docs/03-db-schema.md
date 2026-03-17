@@ -126,9 +126,7 @@ Current interpretation:
 - automatic heatmap aggregation is computed on read from practical interview questions plus this override table
 - `anchor_type` currently supports parsed resume anchors such as `project`, `experience`, `skill`, `competency`, and `summary`
 
-Recommended next-step additive tables for sentence-level resume overlays:
-
-### `resume_document_overlay_targets` (planned, not yet implemented)
+### `resume_document_overlay_targets`
 - `id`
 - `resume_version_id`
 - `anchor_type`
@@ -146,9 +144,11 @@ Recommended next-step additive tables for sentence-level resume overlays:
 - `updated_at`
 
 Interpretation:
-- this would represent a hoverable highlight target inside one parsed resume anchor
+- this represents a hoverable highlight target inside one parsed resume anchor
 - `target_type` should support at least `block`, `sentence`, `phrase`, and `keyword`
-- one `project` anchor may have one `block` target plus multiple `sentence` targets
+- the current backend now persists `block` and `sentence` targets during resume extraction and re-extraction
+- one `project` anchor may have multiple field-level `block` targets plus multiple `sentence` targets
+- these rows are currently an internal persistence layer and are not yet exposed through a public API
 
 ### `resume_question_overlay_links` (planned, not yet implemented)
 - `id`

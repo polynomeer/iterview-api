@@ -70,6 +70,7 @@
 - the future resume viewer should be able to show both:
   - whole-project or whole-experience question coverage
   - sentence-specific hover cards for precise question triggers
+- resume extraction can persist internal block and sentence overlay targets without requiring raw PDF coordinate extraction
 - scoring rules remain centralized in one service
 
 ## Review Queue and Learning Loop

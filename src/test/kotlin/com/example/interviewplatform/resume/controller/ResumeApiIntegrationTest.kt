@@ -374,6 +374,96 @@ class ResumeApiIntegrationTest {
     }
 
     @Test
+    fun `resume extraction persists block and sentence overlay targets for parsed anchors`() {
+        val resumeId = createResume("Overlay Resume")
+        val versionId = createResumeVersion(
+            resumeId = resumeId,
+            fileUrl = "https://files.example.com/overlay-resume.pdf",
+            summaryText = "Backend engineer with workflow ownership",
+            rawText = """
+                Overlay Kim
+                Backend engineer who improves workflow reliability.
+
+                경력
+                Acme Corp - Backend Engineer 2024.01 ~ 현재
+                Built ingestion pipeline reliability and reduced failure recovery time.
+
+                프로젝트
+                Creator Studio Platform 2024.03 ~ 2024.12
+                콘텐츠 라이프사이클 파이프라인 구조화 및 운영 안정화.
+                업로드, 검증, 처리, 연계 단계를 End-to-End로 설계했습니다.
+            """.trimIndent(),
+            parsedJson = """{"skills":["Spring Boot"]}""",
+        )
+
+        val projectId = jdbcTemplate.queryForObject(
+            "SELECT id FROM resume_project_snapshots WHERE resume_version_id = ? ORDER BY display_order ASC, id ASC LIMIT 1",
+            Long::class.java,
+            versionId,
+        )!!
+
+        val blockCount = jdbcTemplate.queryForObject(
+            """
+            SELECT COUNT(*)
+            FROM resume_document_overlay_targets
+            WHERE resume_version_id = ? AND anchor_type = 'project' AND anchor_record_id = ? AND target_type = 'block'
+            """.trimIndent(),
+            Int::class.java,
+            versionId,
+            projectId,
+        )
+        val sentenceCount = jdbcTemplate.queryForObject(
+            """
+            SELECT COUNT(*)
+            FROM resume_document_overlay_targets
+            WHERE resume_version_id = ? AND anchor_type = 'project' AND anchor_record_id = ? AND target_type = 'sentence'
+            """.trimIndent(),
+            Int::class.java,
+            versionId,
+            projectId,
+        )
+        val sentenceSnippet = jdbcTemplate.queryForObject(
+            """
+            SELECT text_snippet
+            FROM resume_document_overlay_targets
+            WHERE resume_version_id = ? AND anchor_type = 'project' AND anchor_record_id = ? AND target_type = 'sentence'
+            ORDER BY display_order ASC
+            LIMIT 1
+            """.trimIndent(),
+            String::class.java,
+            versionId,
+            projectId,
+        )
+        val sentenceOffsets = jdbcTemplate.queryForMap(
+            """
+            SELECT text_start_offset, text_end_offset
+            FROM resume_document_overlay_targets
+            WHERE resume_version_id = ? AND anchor_type = 'project' AND anchor_record_id = ? AND target_type = 'sentence'
+            ORDER BY display_order ASC
+            LIMIT 1
+            """.trimIndent(),
+            versionId,
+            projectId,
+        )
+
+        assertEquals(3, blockCount)
+        assertTrue(sentenceCount >= 3)
+        assertTrue(sentenceSnippet.contains("Creator Studio Platform") || sentenceSnippet.contains("콘텐츠 라이프사이클"))
+        assertTrue((sentenceOffsets["text_end_offset"] as Number).toInt() > (sentenceOffsets["text_start_offset"] as Number).toInt())
+
+        mockMvc.perform(post("/api/resume-versions/$versionId/re-extract").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.resumeVersionId").value(versionId))
+
+        val reextractCount = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM resume_document_overlay_targets WHERE resume_version_id = ?",
+            Int::class.java,
+            versionId,
+        )
+        assertTrue(reextractCount >= 6)
+    }
+
+    @Test
     fun `resume extraction stores projects awards certifications and education while suppressing verbose raw source fields`() {
         seedSkillCategory("BACKEND", "Backend", 1)
         seedSkill("Spring Boot", "BACKEND")

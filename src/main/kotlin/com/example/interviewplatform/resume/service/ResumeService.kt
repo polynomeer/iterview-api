@@ -39,6 +39,7 @@ import com.example.interviewplatform.resume.repository.ResumeAwardItemRepository
 import com.example.interviewplatform.resume.repository.ResumeCertificationItemRepository
 import com.example.interviewplatform.resume.repository.ResumeCompetencyItemRepository
 import com.example.interviewplatform.resume.repository.ResumeContactPointRepository
+import com.example.interviewplatform.resume.repository.ResumeDocumentOverlayTargetRepository
 import com.example.interviewplatform.resume.repository.ResumeEducationItemRepository
 import com.example.interviewplatform.resume.repository.ResumeExperienceSnapshotRepository
 import com.example.interviewplatform.resume.repository.ResumeProfileSnapshotRepository
@@ -69,6 +70,7 @@ class ResumeService(
     private val resumeExperienceSnapshotRepository: ResumeExperienceSnapshotRepository,
     private val resumeProfileSnapshotRepository: ResumeProfileSnapshotRepository,
     private val resumeContactPointRepository: ResumeContactPointRepository,
+    private val resumeDocumentOverlayTargetRepository: ResumeDocumentOverlayTargetRepository,
     private val resumeCompetencyItemRepository: ResumeCompetencyItemRepository,
     private val resumeProjectSnapshotRepository: ResumeProjectSnapshotRepository,
     private val resumeProjectTagRepository: ResumeProjectTagRepository,
@@ -80,6 +82,7 @@ class ResumeService(
     private val resumeFileStorageService: ResumeFileStorageService,
     private val resumeDocumentParser: ResumeDocumentParser,
     private val resumeSignalExtractionService: ResumeSignalExtractionService,
+    private val resumeDocumentOverlayTargetBuilder: ResumeDocumentOverlayTargetBuilder,
     private val skillRepository: SkillRepository,
     private val skillCategoryRepository: SkillCategoryRepository,
     private val userRepository: UserRepository,
@@ -478,6 +481,7 @@ class ResumeService(
         resumeEducationItemRepository.deleteByResumeVersionId(version.id)
         resumeCompetencyItemRepository.deleteByResumeVersionId(version.id)
         resumeContactPointRepository.deleteByResumeVersionId(version.id)
+        resumeDocumentOverlayTargetRepository.deleteByResumeVersionId(version.id)
         resumeProfileSnapshotRepository.deleteByResumeVersionId(version.id)
         resumeExperienceSnapshotRepository.deleteByResumeVersionId(version.id)
         resumeSkillSnapshotRepository.deleteByResumeVersionId(version.id)
@@ -714,6 +718,19 @@ class ResumeService(
         if (riskEntities.isNotEmpty()) {
             resumeRiskItemRepository.saveAll(riskEntities)
         }
+
+        resumeDocumentOverlayTargetRepository.saveAll(
+            resumeDocumentOverlayTargetBuilder.buildForVersion(
+                resumeVersionId = version.id,
+                profile = resumeProfileSnapshotRepository.findByResumeVersionId(version.id),
+                competencies = resumeCompetencyItemRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(version.id),
+                skills = resumeSkillSnapshotRepository.findByResumeVersionIdOrderByIdAsc(version.id),
+                experiences = resumeExperienceSnapshotRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(version.id),
+                projects = resumeProjectSnapshotRepository.findByResumeVersionIdOrderByDisplayOrderAscIdAsc(version.id),
+                now = now,
+            ),
+        )
+
         return saveResumeVersion(
             extractionPending.copyLike(
                 parsedJson = extracted.rawExtractionPayload ?: extractionPending.parsedJson,
