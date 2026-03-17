@@ -149,13 +149,16 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
   - `GET /api/resume-versions/{versionId}/question-heatmap/overlay-targets`
   - `POST /api/resume-versions/{versionId}/question-heatmap/links`
   - `PATCH /api/resume-versions/{versionId}/question-heatmap/links/{linkId}`
-  - internal `resume_document_overlay_targets` persistence for block and sentence segmentation during resume extraction
+  - internal `resume_document_overlay_targets` persistence for block, sentence, phrase, and keyword segmentation during resume extraction
   - additive nested `overlayTargets[]` on anchor-level heatmap reads
+  - additive filter params on heatmap reads:
+    - `weakOnly`
+    - `companyName`
+    - `interviewDateFrom`
+    - `interviewDateTo`
+  - manual heatmap links can now also pin one exact overlay target inside an anchor
 - current gap:
-  - no phrase- or keyword-level overlay targets yet
-  - no sentence-level manual remap or dedicated public question-to-overlay link table yet
   - no sentence-offset or PDF-coordinate overlay yet
-  - no company/date/weakness-only filter params beyond `scope`
   - no precomputed anchor summary table; aggregation is computed on read from practical interview data plus manual overrides
 
 ### Phase 4 - Question Tree and Recommendation

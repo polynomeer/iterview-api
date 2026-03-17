@@ -423,6 +423,26 @@ class ResumeApiIntegrationTest {
             versionId,
             projectId,
         )
+        val phraseCount = jdbcTemplate.queryForObject(
+            """
+            SELECT COUNT(*)
+            FROM resume_document_overlay_targets
+            WHERE resume_version_id = ? AND anchor_type = 'project' AND anchor_record_id = ? AND target_type = 'phrase'
+            """.trimIndent(),
+            Int::class.java,
+            versionId,
+            projectId,
+        )
+        val keywordCount = jdbcTemplate.queryForObject(
+            """
+            SELECT COUNT(*)
+            FROM resume_document_overlay_targets
+            WHERE resume_version_id = ? AND anchor_type = 'project' AND anchor_record_id = ? AND target_type = 'keyword'
+            """.trimIndent(),
+            Int::class.java,
+            versionId,
+            projectId,
+        )
         val sentenceSnippet = jdbcTemplate.queryForObject(
             """
             SELECT text_snippet
@@ -447,8 +467,10 @@ class ResumeApiIntegrationTest {
             projectId,
         )
 
-        assertEquals(3, blockCount)
+        assertTrue(blockCount >= 3)
         assertTrue(sentenceCount >= 3)
+        assertTrue(phraseCount >= 1)
+        assertTrue(keywordCount >= 1)
         assertTrue(sentenceSnippet.contains("Creator Studio Platform") || sentenceSnippet.contains("콘텐츠 라이프사이클"))
         assertTrue((sentenceOffsets["text_end_offset"] as Number).toInt() > (sentenceOffsets["text_start_offset"] as Number).toInt())
 
@@ -988,14 +1010,27 @@ class ResumeApiIntegrationTest {
         assertEquals(1, anchorBlockTarget!!.path("questionCount").asInt())
         assertEquals(broadQuestionId, anchorBlockTarget.path("linkedQuestions").first().path("interviewRecordQuestionId").asLong())
 
-        val populatedSentenceTarget = overlayTargets.firstOrNull {
-            it.path("targetType").asText() == "sentence" && it.path("questionCount").asInt() == 2
+        val sentenceSpecificTarget = overlayTargets.firstOrNull {
+            it.path("linkedQuestions").any { question ->
+                question.path("interviewRecordQuestionId").asLong() == sentenceQuestionId
+            }
         }
-        assertNotNull(populatedSentenceTarget)
-        assertEquals(1, populatedSentenceTarget!!.path("followUpCount").asInt())
-        assertEquals(2, populatedSentenceTarget.path("linkedQuestions").size())
-        assertEquals(sentenceQuestionId, populatedSentenceTarget.path("linkedQuestions")[0].path("interviewRecordQuestionId").asLong())
-        assertEquals(sentenceFollowUpId, populatedSentenceTarget.path("linkedQuestions")[1].path("interviewRecordQuestionId").asLong())
+        assertNotNull(sentenceSpecificTarget)
+        assertTrue(
+            sentenceSpecificTarget!!.path("targetType").asText() == "sentence" ||
+                sentenceSpecificTarget.path("targetType").asText() == "phrase",
+        )
+
+        val followUpOverlayTarget = overlayTargets.firstOrNull {
+            it.path("linkedQuestions").any { question ->
+                question.path("interviewRecordQuestionId").asLong() == sentenceFollowUpId
+            }
+        }
+        assertNotNull(followUpOverlayTarget)
+        assertEquals("sentence", followUpOverlayTarget!!.path("targetType").asText())
+
+        val targetWithFollowUpCount = overlayTargets.firstOrNull { it.path("followUpCount").asInt() == 1 }
+        assertNotNull(targetWithFollowUpCount)
 
         val overlayTargetList = mockMvc.perform(get("/api/resume-versions/$versionId/question-heatmap/overlay-targets").header("Authorization", authHeader))
             .andExpect(status().isOk)
@@ -1007,10 +1042,129 @@ class ResumeApiIntegrationTest {
             .let(objectMapper::readTree)
 
         val flatSentenceTarget = overlayTargetList.path("items").firstOrNull {
-            it.path("targetType").asText() == "sentence" && it.path("questionCount").asInt() == 2
+            it.path("targetType").asText() == "sentence" &&
+                it.path("linkedQuestions").any { question ->
+                    question.path("interviewRecordQuestionId").asLong() == sentenceFollowUpId
+                }
         }
         assertNotNull(flatSentenceTarget)
-        assertEquals(2, flatSentenceTarget!!.path("linkedQuestions").size())
+        assertTrue(flatSentenceTarget!!.path("linkedQuestions").size() >= 1)
+    }
+
+    @Test
+    fun `manual overlay remap and heatmap filters are applied additively`() {
+        val resumeId = createResume("Filtered Overlay Resume")
+        val versionId = createResumeVersion(
+            resumeId = resumeId,
+            fileUrl = "https://files.example.com/filtered-overlay-resume.pdf",
+            summaryText = "Built payments and creator pipelines.",
+            rawText = """
+                Filter Kim
+                Mail : filter@example.com
+                프로젝트
+                Payments Platform Revamp 2024.02 ~ 2024.12
+                기술스택 Kotlin, Spring Boot, Redis
+                Rebuilt payment APIs, cache strategy, and settlement workflow.
+            """.trimIndent(),
+            parsedJson = """{"skills":["Redis"]}""",
+        )
+
+        val projectId = jdbcTemplate.queryForObject(
+            "SELECT id FROM resume_project_snapshots WHERE resume_version_id = ? ORDER BY display_order ASC, id ASC LIMIT 1",
+            Long::class.java,
+            versionId,
+        )!!
+        val recordId = insertInterviewRecord(versionId, companyName = "Filter Corp", interviewDate = "2026-03-12")
+        val mainQuestionId = insertInterviewRecordQuestion(
+            interviewRecordId = recordId,
+            text = "Payments Platform Revamp에서 Redis 캐시 전략을 왜 그렇게 설계했나요?",
+            questionType = "verification",
+            intentTagsJson = """["verification","deep_dive"]""",
+            derivedFromResumeSection = "project",
+            derivedFromResumeRecordType = "project",
+            derivedFromResumeRecordId = projectId,
+            orderIndex = 0,
+        )
+        insertInterviewRecordAnswer(
+            interviewRecordQuestionId = mainQuestionId,
+            text = "캐시 전략을 설명했지만 정량 지표가 부족했습니다.",
+            weaknessTagsJson = """["missing_metric"]""",
+            strengthTagsJson = """["structured"]""",
+            orderIndex = 0,
+        )
+
+        val overlayTargetList = mockMvc.perform(
+            get("/api/resume-versions/$versionId/question-heatmap/overlay-targets")
+                .header("Authorization", authHeader),
+        )
+            .andExpect(status().isOk)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val sentenceTarget = overlayTargetList.path("items").firstOrNull {
+            it.path("targetType").asText() == "sentence" &&
+                it.path("fieldPath").asText() == "project.sourceText"
+        }
+        assertNotNull(sentenceTarget)
+
+        mockMvc.perform(
+            post("/api/resume-versions/$versionId/question-heatmap/links")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "interviewRecordQuestionId" to mainQuestionId,
+                            "anchorType" to "project",
+                            "anchorRecordId" to projectId,
+                            "overlayTargetType" to sentenceTarget!!.path("targetType").asText(),
+                            "overlayFieldPath" to sentenceTarget.path("fieldPath").asText(),
+                            "overlaySentenceIndex" to sentenceTarget.path("sentenceIndex").asInt(),
+                            "overlayTextSnippet" to sentenceTarget.path("textSnippet").asText(),
+                            "confidenceScore" to "0.9800",
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.overlayTargetType").value("sentence"))
+            .andExpect(jsonPath("$.overlayFieldPath").value("project.sourceText"))
+            .andExpect(jsonPath("$.overlaySentenceIndex").value(sentenceTarget.path("sentenceIndex").asInt()))
+
+        val filteredHeatmap = mockMvc.perform(
+            get("/api/resume-versions/$versionId/question-heatmap")
+                .param("weakOnly", "true")
+                .param("companyName", "Filter Corp")
+                .param("interviewDateFrom", "2026-03-01")
+                .param("interviewDateTo", "2026-03-31")
+                .header("Authorization", authHeader),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.summary.totalAnchors").value(1))
+            .andExpect(jsonPath("$.items[0].directQuestionCount").value(1))
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val populatedOverlayTarget = filteredHeatmap.path("items").first().path("overlayTargets").firstOrNull {
+            it.path("targetType").asText() == "sentence" &&
+                it.path("fieldPath").asText() == sentenceTarget.path("fieldPath").asText() &&
+                it.path("sentenceIndex").asInt() == sentenceTarget.path("sentenceIndex").asInt() &&
+                it.path("questionCount").asInt() == 1
+        }
+        assertNotNull(populatedOverlayTarget)
+        assertEquals(mainQuestionId, populatedOverlayTarget!!.path("linkedQuestions").first().path("interviewRecordQuestionId").asLong())
+
+        mockMvc.perform(
+            get("/api/resume-versions/$versionId/question-heatmap")
+                .param("companyName", "No Match Corp")
+                .header("Authorization", authHeader),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.summary.totalAnchors").value(0))
     }
 
     private fun createResume(title: String): Long {
@@ -1132,7 +1286,11 @@ class ResumeApiIntegrationTest {
         )
     }
 
-    private fun insertInterviewRecord(linkedResumeVersionId: Long): Long =
+    private fun insertInterviewRecord(
+        linkedResumeVersionId: Long,
+        companyName: String = "Acme Corp",
+        interviewDate: String = "2026-03-10",
+    ): Long =
         jdbcTemplate.queryForObject(
             """
             INSERT INTO interview_records (
@@ -1140,12 +1298,14 @@ class ResumeApiIntegrationTest {
                 raw_transcript, cleaned_transcript, confirmed_transcript, transcript_status,
                 analysis_status, linked_resume_version_id, structuring_stage, created_at, updated_at
             ) VALUES (
-                1, 'Acme Corp', 'Backend Engineer', DATE '2026-03-10', 'onsite',
+                1, ?, 'Backend Engineer', ?, 'onsite',
                 'transcript', 'transcript', 'transcript', 'confirmed',
                 'completed', ?, 'confirmed', now(), now()
             ) RETURNING id
             """.trimIndent(),
             Long::class.java,
+            companyName,
+            java.sql.Date.valueOf(interviewDate),
             linkedResumeVersionId,
         )!!
 

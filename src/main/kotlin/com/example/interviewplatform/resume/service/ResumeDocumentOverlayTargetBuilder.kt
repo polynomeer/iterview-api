@@ -169,8 +169,129 @@ class ResumeDocumentOverlayTargetBuilder {
                 createdAt = now,
                 updatedAt = now,
             )
+            targets += buildPhraseTargets(
+                resumeVersionId = resumeVersionId,
+                anchorType = anchorType,
+                anchorRecordId = anchorRecordId,
+                anchorKey = anchorKey,
+                fieldPath = fieldPath,
+                sentence = segment,
+                now = now,
+                displayOrderStart = displayOrderStart + targets.size,
+            )
+            targets += buildKeywordTargets(
+                resumeVersionId = resumeVersionId,
+                anchorType = anchorType,
+                anchorRecordId = anchorRecordId,
+                anchorKey = anchorKey,
+                fieldPath = fieldPath,
+                sentence = segment,
+                now = now,
+                displayOrderStart = displayOrderStart + targets.size,
+            )
         }
         return targets
+    }
+
+    private fun buildPhraseTargets(
+        resumeVersionId: Long,
+        anchorType: String,
+        anchorRecordId: Long?,
+        anchorKey: String?,
+        fieldPath: String,
+        sentence: SentenceSegment,
+        now: Instant,
+        displayOrderStart: Int,
+    ): List<ResumeDocumentOverlayTargetEntity> {
+        val phrases = sentence.text
+            .split(phraseSeparator)
+            .map { it.trim() }
+            .filter { it.length >= 8 && it != sentence.text }
+            .distinct()
+        if (phrases.isEmpty()) {
+            return emptyList()
+        }
+        var searchOffset = 0
+        return phrases.mapIndexed { index, phrase ->
+            val localStart = sentence.text.indexOf(phrase, searchOffset).takeIf { it >= 0 } ?: searchOffset
+            searchOffset = localStart + phrase.length
+            ResumeDocumentOverlayTargetEntity(
+                resumeVersionId = resumeVersionId,
+                anchorType = anchorType,
+                anchorRecordId = anchorRecordId,
+                anchorKey = anchorKey,
+                targetType = "phrase",
+                fieldPath = fieldPath,
+                textSnippet = phrase,
+                textStartOffset = sentence.startOffset + localStart,
+                textEndOffset = sentence.startOffset + localStart + phrase.length,
+                sentenceIndex = sentence.sentenceIndex,
+                paragraphIndex = sentence.paragraphIndex,
+                displayOrder = displayOrderStart + index,
+                createdAt = now,
+                updatedAt = now,
+            )
+        }
+    }
+
+    private fun buildKeywordTargets(
+        resumeVersionId: Long,
+        anchorType: String,
+        anchorRecordId: Long?,
+        anchorKey: String?,
+        fieldPath: String,
+        sentence: SentenceSegment,
+        now: Instant,
+        displayOrderStart: Int,
+    ): List<ResumeDocumentOverlayTargetEntity> {
+        val keywords = extractKeywords(sentence.text, fieldPath)
+        if (keywords.isEmpty()) {
+            return emptyList()
+        }
+        var searchOffset = 0
+        return keywords.mapIndexed { index, keyword ->
+            val localStart = sentence.text.indexOf(keyword, searchOffset, ignoreCase = true).takeIf { it >= 0 }
+                ?: sentence.text.indexOf(keyword, ignoreCase = true).takeIf { it >= 0 }
+                ?: 0
+            searchOffset = localStart + keyword.length
+            ResumeDocumentOverlayTargetEntity(
+                resumeVersionId = resumeVersionId,
+                anchorType = anchorType,
+                anchorRecordId = anchorRecordId,
+                anchorKey = anchorKey,
+                targetType = "keyword",
+                fieldPath = fieldPath,
+                textSnippet = keyword,
+                textStartOffset = sentence.startOffset + localStart,
+                textEndOffset = sentence.startOffset + localStart + keyword.length,
+                sentenceIndex = sentence.sentenceIndex,
+                paragraphIndex = sentence.paragraphIndex,
+                displayOrder = displayOrderStart + index,
+                createdAt = now,
+                updatedAt = now,
+            )
+        }
+    }
+
+    private fun extractKeywords(text: String, fieldPath: String): List<String> {
+        val delimiterKeywords = text.split(keywordSeparator)
+            .map { it.trim() }
+            .filter { it.length in 2..30 }
+        val tokenKeywords = keywordTokenRegex.findAll(text)
+            .map { it.value.trim() }
+            .filter { it.length in 2..24 }
+            .filter { candidate ->
+                fieldPath.contains("techStack", ignoreCase = true) ||
+                    fieldPath.contains("skill", ignoreCase = true) ||
+                    candidate.any { it.isUpperCase() } ||
+                    candidate.any { it.isDigit() }
+            }
+            .toList()
+        return (delimiterKeywords + tokenKeywords)
+            .map { it.removePrefix("기술스택 ").trim() }
+            .filter { it.isNotBlank() && it != text.trim() }
+            .distinct()
+            .take(8)
     }
 
     private fun splitIntoSentences(text: String): List<SentenceSegment> {
@@ -189,7 +310,7 @@ class ResumeDocumentOverlayTargetBuilder {
                 .filter { it.isNotBlank() }
                 .ifEmpty { listOf(trimmedParagraph) }
             var localOffset = 0
-            candidates.forEach { candidate ->
+            candidates.forEachIndexed { sentenceIndex, candidate ->
                 val startInParagraph = trimmedParagraph.indexOf(candidate, startIndex = localOffset).takeIf { it >= 0 } ?: localOffset
                 val startOffset = paragraphStart + startInParagraph
                 val endOffset = startOffset + candidate.length
@@ -197,6 +318,7 @@ class ResumeDocumentOverlayTargetBuilder {
                     text = candidate,
                     startOffset = startOffset,
                     endOffset = endOffset,
+                    sentenceIndex = sentenceIndex,
                     paragraphIndex = paragraphIndex,
                 )
                 localOffset = startInParagraph + candidate.length
@@ -209,6 +331,9 @@ class ResumeDocumentOverlayTargetBuilder {
     private companion object {
         private val paragraphSeparator = Regex("\\n\\s*\\n")
         private val sentenceSeparator = Regex("(?<=[.!?])\\s+|\\n")
+        private val phraseSeparator = Regex("\\s*,\\s*|\\s+및\\s+|\\s+and\\s+")
+        private val keywordSeparator = Regex("\\s*,\\s*|/|·|\\|")
+        private val keywordTokenRegex = Regex("[A-Za-z][A-Za-z0-9+#.\\-]{1,23}")
     }
 }
 
@@ -216,5 +341,6 @@ private data class SentenceSegment(
     val text: String,
     val startOffset: Int,
     val endOffset: Int,
+    val sentenceIndex: Int,
     val paragraphIndex: Int,
 )

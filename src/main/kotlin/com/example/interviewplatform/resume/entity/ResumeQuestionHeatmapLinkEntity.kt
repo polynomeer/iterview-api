@@ -27,6 +27,14 @@ class ResumeQuestionHeatmapLinkEntity(
     val anchorRecordId: Long? = null,
     @Column(name = "anchor_key")
     val anchorKey: String? = null,
+    @Column(name = "overlay_target_type")
+    val overlayTargetType: String? = null,
+    @Column(name = "overlay_field_path")
+    val overlayFieldPath: String? = null,
+    @Column(name = "overlay_sentence_index")
+    val overlaySentenceIndex: Int? = null,
+    @Column(name = "overlay_text_snippet")
+    val overlayTextSnippet: String? = null,
     @Column(name = "link_source", nullable = false)
     val linkSource: String,
     @Column(name = "confidence_score", precision = 5, scale = 4)

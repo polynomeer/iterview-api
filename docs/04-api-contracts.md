@@ -406,6 +406,15 @@ Query params:
   - `all`
   - `main`
   - `follow_up`
+- `weakOnly`
+  - optional boolean
+  - when `true`, only questions with persisted weakness tags are included
+- `companyName`
+  - optional string contains filter on the source practical interview record
+- `interviewDateFrom`
+  - optional `YYYY-MM-DD`
+- `interviewDateTo`
+  - optional `YYYY-MM-DD`
 
 Response highlights:
 - `summary.totalAnchors`
@@ -438,8 +447,12 @@ Notes:
 - `overlayTargets[]` now adds a second layer inside each anchor:
   - `block` targets for project-wide or anchor-wide questions
   - `sentence` targets for sentence-specific hover overlays
+- the current backend also exposes micro-targets inside the same anchor:
+  - `phrase` targets for short clause-level overlays
+  - `keyword` targets for stack, metric, tool, or noun-phrase overlays
 - if a question does not match one sentence strongly, it falls back to the anchor-wide `block` target
 - follow-up questions can inherit the selected sentence target from their parent question
+- manual remap can now point to a specific overlay target inside one anchor, not only the anchor itself
 
 #### `GET /api/resume-versions/{versionId}/question-heatmap/overlay-targets`
 Auth:
@@ -450,12 +463,21 @@ Query params:
   - `all`
   - `main`
   - `follow_up`
+- `weakOnly`
+  - optional boolean
+- `companyName`
+  - optional string contains filter
+- `interviewDateFrom`
+  - optional `YYYY-MM-DD`
+- `interviewDateTo`
+  - optional `YYYY-MM-DD`
 
 Response highlights:
 - `items[].anchorType`
 - `items[].anchorRecordId`
 - `items[].anchorKey`
 - `items[].targetType`
+- `items[].targetKey`
 - `items[].fieldPath`
 - `items[].textSnippet`
 - `items[].textStartOffset`
@@ -474,7 +496,10 @@ Notes:
 - this is the flattened overlay read for resume viewer hover states
 - `targetType = block` means the question belongs to the whole anchor, not one sentence
 - `targetType = sentence` means the question should be shown when that sentence is hovered or focused
+- `targetType = phrase` means the question is best attached to one short clause inside the anchor
+- `targetType = keyword` means the question is best attached to one stack term, metric, or compact noun phrase
 - the same `linkedQuestions[]` shape is reused so the frontend can share question-card rendering between anchor cards and sentence overlays
+- `targetKey` is a stable client-side join key for hover state, focus state, and remap previews
 
 #### `POST /api/resume-versions/{versionId}/question-heatmap/links`
 Auth:
@@ -486,6 +511,10 @@ Request:
   "interviewRecordQuestionId": 100,
   "anchorType": "project",
   "anchorRecordId": 12,
+  "overlayTargetType": "sentence",
+  "overlayFieldPath": "project.contentText",
+  "overlaySentenceIndex": 2,
+  "overlayTextSnippet": "콘텐츠 라이프사이클 파이프라인 구조화 및 운영 안정화",
   "confidenceScore": 0.97
 }
 ```
@@ -493,6 +522,9 @@ Request:
 Notes:
 - creates or replaces one manual heatmap link for one practical interview question
 - the linked question must belong to a practical interview record already connected to the same `resumeVersionId`
+- overlay fields are optional and additive
+- if overlay fields are omitted, the manual remap still works at anchor level
+- if overlay fields are present, the backend uses them as the preferred block/sentence/phrase/keyword target inside that anchor
 
 #### `PATCH /api/resume-versions/{versionId}/question-heatmap/links/{linkId}`
 Auth:
@@ -501,6 +533,10 @@ Auth:
 Request:
 ```json
 {
+  "overlayTargetType": "phrase",
+  "overlayFieldPath": "project.contentText",
+  "overlaySentenceIndex": 2,
+  "overlayTextSnippet": "파이프라인 구조화",
   "active": false
 }
 ```
@@ -508,6 +544,7 @@ Request:
 Notes:
 - can move the effective anchor or deactivate one manual override
 - deactivating one manual override falls back to inferred or heuristic anchor resolution on subsequent reads
+- manual override rows can now be repointed to another overlay target inside the same anchor without mutating the source resume text or interview question row
 
 ### Sentence Overlay Heatmap
 Implemented:
@@ -517,14 +554,20 @@ Implemented:
 - each overlay target currently represents:
   - `block`
   - `sentence`
+  - `phrase`
+  - `keyword`
 
 Current behavior:
 - project-wide questions remain linked to a `block` target
 - sentence-specific questions link to a `sentence` target when the text match is strong enough
+- phrase-heavy questions can link to a `phrase` target when the clause match is stronger than the sentence match
+- stack- or keyword-centric questions can link to a `keyword` target
 - follow-up questions can stay attached to the parent sentence target when appropriate
+- manual remap can force one specific sentence, phrase, or keyword target inside the anchor
 - the frontend can render both layers at once:
   - whole-project or whole-anchor tint
   - sentence hover popovers
+  - clause or keyword hover chips
 
 Notes:
 - supported file types are PNG, JPEG, WEBP, and GIF

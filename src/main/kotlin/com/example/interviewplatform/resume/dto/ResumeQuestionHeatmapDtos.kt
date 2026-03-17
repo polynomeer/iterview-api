@@ -52,6 +52,7 @@ data class ResumeQuestionHeatmapOverlayTargetDto(
     val anchorRecordId: Long?,
     val anchorKey: String?,
     val targetType: String,
+    val targetKey: String,
     val fieldPath: String,
     val textSnippet: String,
     val textStartOffset: Int?,
@@ -90,6 +91,10 @@ data class ResumeQuestionHeatmapLinkDto(
     val anchorType: String,
     val anchorRecordId: Long?,
     val anchorKey: String?,
+    val overlayTargetType: String?,
+    val overlayFieldPath: String?,
+    val overlaySentenceIndex: Int?,
+    val overlayTextSnippet: String?,
     val linkSource: String,
     val confidenceScore: BigDecimal?,
     val active: Boolean,
@@ -103,6 +108,10 @@ data class CreateResumeQuestionHeatmapLinkRequest(
     val anchorType: String,
     val anchorRecordId: Long? = null,
     val anchorKey: String? = null,
+    val overlayTargetType: String? = null,
+    val overlayFieldPath: String? = null,
+    val overlaySentenceIndex: Int? = null,
+    val overlayTextSnippet: String? = null,
     @field:DecimalMin("0.0")
     @field:DecimalMax("1.0")
     val confidenceScore: BigDecimal? = null,
@@ -112,6 +121,10 @@ data class UpdateResumeQuestionHeatmapLinkRequest(
     val anchorType: String? = null,
     val anchorRecordId: Long? = null,
     val anchorKey: String? = null,
+    val overlayTargetType: String? = null,
+    val overlayFieldPath: String? = null,
+    val overlaySentenceIndex: Int? = null,
+    val overlayTextSnippet: String? = null,
     @field:DecimalMin("0.0")
     @field:DecimalMax("1.0")
     val confidenceScore: BigDecimal? = null,

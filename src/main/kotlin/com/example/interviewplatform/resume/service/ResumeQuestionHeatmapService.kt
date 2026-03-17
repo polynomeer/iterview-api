@@ -36,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.time.LocalDate
 
 @Service
 class ResumeQuestionHeatmapService(
@@ -56,8 +57,16 @@ class ResumeQuestionHeatmapService(
     private val clockService: ClockService,
 ) {
     @Transactional(readOnly = true)
-    fun getHeatmap(userId: Long, versionId: Long, scope: String): ResumeQuestionHeatmapDto {
-        val context = buildHeatmapContext(userId, versionId, scope)
+    fun getHeatmap(
+        userId: Long,
+        versionId: Long,
+        scope: String,
+        weakOnly: Boolean = false,
+        companyName: String? = null,
+        interviewDateFrom: LocalDate? = null,
+        interviewDateTo: LocalDate? = null,
+    ): ResumeQuestionHeatmapDto {
+        val context = buildHeatmapContext(userId, versionId, scope, weakOnly, companyName, interviewDateFrom, interviewDateTo)
         if (context.items.isEmpty()) {
             return ResumeQuestionHeatmapDto(
                 resumeVersionId = versionId,
@@ -88,8 +97,16 @@ class ResumeQuestionHeatmapService(
     }
 
     @Transactional(readOnly = true)
-    fun getOverlayTargets(userId: Long, versionId: Long, scope: String): ResumeQuestionHeatmapOverlayTargetListDto {
-        val context = buildHeatmapContext(userId, versionId, scope)
+    fun getOverlayTargets(
+        userId: Long,
+        versionId: Long,
+        scope: String,
+        weakOnly: Boolean = false,
+        companyName: String? = null,
+        interviewDateFrom: LocalDate? = null,
+        interviewDateTo: LocalDate? = null,
+    ): ResumeQuestionHeatmapOverlayTargetListDto {
+        val context = buildHeatmapContext(userId, versionId, scope, weakOnly, companyName, interviewDateFrom, interviewDateTo)
         return ResumeQuestionHeatmapOverlayTargetListDto(
             resumeVersionId = versionId,
             scope = context.scope,
@@ -123,6 +140,10 @@ class ResumeQuestionHeatmapService(
                 anchorType = request.anchorType.trim().lowercase(),
                 anchorRecordId = request.anchorRecordId,
                 anchorKey = request.anchorKey?.trim()?.takeIf { it.isNotEmpty() },
+                overlayTargetType = request.overlayTargetType?.trim()?.lowercase()?.takeIf { it.isNotEmpty() },
+                overlayFieldPath = request.overlayFieldPath?.trim()?.takeIf { it.isNotEmpty() },
+                overlaySentenceIndex = request.overlaySentenceIndex,
+                overlayTextSnippet = request.overlayTextSnippet?.trim()?.takeIf { it.isNotEmpty() },
                 linkSource = "manual",
                 confidenceScore = request.confidenceScore,
                 active = true,
@@ -148,6 +169,10 @@ class ResumeQuestionHeatmapService(
         val anchorRecordId = request.anchorRecordId ?: existing.anchorRecordId
         val anchorKey = request.anchorKey?.trim()?.takeIf { it.isNotEmpty() } ?: existing.anchorKey
         validateAnchor(versionId, anchorType, anchorRecordId, anchorKey)
+        val overlayTargetType = request.overlayTargetType?.trim()?.lowercase() ?: existing.overlayTargetType
+        val overlayFieldPath = request.overlayFieldPath?.trim()?.takeIf { it.isNotEmpty() } ?: existing.overlayFieldPath
+        val overlaySentenceIndex = request.overlaySentenceIndex ?: existing.overlaySentenceIndex
+        val overlayTextSnippet = request.overlayTextSnippet?.trim()?.takeIf { it.isNotEmpty() } ?: existing.overlayTextSnippet
         val updated = resumeQuestionHeatmapLinkRepository.save(
             ResumeQuestionHeatmapLinkEntity(
                 id = existing.id,
@@ -157,6 +182,10 @@ class ResumeQuestionHeatmapService(
                 anchorType = anchorType,
                 anchorRecordId = anchorRecordId,
                 anchorKey = anchorKey,
+                overlayTargetType = overlayTargetType,
+                overlayFieldPath = overlayFieldPath,
+                overlaySentenceIndex = overlaySentenceIndex,
+                overlayTextSnippet = overlayTextSnippet,
                 linkSource = existing.linkSource,
                 confidenceScore = request.confidenceScore ?: existing.confidenceScore,
                 active = request.active ?: existing.active,
@@ -245,31 +274,51 @@ class ResumeQuestionHeatmapService(
         runCatching { objectMapper.readValue(raw.orEmpty(), object : TypeReference<List<String>>() {}) }
             .getOrDefault(emptyList())
 
-    private fun buildHeatmapContext(userId: Long, versionId: Long, scope: String): HeatmapContext {
+    private fun buildHeatmapContext(
+        userId: Long,
+        versionId: Long,
+        scope: String,
+        weakOnly: Boolean,
+        companyName: String?,
+        interviewDateFrom: LocalDate?,
+        interviewDateTo: LocalDate?,
+    ): HeatmapContext {
         requireOwnedVersion(userId, versionId)
         val normalizedScope = scope.trim().lowercase()
         if (normalizedScope !in supportedScopes) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported heatmap scope: $scope")
         }
+        val normalizedCompanyName = companyName?.trim()?.takeIf { it.isNotEmpty() }?.lowercase()
         val records = interviewRecordRepository.findByUserIdAndLinkedResumeVersionIdOrderByCreatedAtDesc(userId, versionId)
+            .filter { record ->
+                val companyMatches = normalizedCompanyName == null ||
+                    record.companyName?.lowercase()?.contains(normalizedCompanyName) == true
+                val fromMatches = interviewDateFrom == null || (record.interviewDate != null && !record.interviewDate.isBefore(interviewDateFrom))
+                val toMatches = interviewDateTo == null || (record.interviewDate != null && !record.interviewDate.isAfter(interviewDateTo))
+                companyMatches && fromMatches && toMatches
+            }
         if (records.isEmpty()) {
             return HeatmapContext(normalizedScope, emptyList())
         }
 
         val allQuestions = interviewRecordQuestionRepository.findByInterviewRecordIdInOrderByInterviewRecordIdAscOrderIndexAsc(records.map { it.id })
+        val answersByQuestionId = interviewRecordAnswerRepository.findByInterviewRecordQuestionIdIn(allQuestions.map { it.id })
+            .associateBy { it.interviewRecordQuestionId }
         val filteredQuestions = allQuestions.filter { question ->
-            when (normalizedScope) {
+            val scopeMatches = when (normalizedScope) {
                 "main" -> question.parentQuestionId == null
                 "follow_up" -> question.parentQuestionId != null
                 else -> true
             }
+            val answer = answersByQuestionId[question.id]
+            val weakMatches = !weakOnly || decodeStringList(answer?.weaknessTagsJson).isNotEmpty()
+            scopeMatches && weakMatches
         }
         if (filteredQuestions.isEmpty()) {
             return HeatmapContext(normalizedScope, emptyList())
         }
 
-        val answers = interviewRecordAnswerRepository.findByInterviewRecordQuestionIdIn(filteredQuestions.map { it.id })
-            .associateBy { it.interviewRecordQuestionId }
+        val answers = answersByQuestionId.filterKeys { questionId -> filteredQuestions.any { it.id == questionId } }
         val followUpEdges = interviewRecordFollowUpEdgeRepository.findByInterviewRecordIdInOrderByInterviewRecordIdAscIdAsc(records.map { it.id })
         val outgoingFollowUpCount = followUpEdges.groupingBy { it.fromQuestionId }.eachCount()
         val manualLinks = resumeQuestionHeatmapLinkRepository.findByResumeVersionIdAndActiveTrue(versionId)
@@ -294,7 +343,8 @@ class ResumeQuestionHeatmapService(
 
         filteredQuestions.forEach { question ->
             val record = recordsById[question.interviewRecordId] ?: return@forEach
-            val resolution = resolveAnchor(question, manualLinks[question.id], anchorResolver) ?: return@forEach
+            val manualLink = manualLinks[question.id]
+            val resolution = resolveAnchor(question, manualLink, anchorResolver) ?: return@forEach
             val anchor = resolution.anchor
             val key = AnchorIdentity(anchor.anchorType, anchor.anchorRecordId, anchor.anchorKey)
             val accumulator = aggregated.getOrPut(key) {
@@ -329,6 +379,7 @@ class ResumeQuestionHeatmapService(
             val overlayTargetKey = selectOverlayTarget(
                 question = question,
                 accumulator = accumulator,
+                manualLink = manualLink,
                 parentOverlayTargetKey = question.parentQuestionId?.let(overlaySelectionByQuestionId::get),
             )
             overlaySelectionByQuestionId[question.id] = overlayTargetKey
@@ -394,8 +445,22 @@ class ResumeQuestionHeatmapService(
     private fun selectOverlayTarget(
         question: InterviewRecordQuestionEntity,
         accumulator: MutableHeatmapAccumulator,
+        manualLink: ResumeQuestionHeatmapLinkEntity?,
         parentOverlayTargetKey: OverlayTargetKey?,
     ): OverlayTargetKey {
+        resolveManualOverlayTargetKey(manualLink, accumulator)?.let { return it }
+        val keywordTargets = accumulator.overlayTargets.filterValues { it.targetType == "keyword" }
+        val bestKeywordMatch = keywordTargets.maxByOrNull { (_, target) -> scoreOverlayTargetMatch(question, target.textSnippet) }
+        val bestKeywordScore = bestKeywordMatch?.let { scoreOverlayTargetMatch(question, it.value.textSnippet) } ?: 0
+        if (bestKeywordScore >= keywordMatchThreshold) {
+            return bestKeywordMatch!!.key
+        }
+        val phraseTargets = accumulator.overlayTargets.filterValues { it.targetType == "phrase" }
+        val bestPhraseMatch = phraseTargets.maxByOrNull { (_, target) -> scoreOverlayTargetMatch(question, target.textSnippet) }
+        val bestPhraseScore = bestPhraseMatch?.let { scoreOverlayTargetMatch(question, it.value.textSnippet) } ?: 0
+        if (bestPhraseScore >= phraseMatchThreshold) {
+            return bestPhraseMatch!!.key
+        }
         val sentenceTargets = accumulator.overlayTargets.filterValues { it.targetType == "sentence" }
         val bestSentenceMatch = sentenceTargets.maxByOrNull { (_, target) -> scoreOverlayTargetMatch(question, target.textSnippet) }
         val bestSentenceScore = bestSentenceMatch?.let { scoreOverlayTargetMatch(question, it.value.textSnippet) } ?: 0
@@ -424,6 +489,34 @@ class ResumeQuestionHeatmapService(
             .firstOrNull { it.value.targetType == "block" && it.value.fieldPath == wholeAnchorFieldPath }
             ?.key
             ?: accumulator.overlayTargets.entries.first().key
+    }
+
+    private fun resolveManualOverlayTargetKey(
+        manualLink: ResumeQuestionHeatmapLinkEntity?,
+        accumulator: MutableHeatmapAccumulator,
+    ): OverlayTargetKey? {
+        val overlayTargetType = manualLink?.overlayTargetType ?: return null
+        val matchingTargets = accumulator.overlayTargets.entries.filter { (_, target) ->
+            target.targetType == overlayTargetType &&
+                target.fieldPath == manualLink.overlayFieldPath &&
+                target.sentenceIndex == manualLink.overlaySentenceIndex
+        }
+        if (matchingTargets.isEmpty()) {
+            return null
+        }
+        val normalizedSnippet = manualLink.overlayTextSnippet
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?.let(::normalizeOverlayMatchText)
+        if (normalizedSnippet == null) {
+            return matchingTargets.first().key
+        }
+        return matchingTargets.firstOrNull { (_, target) ->
+            val normalizedTargetSnippet = normalizeOverlayMatchText(target.textSnippet)
+            normalizedTargetSnippet == normalizedSnippet ||
+                normalizedTargetSnippet.contains(normalizedSnippet) ||
+                normalizedSnippet.contains(normalizedTargetSnippet)
+        }?.key ?: matchingTargets.first().key
     }
 
     private fun scoreOverlayTargetMatch(question: InterviewRecordQuestionEntity, targetText: String): Int {
@@ -481,6 +574,10 @@ class ResumeQuestionHeatmapService(
         anchorType = anchorType,
         anchorRecordId = anchorRecordId,
         anchorKey = anchorKey,
+        overlayTargetType = overlayTargetType,
+        overlayFieldPath = overlayFieldPath,
+        overlaySentenceIndex = overlaySentenceIndex,
+        overlayTextSnippet = overlayTextSnippet,
         linkSource = linkSource,
         confidenceScore = confidenceScore,
         active = active,
@@ -502,6 +599,8 @@ class ResumeQuestionHeatmapService(
         private val inferredConfidenceScore: BigDecimal = BigDecimal("0.9000")
         private val heuristicConfidenceScore: BigDecimal = BigDecimal("0.6500")
         private const val wholeAnchorFieldPath = "anchor.block"
+        private const val keywordMatchThreshold = 2
+        private const val phraseMatchThreshold = 3
         private const val sentenceMatchThreshold = 2
         private const val parentSentenceMatchThreshold = 1
         private const val parentSentenceBias = 1
@@ -685,6 +784,7 @@ private class MutableOverlayTargetAccumulator(
             anchorRecordId = anchorRecordId,
             anchorKey = anchorKey,
             targetType = targetType,
+            targetKey = buildTargetKey(targetType, fieldPath, sentenceIndex, textSnippet),
             fieldPath = fieldPath,
             textSnippet = textSnippet,
             textStartOffset = textStartOffset,
@@ -710,6 +810,10 @@ private class MutableOverlayTargetAccumulator(
         )
     }
 }
+
+private fun buildTargetKey(targetType: String, fieldPath: String, sentenceIndex: Int?, textSnippet: String): String =
+    listOf(targetType, fieldPath, sentenceIndex?.toString() ?: "root", textSnippet.take(48))
+        .joinToString(":")
 
 private data class OverlayTargetKey(
     val id: Long?,

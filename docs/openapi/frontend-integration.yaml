@@ -340,6 +340,22 @@ paths:
           in: query
           required: false
           schema: { type: string, default: all }
+        - name: weakOnly
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+        - name: companyName
+          in: query
+          required: false
+          schema: { type: string }
+        - name: interviewDateFrom
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: interviewDateTo
+          in: query
+          required: false
+          schema: { type: string, format: date }
       responses:
         "200":
           description: Resume question heatmap
@@ -357,6 +373,22 @@ paths:
           in: query
           required: false
           schema: { type: string, default: all }
+        - name: weakOnly
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+        - name: companyName
+          in: query
+          required: false
+          schema: { type: string }
+        - name: interviewDateFrom
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: interviewDateTo
+          in: query
+          required: false
+          schema: { type: string, format: date }
       responses:
         "200":
           description: Resume question heatmap overlay target list
@@ -1580,6 +1612,10 @@ components:
         anchorType: { type: string }
         anchorRecordId: { type: integer, format: int64, nullable: true }
         anchorKey: { type: string, nullable: true }
+        overlayTargetType: { type: string, nullable: true }
+        overlayFieldPath: { type: string, nullable: true }
+        overlaySentenceIndex: { type: integer, nullable: true }
+        overlayTextSnippet: { type: string, nullable: true }
         confidenceScore: { type: number, nullable: true }
     UpdateResumeQuestionHeatmapLinkRequest:
       type: object
@@ -1587,6 +1623,10 @@ components:
         anchorType: { type: string, nullable: true }
         anchorRecordId: { type: integer, format: int64, nullable: true }
         anchorKey: { type: string, nullable: true }
+        overlayTargetType: { type: string, nullable: true }
+        overlayFieldPath: { type: string, nullable: true }
+        overlaySentenceIndex: { type: integer, nullable: true }
+        overlayTextSnippet: { type: string, nullable: true }
         confidenceScore: { type: number, nullable: true }
         active: { type: boolean, nullable: true }
     UpdateResumeAnalysisSuggestionRequest:
@@ -1698,6 +1738,7 @@ components:
         anchorRecordId: { type: integer, format: int64, nullable: true }
         anchorKey: { type: string, nullable: true }
         targetType: { type: string }
+        targetKey: { type: string }
         fieldPath: { type: string }
         textSnippet: { type: string }
         textStartOffset: { type: integer, nullable: true }
@@ -1756,6 +1797,10 @@ components:
         anchorType: { type: string }
         anchorRecordId: { type: integer, format: int64, nullable: true }
         anchorKey: { type: string, nullable: true }
+        overlayTargetType: { type: string, nullable: true }
+        overlayFieldPath: { type: string, nullable: true }
+        overlaySentenceIndex: { type: integer, nullable: true }
+        overlayTextSnippet: { type: string, nullable: true }
         linkSource: { type: string }
         confidenceScore: { type: number, nullable: true }
         active: { type: boolean }

@@ -114,6 +114,10 @@ Current interpretation:
 - `anchor_type`
 - `anchor_record_id`
 - `anchor_key`
+- `overlay_target_type`
+- `overlay_field_path`
+- `overlay_sentence_index`
+- `overlay_text_snippet`
 - `link_source`
 - `confidence_score`
 - `active`
@@ -123,6 +127,7 @@ Current interpretation:
 Current interpretation:
 - this is the additive manual-override table for resume interview heatmaps
 - one practical-interview question can be manually remapped to one effective resume anchor without mutating the imported interview question row
+- the same row can now also pin one exact overlay target inside that anchor
 - automatic heatmap aggregation is computed on read from practical interview questions plus this override table
 - `anchor_type` currently supports parsed resume anchors such as `project`, `experience`, `skill`, `competency`, and `summary`
 
@@ -146,8 +151,11 @@ Current interpretation:
 Interpretation:
 - this represents a hoverable highlight target inside one parsed resume anchor
 - `target_type` should support at least `block`, `sentence`, `phrase`, and `keyword`
-- the current backend now persists `block` and `sentence` targets during resume extraction and re-extraction
-- one `project` anchor may have multiple field-level `block` targets plus multiple `sentence` targets
+- the current backend now persists `block`, `sentence`, `phrase`, and `keyword` targets during resume extraction and re-extraction
+- one `project` anchor may have multiple field-level `block` targets plus multiple sentence- and clause-level targets
+- these rows are now exposed through:
+  - nested `overlayTargets[]` on `GET /api/resume-versions/{versionId}/question-heatmap`
+  - flattened `GET /api/resume-versions/{versionId}/question-heatmap/overlay-targets`
 - these rows are currently an internal persistence layer and are not yet exposed through a public API
 
 ### `resume_question_overlay_links` (planned, not yet implemented)

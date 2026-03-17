@@ -112,6 +112,7 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `linkedQuestions`
 - `ResumeQuestionHeatmapOverlayTargetListDto` exposes flattened overlay targets for hover-driven resume viewers
 - each overlay target currently exposes:
+  - `targetKey`
   - `targetType`
   - `fieldPath`
   - `textSnippet`
@@ -137,7 +138,22 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 - current overlay coverage supports:
   - `block` targets for whole-project or whole-anchor questions
   - `sentence` targets for sentence-specific hover cards
+- micro overlay coverage now also supports:
+  - `phrase` targets for clause-level hover cards
+  - `keyword` targets for stack or term-focused hover chips
+- current additive heatmap filters are:
+  - `scope`
+  - `weakOnly`
+  - `companyName`
+  - `interviewDateFrom`
+  - `interviewDateTo`
+- manual remap payloads now also accept:
+  - `overlayTargetType`
+  - `overlayFieldPath`
+  - `overlaySentenceIndex`
+  - `overlayTextSnippet`
 - frontend should support both whole-block questions and sentence-specific question cards in the same viewer
+- frontend should also treat `phrase` and `keyword` as valid overlay target types rather than unsupported noise
 - The current project endpoint should be treated as the stable base for resume-derived project cards.
 - Implemented project payload fields now include:
   - `contentText`

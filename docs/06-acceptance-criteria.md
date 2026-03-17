@@ -73,6 +73,12 @@
 - resume extraction persists block and sentence overlay targets without requiring raw PDF coordinate extraction
 - the backend exposes both nested `overlayTargets` and a flattened overlay-target read for hover-oriented resume viewers
 - project-wide questions can remain linked to a whole-anchor `block` target while sentence-specific questions attach to one `sentence` target
+- the same anchor can now expose finer `phrase` and `keyword` overlay targets without breaking the anchor-level summary contract
+- manual remap can override both the anchor and the exact overlay target inside that anchor
+- additive heatmap filters can narrow reads by:
+  - weak-only questions
+  - company name
+  - interview date window
 - scoring rules remain centralized in one service
 
 ## Review Queue and Learning Loop

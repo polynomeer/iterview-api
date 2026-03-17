@@ -152,7 +152,8 @@ Acceptance intent:
 2. support mixed overlay layers:
    - `block` for whole-project or whole-experience questions
    - `sentence` for precise sentence-triggered questions
-   - optional `phrase` or `keyword` later
+   - `phrase` for clause-level overlays
+   - `keyword` for stack or term-focused overlays
 3. add sentence segmentation for parsed resume fields such as:
    - `project.summaryText`
    - `project.contentText`
@@ -178,10 +179,17 @@ Current step status:
   - public read API for overlay targets
   - question-to-overlay linking
   - additive `overlayTargets` on heatmap reads
+  - phrase and keyword overlay target generation
+  - sentence-level and micro-target manual remap through existing heatmap link APIs
+  - richer additive filter params:
+    - `weakOnly`
+    - `companyName`
+    - `interviewDateFrom`
+    - `interviewDateTo`
 - remaining recommended next steps:
-  - sentence-level manual remap or phrase-level remap refinement
-  - optional phrase or keyword overlay target types
-  - richer filter params such as weakness-only or interview-date windows
+  - phrase-only or keyword-only explicit scope filters if the frontend needs faster query shapes
+  - company/date/weakness summary chips as a precomputed read model
+  - PDF-coordinate overlay if a future resume canvas viewer needs positional rendering
 
 ## Phase 2 - Question Tree and Follow-Up Relationships
 1. add Flyway migration for `question_relationships`
