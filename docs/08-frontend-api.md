@@ -92,8 +92,13 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `tailoredDocument`
   - `exports`
 - `ResumeQuestionHeatmapDto` now exposes:
+  - `appliedFilters`
+  - `filterSummary`
   - `summary`
   - `items`
+- `ResumeQuestionHeatmapOverlayTargetListDto` now also exposes:
+  - `appliedFilters`
+  - `filterSummary`
 - `ResumeQuestionHeatmapItemDto` now also exposes:
   - `overlayTargets`
 - each heatmap item currently exposes:
@@ -147,6 +152,24 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `companyName`
   - `interviewDateFrom`
   - `interviewDateTo`
+  - `targetType`
+- `targetType` supports:
+  - `block`
+  - `sentence`
+  - `phrase`
+  - `keyword`
+- current precomputed heatmap filter summary exposes at least:
+  - `totalQuestions`
+  - `weakQuestionCount`
+  - `pressureQuestionCount`
+  - `followUpQuestionCount`
+  - `distinctInterviewCount`
+  - `distinctCompanyCount`
+  - `companyNames`
+  - `availableTargetTypes`
+  - `targetTypeCounts`
+  - `earliestInterviewDate`
+  - `latestInterviewDate`
 - manual remap payloads now also accept:
   - `overlayTargetType`
   - `overlayFieldPath`
@@ -154,6 +177,7 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `overlayTextSnippet`
 - frontend should support both whole-block questions and sentence-specific question cards in the same viewer
 - frontend should also treat `phrase` and `keyword` as valid overlay target types rather than unsupported noise
+- for `targetType`-filtered reads, frontend should treat `filterSummary` as the source of truth for chip counts and applied filter badges
 - The current project endpoint should be treated as the stable base for resume-derived project cards.
 - Implemented project payload fields now include:
   - `contentText`

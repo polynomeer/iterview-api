@@ -187,9 +187,8 @@ Current step status:
     - `interviewDateFrom`
     - `interviewDateTo`
 - remaining recommended next steps:
-  - phrase-only or keyword-only explicit scope filters if the frontend needs faster query shapes
-  - company/date/weakness summary chips as a precomputed read model
   - PDF-coordinate overlay if a future resume canvas viewer needs positional rendering
+  - if PDF-coordinate overlay is needed later, introduce a parser output that persists page-aware text positions before trying to expose canvas coordinates
 
 ## Phase 2 - Question Tree and Follow-Up Relationships
 1. add Flyway migration for `question_relationships`

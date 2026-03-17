@@ -356,6 +356,10 @@ paths:
           in: query
           required: false
           schema: { type: string, format: date }
+        - name: targetType
+          in: query
+          required: false
+          schema: { type: string }
       responses:
         "200":
           description: Resume question heatmap
@@ -389,6 +393,10 @@ paths:
           in: query
           required: false
           schema: { type: string, format: date }
+        - name: targetType
+          in: query
+          required: false
+          schema: { type: string }
       responses:
         "200":
           description: Resume question heatmap overlay target list
@@ -1712,6 +1720,35 @@ components:
         hottestAnchorLabel: { type: string, nullable: true }
         mostFollowedUpAnchorLabel: { type: string, nullable: true }
         weakestAnchorLabel: { type: string, nullable: true }
+    ResumeQuestionHeatmapAppliedFiltersDto:
+      type: object
+      properties:
+        scope: { type: string }
+        weakOnly: { type: boolean }
+        companyName: { type: string, nullable: true }
+        interviewDateFrom: { type: string, format: date, nullable: true }
+        interviewDateTo: { type: string, format: date, nullable: true }
+        targetType: { type: string, nullable: true }
+    ResumeQuestionHeatmapFilterSummaryDto:
+      type: object
+      properties:
+        totalQuestions: { type: integer }
+        weakQuestionCount: { type: integer }
+        pressureQuestionCount: { type: integer }
+        followUpQuestionCount: { type: integer }
+        distinctInterviewCount: { type: integer }
+        distinctCompanyCount: { type: integer }
+        companyNames:
+          type: array
+          items: { type: string }
+        availableTargetTypes:
+          type: array
+          items: { type: string }
+        targetTypeCounts:
+          type: object
+          additionalProperties: { type: integer }
+        earliestInterviewDate: { type: string, format: date, nullable: true }
+        latestInterviewDate: { type: string, format: date, nullable: true }
     ResumeQuestionHeatmapQuestionDto:
       type: object
       properties:
@@ -1760,6 +1797,10 @@ components:
       properties:
         resumeVersionId: { type: integer, format: int64 }
         scope: { type: string }
+        appliedFilters:
+          $ref: "#/components/schemas/ResumeQuestionHeatmapAppliedFiltersDto"
+        filterSummary:
+          $ref: "#/components/schemas/ResumeQuestionHeatmapFilterSummaryDto"
         items:
           type: array
           items:
@@ -1811,6 +1852,10 @@ components:
       properties:
         resumeVersionId: { type: integer, format: int64 }
         scope: { type: string }
+        appliedFilters:
+          $ref: "#/components/schemas/ResumeQuestionHeatmapAppliedFiltersDto"
+        filterSummary:
+          $ref: "#/components/schemas/ResumeQuestionHeatmapFilterSummaryDto"
         summary:
           $ref: "#/components/schemas/ResumeQuestionHeatmapSummaryDto"
         items:

@@ -997,6 +997,8 @@ class ResumeApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.items[0].anchorType").value("project"))
             .andExpect(jsonPath("$.items[0].directQuestionCount").value(3))
+            .andExpect(jsonPath("$.filterSummary.totalQuestions").value(3))
+            .andExpect(jsonPath("$.filterSummary.followUpQuestionCount").value(1))
             .andReturn()
             .response
             .contentAsString
@@ -1049,6 +1051,23 @@ class ResumeApiIntegrationTest {
         }
         assertNotNull(flatSentenceTarget)
         assertTrue(flatSentenceTarget!!.path("linkedQuestions").size() >= 1)
+
+        val phraseOnlyHeatmap = mockMvc.perform(
+            get("/api/resume-versions/$versionId/question-heatmap")
+                .param("targetType", "phrase")
+                .header("Authorization", authHeader),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.appliedFilters.targetType").value("phrase"))
+            .andExpect(jsonPath("$.filterSummary.availableTargetTypes[0]").value("phrase"))
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        assertTrue(phraseOnlyHeatmap.path("items").all {
+            it.path("overlayTargets").all { target -> target.path("targetType").asText() == "phrase" }
+        })
     }
 
     @Test
@@ -1144,6 +1163,11 @@ class ResumeApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.summary.totalAnchors").value(1))
             .andExpect(jsonPath("$.items[0].directQuestionCount").value(1))
+            .andExpect(jsonPath("$.appliedFilters.weakOnly").value(true))
+            .andExpect(jsonPath("$.appliedFilters.companyName").value("Filter Corp"))
+            .andExpect(jsonPath("$.filterSummary.totalQuestions").value(1))
+            .andExpect(jsonPath("$.filterSummary.weakQuestionCount").value(1))
+            .andExpect(jsonPath("$.filterSummary.distinctCompanyCount").value(1))
             .andReturn()
             .response
             .contentAsString

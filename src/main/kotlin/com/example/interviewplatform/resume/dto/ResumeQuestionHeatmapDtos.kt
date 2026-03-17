@@ -10,6 +10,8 @@ import java.time.LocalDate
 data class ResumeQuestionHeatmapDto(
     val resumeVersionId: Long,
     val scope: String,
+    val appliedFilters: ResumeQuestionHeatmapAppliedFiltersDto,
+    val filterSummary: ResumeQuestionHeatmapFilterSummaryDto,
     val summary: ResumeQuestionHeatmapSummaryDto,
     val items: List<ResumeQuestionHeatmapItemDto>,
 )
@@ -17,7 +19,32 @@ data class ResumeQuestionHeatmapDto(
 data class ResumeQuestionHeatmapOverlayTargetListDto(
     val resumeVersionId: Long,
     val scope: String,
+    val appliedFilters: ResumeQuestionHeatmapAppliedFiltersDto,
+    val filterSummary: ResumeQuestionHeatmapFilterSummaryDto,
     val items: List<ResumeQuestionHeatmapOverlayTargetDto>,
+)
+
+data class ResumeQuestionHeatmapAppliedFiltersDto(
+    val scope: String,
+    val weakOnly: Boolean,
+    val companyName: String?,
+    val interviewDateFrom: LocalDate?,
+    val interviewDateTo: LocalDate?,
+    val targetType: String?,
+)
+
+data class ResumeQuestionHeatmapFilterSummaryDto(
+    val totalQuestions: Int,
+    val weakQuestionCount: Int,
+    val pressureQuestionCount: Int,
+    val followUpQuestionCount: Int,
+    val distinctInterviewCount: Int,
+    val distinctCompanyCount: Int,
+    val companyNames: List<String>,
+    val availableTargetTypes: List<String>,
+    val targetTypeCounts: Map<String, Int>,
+    val earliestInterviewDate: LocalDate?,
+    val latestInterviewDate: LocalDate?,
 )
 
 data class ResumeQuestionHeatmapSummaryDto(

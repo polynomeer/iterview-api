@@ -79,6 +79,12 @@
   - weak-only questions
   - company name
   - interview date window
+- additive heatmap reads can also be narrowed by routed overlay target type:
+  - `block`
+  - `sentence`
+  - `phrase`
+  - `keyword`
+- the backend returns a precomputed filter summary so the frontend can render company/date/type chips without rebuilding them from raw question rows
 - scoring rules remain centralized in one service
 
 ## Review Queue and Learning Loop

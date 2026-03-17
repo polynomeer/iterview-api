@@ -415,8 +415,32 @@ Query params:
   - optional `YYYY-MM-DD`
 - `interviewDateTo`
   - optional `YYYY-MM-DD`
+- `targetType`
+  - optional
+  - `block`
+  - `sentence`
+  - `phrase`
+  - `keyword`
+  - when set, only questions routed to that overlay target type are counted
 
 Response highlights:
+- `appliedFilters.scope`
+- `appliedFilters.weakOnly`
+- `appliedFilters.companyName`
+- `appliedFilters.interviewDateFrom`
+- `appliedFilters.interviewDateTo`
+- `appliedFilters.targetType`
+- `filterSummary.totalQuestions`
+- `filterSummary.weakQuestionCount`
+- `filterSummary.pressureQuestionCount`
+- `filterSummary.followUpQuestionCount`
+- `filterSummary.distinctInterviewCount`
+- `filterSummary.distinctCompanyCount`
+- `filterSummary.companyNames[]`
+- `filterSummary.availableTargetTypes[]`
+- `filterSummary.targetTypeCounts`
+- `filterSummary.earliestInterviewDate`
+- `filterSummary.latestInterviewDate`
 - `summary.totalAnchors`
 - `summary.totalLinkedQuestions`
 - `summary.hottestAnchorLabel`
@@ -453,6 +477,8 @@ Notes:
 - if a question does not match one sentence strongly, it falls back to the anchor-wide `block` target
 - follow-up questions can inherit the selected sentence target from their parent question
 - manual remap can now point to a specific overlay target inside one anchor, not only the anchor itself
+- `targetType` acts like a routed-question filter, not a simple client-side overlay list filter
+- `filterSummary` is precomputed from the final routed-question set so the frontend does not need to rebuild weak/company/date chips on the client
 
 #### `GET /api/resume-versions/{versionId}/question-heatmap/overlay-targets`
 Auth:
@@ -471,8 +497,16 @@ Query params:
   - optional `YYYY-MM-DD`
 - `interviewDateTo`
   - optional `YYYY-MM-DD`
+- `targetType`
+  - optional
+  - `block`
+  - `sentence`
+  - `phrase`
+  - `keyword`
 
 Response highlights:
+- `appliedFilters`
+- `filterSummary`
 - `items[].anchorType`
 - `items[].anchorRecordId`
 - `items[].anchorKey`
@@ -500,6 +534,7 @@ Notes:
 - `targetType = keyword` means the question is best attached to one stack term, metric, or compact noun phrase
 - the same `linkedQuestions[]` shape is reused so the frontend can share question-card rendering between anchor cards and sentence overlays
 - `targetKey` is a stable client-side join key for hover state, focus state, and remap previews
+- when `targetType` is set, the flattened list is narrowed to that overlay type and only populated targets are returned
 
 #### `POST /api/resume-versions/{versionId}/question-heatmap/links`
 Auth:
@@ -568,6 +603,10 @@ Current behavior:
   - whole-project or whole-anchor tint
   - sentence hover popovers
   - clause or keyword hover chips
+- the frontend can also request one routed overlay class directly:
+  - phrase-only reads
+  - keyword-only reads
+  - sentence-only review lanes
 
 Notes:
 - supported file types are PNG, JPEG, WEBP, and GIF

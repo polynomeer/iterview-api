@@ -10,6 +10,8 @@ import com.example.interviewplatform.interview.repository.InterviewRecordQuestio
 import com.example.interviewplatform.interview.repository.InterviewRecordRepository
 import com.example.interviewplatform.resume.dto.CreateResumeQuestionHeatmapLinkRequest
 import com.example.interviewplatform.resume.dto.ResumeQuestionHeatmapDto
+import com.example.interviewplatform.resume.dto.ResumeQuestionHeatmapAppliedFiltersDto
+import com.example.interviewplatform.resume.dto.ResumeQuestionHeatmapFilterSummaryDto
 import com.example.interviewplatform.resume.dto.ResumeQuestionHeatmapItemDto
 import com.example.interviewplatform.resume.dto.ResumeQuestionHeatmapLinkDto
 import com.example.interviewplatform.resume.dto.ResumeQuestionHeatmapOverlayTargetDto
@@ -65,12 +67,15 @@ class ResumeQuestionHeatmapService(
         companyName: String? = null,
         interviewDateFrom: LocalDate? = null,
         interviewDateTo: LocalDate? = null,
+        targetType: String? = null,
     ): ResumeQuestionHeatmapDto {
-        val context = buildHeatmapContext(userId, versionId, scope, weakOnly, companyName, interviewDateFrom, interviewDateTo)
+        val context = buildHeatmapContext(userId, versionId, scope, weakOnly, companyName, interviewDateFrom, interviewDateTo, targetType)
         if (context.items.isEmpty()) {
             return ResumeQuestionHeatmapDto(
                 resumeVersionId = versionId,
                 scope = context.scope,
+                appliedFilters = context.appliedFilters,
+                filterSummary = context.filterSummary,
                 summary = ResumeQuestionHeatmapSummaryDto(
                     totalAnchors = 0,
                     totalLinkedQuestions = 0,
@@ -91,6 +96,8 @@ class ResumeQuestionHeatmapService(
         return ResumeQuestionHeatmapDto(
             resumeVersionId = versionId,
             scope = context.scope,
+            appliedFilters = context.appliedFilters,
+            filterSummary = context.filterSummary,
             summary = summary,
             items = context.items,
         )
@@ -105,11 +112,14 @@ class ResumeQuestionHeatmapService(
         companyName: String? = null,
         interviewDateFrom: LocalDate? = null,
         interviewDateTo: LocalDate? = null,
+        targetType: String? = null,
     ): ResumeQuestionHeatmapOverlayTargetListDto {
-        val context = buildHeatmapContext(userId, versionId, scope, weakOnly, companyName, interviewDateFrom, interviewDateTo)
+        val context = buildHeatmapContext(userId, versionId, scope, weakOnly, companyName, interviewDateFrom, interviewDateTo, targetType)
         return ResumeQuestionHeatmapOverlayTargetListDto(
             resumeVersionId = versionId,
             scope = context.scope,
+            appliedFilters = context.appliedFilters,
+            filterSummary = context.filterSummary,
             items = context.items.flatMap { it.overlayTargets }
                 .sortedWith(
                     compareBy<ResumeQuestionHeatmapOverlayTargetDto> { it.anchorType }
@@ -282,11 +292,16 @@ class ResumeQuestionHeatmapService(
         companyName: String?,
         interviewDateFrom: LocalDate?,
         interviewDateTo: LocalDate?,
+        targetType: String?,
     ): HeatmapContext {
         requireOwnedVersion(userId, versionId)
         val normalizedScope = scope.trim().lowercase()
         if (normalizedScope !in supportedScopes) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported heatmap scope: $scope")
+        }
+        val normalizedTargetType = targetType?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
+        if (normalizedTargetType != null && normalizedTargetType !in supportedTargetTypes) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported heatmap targetType: $targetType")
         }
         val normalizedCompanyName = companyName?.trim()?.takeIf { it.isNotEmpty() }?.lowercase()
         val records = interviewRecordRepository.findByUserIdAndLinkedResumeVersionIdOrderByCreatedAtDesc(userId, versionId)
@@ -298,7 +313,31 @@ class ResumeQuestionHeatmapService(
                 companyMatches && fromMatches && toMatches
             }
         if (records.isEmpty()) {
-            return HeatmapContext(normalizedScope, emptyList())
+            return HeatmapContext(
+                scope = normalizedScope,
+                appliedFilters = ResumeQuestionHeatmapAppliedFiltersDto(
+                    scope = normalizedScope,
+                    weakOnly = weakOnly,
+                    companyName = companyName?.trim()?.takeIf { it.isNotEmpty() },
+                    interviewDateFrom = interviewDateFrom,
+                    interviewDateTo = interviewDateTo,
+                    targetType = normalizedTargetType,
+                ),
+                filterSummary = ResumeQuestionHeatmapFilterSummaryDto(
+                    totalQuestions = 0,
+                    weakQuestionCount = 0,
+                    pressureQuestionCount = 0,
+                    followUpQuestionCount = 0,
+                    distinctInterviewCount = 0,
+                    distinctCompanyCount = 0,
+                    companyNames = emptyList(),
+                    availableTargetTypes = emptyList(),
+                    targetTypeCounts = emptyMap(),
+                    earliestInterviewDate = null,
+                    latestInterviewDate = null,
+                ),
+                items = emptyList(),
+            )
         }
 
         val allQuestions = interviewRecordQuestionRepository.findByInterviewRecordIdInOrderByInterviewRecordIdAscOrderIndexAsc(records.map { it.id })
@@ -315,7 +354,31 @@ class ResumeQuestionHeatmapService(
             scopeMatches && weakMatches
         }
         if (filteredQuestions.isEmpty()) {
-            return HeatmapContext(normalizedScope, emptyList())
+            return HeatmapContext(
+                scope = normalizedScope,
+                appliedFilters = ResumeQuestionHeatmapAppliedFiltersDto(
+                    scope = normalizedScope,
+                    weakOnly = weakOnly,
+                    companyName = companyName?.trim()?.takeIf { it.isNotEmpty() },
+                    interviewDateFrom = interviewDateFrom,
+                    interviewDateTo = interviewDateTo,
+                    targetType = normalizedTargetType,
+                ),
+                filterSummary = ResumeQuestionHeatmapFilterSummaryDto(
+                    totalQuestions = 0,
+                    weakQuestionCount = 0,
+                    pressureQuestionCount = 0,
+                    followUpQuestionCount = 0,
+                    distinctInterviewCount = 0,
+                    distinctCompanyCount = 0,
+                    companyNames = emptyList(),
+                    availableTargetTypes = emptyList(),
+                    targetTypeCounts = emptyMap(),
+                    earliestInterviewDate = null,
+                    latestInterviewDate = null,
+                ),
+                items = emptyList(),
+            )
         }
 
         val answers = answersByQuestionId.filterKeys { questionId -> filteredQuestions.any { it.id == questionId } }
@@ -340,6 +403,15 @@ class ResumeQuestionHeatmapService(
 
         val aggregated = linkedMapOf<AnchorIdentity, MutableHeatmapAccumulator>()
         val overlaySelectionByQuestionId = mutableMapOf<Long, OverlayTargetKey>()
+        val targetTypeCounts = linkedMapOf<String, Int>()
+        val includedQuestionIds = linkedSetOf<Long>()
+        val includedInterviewIds = linkedSetOf<Long>()
+        val includedCompanyNames = linkedSetOf<String>()
+        var weakQuestionCount = 0
+        var pressureQuestionCount = 0
+        var followUpQuestionCount = 0
+        var earliestInterviewDate: LocalDate? = null
+        var latestInterviewDate: LocalDate? = null
 
         filteredQuestions.forEach { question ->
             val record = recordsById[question.interviewRecordId] ?: return@forEach
@@ -382,6 +454,9 @@ class ResumeQuestionHeatmapService(
                 manualLink = manualLink,
                 parentOverlayTargetKey = question.parentQuestionId?.let(overlaySelectionByQuestionId::get),
             )
+            if (normalizedTargetType != null && overlayTargetKey.targetType != normalizedTargetType) {
+                return@forEach
+            }
             overlaySelectionByQuestionId[question.id] = overlayTargetKey
 
             accumulator.directQuestionCount += 1
@@ -398,11 +473,65 @@ class ResumeQuestionHeatmapService(
                 weaknessCount += if (weaknessTags.isNotEmpty()) 1 else 0
                 questions += questionDto
             }
+            targetTypeCounts[overlayTargetKey.targetType] = (targetTypeCounts[overlayTargetKey.targetType] ?: 0) + 1
+            includedQuestionIds += question.id
+            includedInterviewIds += question.interviewRecordId
+            record.companyName?.trim()?.takeIf { it.isNotEmpty() }?.let(includedCompanyNames::add)
+            if (weaknessTags.isNotEmpty()) {
+                weakQuestionCount += 1
+            }
+            if (pressure) {
+                pressureQuestionCount += 1
+            }
+            if (question.parentQuestionId != null) {
+                followUpQuestionCount += 1
+            }
+            record.interviewDate?.let { interviewDate ->
+                earliestInterviewDate = minOfNotNull(earliestInterviewDate, interviewDate)
+                latestInterviewDate = maxOfNotNull(latestInterviewDate, interviewDate)
+            }
         }
+
+        val visibleItems = aggregated.values
+            .map { it.toDto() }
+            .filter { it.directQuestionCount > 0 }
+            .map { item ->
+                if (normalizedTargetType == null) {
+                    item
+                } else {
+                    item.copy(
+                        overlayTargets = item.overlayTargets.filter { overlayTarget ->
+                            overlayTarget.targetType == normalizedTargetType && overlayTarget.questionCount > 0
+                        },
+                    )
+                }
+            }
+            .sortedByDescending { it.heatScore }
 
         return HeatmapContext(
             scope = normalizedScope,
-            items = aggregated.values.map { it.toDto() }.sortedByDescending { it.heatScore },
+            appliedFilters = ResumeQuestionHeatmapAppliedFiltersDto(
+                scope = normalizedScope,
+                weakOnly = weakOnly,
+                companyName = companyName?.trim()?.takeIf { it.isNotEmpty() },
+                interviewDateFrom = interviewDateFrom,
+                interviewDateTo = interviewDateTo,
+                targetType = normalizedTargetType,
+            ),
+            filterSummary = ResumeQuestionHeatmapFilterSummaryDto(
+                totalQuestions = includedQuestionIds.size,
+                weakQuestionCount = weakQuestionCount,
+                pressureQuestionCount = pressureQuestionCount,
+                followUpQuestionCount = followUpQuestionCount,
+                distinctInterviewCount = includedInterviewIds.size,
+                distinctCompanyCount = includedCompanyNames.size,
+                companyNames = includedCompanyNames.toList().sorted(),
+                availableTargetTypes = targetTypeCounts.keys.sorted(),
+                targetTypeCounts = targetTypeCounts.toSortedMap(),
+                earliestInterviewDate = earliestInterviewDate,
+                latestInterviewDate = latestInterviewDate,
+            ),
+            items = visibleItems,
         )
     }
 
@@ -592,8 +721,23 @@ class ResumeQuestionHeatmapService(
         else -> second
     }
 
+    private fun minOfNotNull(first: LocalDate?, second: LocalDate?): LocalDate? = when {
+        first == null -> second
+        second == null -> first
+        first.isBefore(second) -> first
+        else -> second
+    }
+
+    private fun maxOfNotNull(first: LocalDate?, second: LocalDate?): LocalDate? = when {
+        first == null -> second
+        second == null -> first
+        first.isAfter(second) -> first
+        else -> second
+    }
+
     private companion object {
         private val supportedScopes = setOf("all", "main", "follow_up")
+        private val supportedTargetTypes = setOf("block", "sentence", "phrase", "keyword")
         private val pressureIntentTags = setOf("pressure", "challenge", "verification", "validation")
         private val manualConfidenceScore: BigDecimal = BigDecimal("1.0000")
         private val inferredConfidenceScore: BigDecimal = BigDecimal("0.9000")
@@ -824,5 +968,7 @@ private data class OverlayTargetKey(
 
 private data class HeatmapContext(
     val scope: String,
+    val appliedFilters: ResumeQuestionHeatmapAppliedFiltersDto,
+    val filterSummary: ResumeQuestionHeatmapFilterSummaryDto,
     val items: List<ResumeQuestionHeatmapItemDto>,
 )

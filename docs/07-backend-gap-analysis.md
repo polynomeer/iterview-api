@@ -156,7 +156,9 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
     - `companyName`
     - `interviewDateFrom`
     - `interviewDateTo`
+    - `targetType`
   - manual heatmap links can now also pin one exact overlay target inside an anchor
+  - additive precomputed filter summary on heatmap reads
 - current gap:
   - no sentence-offset or PDF-coordinate overlay yet
   - no precomputed anchor summary table; aggregation is computed on read from practical interview data plus manual overrides

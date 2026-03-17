@@ -39,6 +39,7 @@ class ResumeQuestionHeatmapController(
         @RequestParam(name = "companyName", required = false) companyName: String?,
         @RequestParam(name = "interviewDateFrom", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) interviewDateFrom: LocalDate?,
         @RequestParam(name = "interviewDateTo", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) interviewDateTo: LocalDate?,
+        @RequestParam(name = "targetType", required = false) targetType: String?,
     ): ResumeQuestionHeatmapDto =
         resumeQuestionHeatmapService.getHeatmap(
             userId = currentUserProvider.currentUserId(),
@@ -48,6 +49,7 @@ class ResumeQuestionHeatmapController(
             companyName = companyName,
             interviewDateFrom = interviewDateFrom,
             interviewDateTo = interviewDateTo,
+            targetType = targetType,
         )
 
     @GetMapping("/overlay-targets")
@@ -59,6 +61,7 @@ class ResumeQuestionHeatmapController(
         @RequestParam(name = "companyName", required = false) companyName: String?,
         @RequestParam(name = "interviewDateFrom", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) interviewDateFrom: LocalDate?,
         @RequestParam(name = "interviewDateTo", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) interviewDateTo: LocalDate?,
+        @RequestParam(name = "targetType", required = false) targetType: String?,
     ): ResumeQuestionHeatmapOverlayTargetListDto =
         resumeQuestionHeatmapService.getOverlayTargets(
             userId = currentUserProvider.currentUserId(),
@@ -68,6 +71,7 @@ class ResumeQuestionHeatmapController(
             companyName = companyName,
             interviewDateFrom = interviewDateFrom,
             interviewDateTo = interviewDateTo,
+            targetType = targetType,
         )
 
     @PostMapping("/links")
