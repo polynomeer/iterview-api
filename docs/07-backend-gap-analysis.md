@@ -149,6 +149,8 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
   - `POST /api/resume-versions/{versionId}/question-heatmap/links`
   - `PATCH /api/resume-versions/{versionId}/question-heatmap/links/{linkId}`
 - current gap:
+  - current heatmap is still anchor-level and does not expose sentence or phrase overlay targets yet
+  - no hover-oriented text range model yet for precise in-block question cards
   - no sentence-offset or PDF-coordinate overlay yet
   - no company/date/weakness-only filter params beyond `scope`
   - no precomputed anchor summary table; aggregation is computed on read from practical interview data plus manual overrides

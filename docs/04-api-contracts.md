@@ -432,6 +432,8 @@ Notes:
 - the heatmap aggregates linked practical interview questions by parsed resume anchor
 - active manual override links take precedence over inferred or heuristic anchor resolution
 - the current backend intentionally skips questions that cannot be mapped to a stable resume anchor
+- current implementation is anchor-level, not sentence-range-level
+- one returned item may represent a full project, experience, skill, competency, or summary anchor rather than one precise sentence
 
 #### `POST /api/resume-versions/{versionId}/question-heatmap/links`
 Auth:
@@ -465,6 +467,51 @@ Request:
 Notes:
 - can move the effective anchor or deactivate one manual override
 - deactivating one manual override falls back to inferred or heuristic anchor resolution on subsequent reads
+
+### Planned Next Step - Sentence Overlay Heatmap
+Planned only, not yet implemented:
+
+- current `question-heatmap` is sufficient for block-level heat and question grouping
+- the next API slice should add sentence or phrase overlay targets so the frontend can:
+  - highlight one exact sentence inside a project or experience block
+  - show hover question previews on that sentence
+  - still keep project-wide questions attached to the whole block
+
+Recommended future read shape:
+- one anchor summary response
+- one nested `overlayTargets[]`
+- each overlay target can represent:
+  - `block`
+  - `sentence`
+  - `phrase`
+  - `keyword`
+
+Recommended future endpoint direction:
+- `GET /api/resume-versions/{versionId}/question-heatmap/overlay-targets`
+- or extend `GET /api/resume-versions/{versionId}/question-heatmap` with additive `overlayTargets`
+
+Recommended future overlay target fields:
+- `id`
+- `anchorType`
+- `anchorRecordId`
+- `anchorKey`
+- `targetType`
+- `fieldPath`
+- `textSnippet`
+- `textStartOffset`
+- `textEndOffset`
+- `sentenceIndex`
+- `paragraphIndex`
+- `heatScore`
+- `normalizedHeatLevel`
+- `linkedQuestions[]`
+
+Recommended behavior:
+- project-wide questions remain linked to a `block` target
+- sentence-specific questions link to a `sentence` target
+- the frontend can render both layers at once:
+  - whole-project tint
+  - sentence hover popovers
 
 Notes:
 - supported file types are PNG, JPEG, WEBP, and GIF

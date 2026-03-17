@@ -93,6 +93,7 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 - `ResumeQuestionHeatmapDto` now exposes:
   - `summary`
   - `items`
+- current implementation should be treated as anchor-level heat only
 - each heatmap item currently exposes:
   - anchor identity such as `anchorType`, `anchorRecordId`, and `anchorKey`
   - `label`
@@ -114,6 +115,11 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `main`
   - `follow_up`
 - manual remap links are additive override rows; they do not mutate the imported practical-interview question itself
+- the current backend does not yet expose sentence-level or phrase-level overlay targets for hover cards inside one project or experience block
+- planned next-step frontend direction:
+  - keep the current anchor heatmap as the first layer
+  - add sentence overlay rendering only when the backend exposes text-range targets
+  - support both whole-block questions and sentence-specific question cards in the same viewer
 - The current project endpoint should be treated as the stable base for resume-derived project cards.
 - Implemented project payload fields now include:
   - `contentText`

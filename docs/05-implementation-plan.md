@@ -147,6 +147,30 @@ Acceptance intent:
 - manual remaps do not mutate imported practical interview question text
 - practical interview review and resume review can share the same parsed anchor ids
 
+## Phase 1D - Sentence-Level Resume Overlay
+1. introduce parsed resume overlay targets inside each anchor block
+2. support mixed overlay layers:
+   - `block` for whole-project or whole-experience questions
+   - `sentence` for precise sentence-triggered questions
+   - optional `phrase` or `keyword` later
+3. add sentence segmentation for parsed resume fields such as:
+   - `project.summaryText`
+   - `project.contentText`
+   - `experience.summaryText`
+   - `experience.impactText`
+   - `profile.summaryText`
+4. persist text-range aware question links separately from current anchor-level links
+5. expose additive read data that lets the frontend:
+   - tint the whole anchor block
+   - hover one sentence and preview linked question cards
+   - distinguish project-wide questions from sentence-specific questions
+6. keep anchor-level heat summary as the stable first-layer model
+
+Acceptance intent:
+- whole-project questions and sentence-specific questions can coexist in one resume viewer
+- hoverable sentence overlays do not require raw PDF coordinate extraction
+- manual correction can eventually happen at sentence-range level without mutating source resume text
+
 ## Phase 2 - Question Tree and Follow-Up Relationships
 1. add Flyway migration for `question_relationships`
 2. seed follow-up relationships for high-value core questions

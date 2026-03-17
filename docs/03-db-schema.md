@@ -126,6 +126,46 @@ Current interpretation:
 - automatic heatmap aggregation is computed on read from practical interview questions plus this override table
 - `anchor_type` currently supports parsed resume anchors such as `project`, `experience`, `skill`, `competency`, and `summary`
 
+Recommended next-step additive tables for sentence-level resume overlays:
+
+### `resume_document_overlay_targets` (planned, not yet implemented)
+- `id`
+- `resume_version_id`
+- `anchor_type`
+- `anchor_record_id`
+- `anchor_key`
+- `target_type`
+- `field_path`
+- `text_snippet`
+- `text_start_offset`
+- `text_end_offset`
+- `sentence_index`
+- `paragraph_index`
+- `display_order`
+- `created_at`
+- `updated_at`
+
+Interpretation:
+- this would represent a hoverable highlight target inside one parsed resume anchor
+- `target_type` should support at least `block`, `sentence`, `phrase`, and `keyword`
+- one `project` anchor may have one `block` target plus multiple `sentence` targets
+
+### `resume_question_overlay_links` (planned, not yet implemented)
+- `id`
+- `resume_version_id`
+- `interview_record_question_id`
+- `resume_document_overlay_target_id`
+- `link_source`
+- `confidence_score`
+- `created_at`
+- `updated_at`
+
+Interpretation:
+- this would let the backend distinguish:
+  - project-wide questions linked to a `block` target
+  - sentence-specific questions linked to a `sentence` target
+- it should coexist with the current anchor-level heatmap link table rather than replacing it immediately
+
 Recommended additive columns for LLM-backed structured extraction:
 - `llm_extraction_status`
 - `llm_extraction_started_at`

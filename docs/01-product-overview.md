@@ -7,6 +7,7 @@ The updated product direction is:
 - resume-driven interview preparation
 - job-posting-aware resume analysis and tailoring
 - resume interview heatmaps that show which resume anchors triggered the most practical questions
+- layered resume overlays that can eventually distinguish whole-project questions from sentence-level question triggers
 - answer-driven learning and retry loops
 - skill radar and gap analysis
 - question tree and follow-up visualization
@@ -86,6 +87,9 @@ This is an additive evolution of the current backend, not a new product line.
 - map practical interview questions back onto parsed resume anchors such as projects, experiences, skills, competencies, and summary blocks
 - expose one heatmap read model that highlights frequently challenged resume anchors, follow-up density, and weak-defense hotspots
 - allow manual correction when one imported practical-interview question was linked to the wrong resume anchor
+- evolve the heatmap into a two-layer viewer:
+  - block-level anchor heat
+  - sentence or phrase-level hover overlays for precise question triggers
 
 ### 3. Mock Interview Loop
 - support AI-driven mock interviews grounded in the active resume version
