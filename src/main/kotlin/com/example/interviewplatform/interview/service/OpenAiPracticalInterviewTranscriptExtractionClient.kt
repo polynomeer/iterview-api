@@ -4,7 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.nio.file.Files
+import java.nio.file.Path
 import java.time.Duration
+import java.util.Comparator
+import java.util.concurrent.TimeUnit
 
 @Component
 class OpenAiPracticalInterviewTranscriptExtractionClient(
@@ -24,6 +27,16 @@ class OpenAiPracticalInterviewTranscriptExtractionClient(
     private val timeoutSeconds: Long,
     @Value("\${app.interview.transcription.max-file-size-bytes:26214400}")
     private val maxFileSizeBytes: Long,
+    @Value("\${app.interview.transcription.chunking.enabled:true}")
+    private val chunkingEnabled: Boolean,
+    @Value("\${app.interview.transcription.chunking.ffmpeg-command:ffmpeg}")
+    private val ffmpegCommand: String,
+    @Value("\${app.interview.transcription.chunking.segment-seconds:480}")
+    private val chunkSegmentSeconds: Int,
+    @Value("\${app.interview.transcription.chunking.audio-bitrate:48k}")
+    private val chunkAudioBitrate: String,
+    @Value("\${app.interview.transcription.chunking.ffmpeg-timeout-seconds:300}")
+    private val ffmpegTimeoutSeconds: Long,
 ) : PracticalInterviewTranscriptExtractionClient {
     override fun isEnabled(): Boolean = apiKey.isNotBlank()
 
@@ -40,19 +53,111 @@ class OpenAiPracticalInterviewTranscriptExtractionClient(
     private fun transcribeAudio(input: PracticalInterviewTranscriptExtractionInput): String {
         val fileSizeBytes = Files.size(input.audioFilePath)
         if (fileSizeBytes > maxFileSizeBytes) {
+            if (!chunkingEnabled) {
+                throw IllegalStateException(
+                    "Audio file is too large for automatic transcription " +
+                        "(size=${fileSizeBytes}B, limit=${maxFileSizeBytes}B). " +
+                        "Upload a smaller file or provide transcriptText manually.",
+                )
+            }
+            return transcribeOversizedAudio(input)
+        }
+        return transcribeSingleFile(
+            audioFilePath = input.audioFilePath,
+            fileName = input.fileName,
+            contentType = input.contentType,
+        )
+    }
+
+    private fun transcribeOversizedAudio(input: PracticalInterviewTranscriptExtractionInput): String {
+        val chunkDirectory = Files.createTempDirectory("iterview-transcription-chunks-")
+        try {
+            splitAudioIntoChunks(input.audioFilePath, chunkDirectory)
+            val chunkFiles = Files.list(chunkDirectory).use { stream ->
+                stream
+                    .filter { Files.isRegularFile(it) }
+                    .sorted()
+                    .toList()
+            }
+            if (chunkFiles.isEmpty()) {
+                throw IllegalStateException("Audio chunking produced no files for transcription.")
+            }
+            val transcripts = chunkFiles.mapIndexed { index, chunkPath ->
+                val chunkSize = Files.size(chunkPath)
+                if (chunkSize > maxFileSizeBytes) {
+                    throw IllegalStateException(
+                        "Audio chunk is too large for automatic transcription " +
+                            "(chunk=${index + 1}, size=${chunkSize}B, limit=${maxFileSizeBytes}B).",
+                    )
+                }
+                transcribeSingleFile(
+                    audioFilePath = chunkPath,
+                    fileName = "${input.fileName.substringBeforeLast('.')}-chunk-${index + 1}.m4a",
+                    contentType = "audio/mp4",
+                )
+            }
+            return transcripts.joinToString("\n").trim()
+        } finally {
+            Files.walk(chunkDirectory).use { stream ->
+                stream.sorted(Comparator.reverseOrder()).forEach { Files.deleteIfExists(it) }
+            }
+        }
+    }
+
+    private fun splitAudioIntoChunks(audioFilePath: Path, chunkDirectory: Path) {
+        val outputPattern = chunkDirectory.resolve("chunk-%03d.m4a").toString()
+        val command = listOf(
+            ffmpegCommand,
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            audioFilePath.toString(),
+            "-vn",
+            "-ac",
+            "1",
+            "-ar",
+            "16000",
+            "-c:a",
+            "aac",
+            "-b:a",
+            chunkAudioBitrate,
+            "-f",
+            "segment",
+            "-segment_time",
+            chunkSegmentSeconds.toString(),
+            "-reset_timestamps",
+            "1",
+            outputPattern,
+        )
+        val process = ProcessBuilder(command)
+            .redirectErrorStream(true)
+            .start()
+        val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
+        val finished = process.waitFor(ffmpegTimeoutSeconds, TimeUnit.SECONDS)
+        if (!finished) {
+            process.destroyForcibly()
             throw IllegalStateException(
-                "Audio file is too large for automatic transcription " +
-                    "(size=${fileSizeBytes}B, limit=${maxFileSizeBytes}B). " +
+                "Audio chunking timed out after ${ffmpegTimeoutSeconds}s. " +
                     "Upload a smaller file or provide transcriptText manually.",
             )
         }
+        if (process.exitValue() != 0) {
+            throw IllegalStateException(
+                "Audio chunking failed with exit code ${process.exitValue()}: $output",
+            )
+        }
+    }
+
+    private fun transcribeSingleFile(audioFilePath: Path, fileName: String, contentType: String?): String {
         val multipart = buildMap<String, InterviewLlmMultipartPart> {
             put(
                 "file",
                 InterviewLlmMultipartPart.FilePart(
-                    fileName = input.fileName,
-                    contentType = input.contentType ?: "application/octet-stream",
-                    bytes = Files.readAllBytes(input.audioFilePath),
+                    fileName = fileName,
+                    contentType = contentType ?: "application/octet-stream",
+                    bytes = Files.readAllBytes(audioFilePath),
                 ),
             )
             put("model", InterviewLlmMultipartPart.TextPart(transcriptionModel))
