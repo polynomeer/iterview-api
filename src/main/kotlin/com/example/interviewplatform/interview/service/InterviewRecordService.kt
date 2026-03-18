@@ -3086,7 +3086,7 @@ class InterviewRecordService(
     }
 
     private fun classifySpeaker(line: String): Pair<String, String> {
-        val normalized = line.trim()
+        val normalized = line.trim().replaceFirst(Regex("""^\[\d{2}:\d{2}(?::\d{2})?[.,]\d{1,3}]\s*"""), "")
         val lowered = normalized.lowercase()
         val interviewerPrefixes = listOf("interviewer:", "q:", "면접관:", "질문:")
         val candidatePrefixes = listOf("candidate:", "a:", "지원자:", "답변:", "me:")

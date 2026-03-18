@@ -2,6 +2,7 @@ package com.example.interviewplatform.interview.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.nio.file.Files
@@ -11,6 +12,10 @@ import java.util.Comparator
 import java.util.concurrent.TimeUnit
 
 @Component
+@ConditionalOnProperty(
+    name = ["app.interview.transcription.provider"],
+    havingValue = "openai",
+)
 class OpenAiPracticalInterviewTranscriptExtractionClient(
     private val objectMapper: ObjectMapper,
     private val transport: InterviewLlmApiTransport,
