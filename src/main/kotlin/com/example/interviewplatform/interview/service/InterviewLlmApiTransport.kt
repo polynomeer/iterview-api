@@ -29,7 +29,9 @@ class HttpInterviewLlmApiTransport : InterviewLlmApiTransport {
 
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
         if (response.statusCode() !in 200..299) {
-            throw IllegalStateException("OpenAI interview follow-up request failed with status ${response.statusCode()}")
+            throw IllegalStateException(
+                "OpenAI JSON request failed with status ${response.statusCode()}: ${truncateResponseBody(response.body())}",
+            )
         }
         return response.body()
     }
@@ -51,7 +53,9 @@ class HttpInterviewLlmApiTransport : InterviewLlmApiTransport {
 
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
         if (response.statusCode() !in 200..299) {
-            throw IllegalStateException("OpenAI multipart request failed with status ${response.statusCode()}")
+            throw IllegalStateException(
+                "OpenAI multipart request failed with status ${response.statusCode()}: ${truncateResponseBody(response.body())}",
+            )
         }
         return response.body()
     }
@@ -85,6 +89,14 @@ class HttpInterviewLlmApiTransport : InterviewLlmApiTransport {
 
     private fun append(target: MutableList<Byte>, text: String) {
         target.addAll(text.toByteArray(Charsets.UTF_8).toList())
+    }
+
+    private fun truncateResponseBody(body: String, maxLength: Int = 700): String {
+        val normalized = body.replace('\n', ' ').trim()
+        if (normalized.length <= maxLength) {
+            return normalized
+        }
+        return normalized.take(maxLength) + "...(truncated)"
     }
 }
 

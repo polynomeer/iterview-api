@@ -22,6 +22,8 @@ class OpenAiPracticalInterviewTranscriptExtractionClient(
     private val promptVersion: String,
     @Value("\${app.interview.transcription.timeout-seconds:60}")
     private val timeoutSeconds: Long,
+    @Value("\${app.interview.transcription.max-file-size-bytes:26214400}")
+    private val maxFileSizeBytes: Long,
 ) : PracticalInterviewTranscriptExtractionClient {
     override fun isEnabled(): Boolean = apiKey.isNotBlank()
 
@@ -36,6 +38,14 @@ class OpenAiPracticalInterviewTranscriptExtractionClient(
     }
 
     private fun transcribeAudio(input: PracticalInterviewTranscriptExtractionInput): String {
+        val fileSizeBytes = Files.size(input.audioFilePath)
+        if (fileSizeBytes > maxFileSizeBytes) {
+            throw IllegalStateException(
+                "Audio file is too large for automatic transcription " +
+                    "(size=${fileSizeBytes}B, limit=${maxFileSizeBytes}B). " +
+                    "Upload a smaller file or provide transcriptText manually.",
+            )
+        }
         val multipart = buildMap<String, InterviewLlmMultipartPart> {
             put(
                 "file",
