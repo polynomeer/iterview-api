@@ -3299,6 +3299,8 @@ components:
       type: object
       properties:
         interviewRecordId: { type: integer, format: int64 }
+        playback:
+          $ref: "#/components/schemas/InterviewRecordPlaybackDto"
         structuringStage: { type: string }
         requiresConfirmation: { type: boolean }
         deterministicSummary: { type: string, nullable: true }
@@ -3381,6 +3383,18 @@ components:
           items: { type: string }
         questionStructuringSource: { type: string }
         answerStructuringSource: { type: string, nullable: true }
+        questionRange:
+          allOf:
+            - $ref: "#/components/schemas/InterviewRecordReplayRangeDto"
+          nullable: true
+        answerRange:
+          allOf:
+            - $ref: "#/components/schemas/InterviewRecordReplayRangeDto"
+          nullable: true
+        questionAnswerRange:
+          allOf:
+            - $ref: "#/components/schemas/InterviewRecordReplayRangeDto"
+          nullable: true
     InterviewRecordReviewQuestionDeepLinkDto:
       type: object
       properties:
@@ -3591,6 +3605,10 @@ components:
           type: integer
           format: int64
           nullable: true
+        seekRange:
+          allOf:
+            - $ref: "#/components/schemas/InterviewRecordReplayRangeDto"
+          nullable: true
         deepLink:
           allOf:
             - $ref: "#/components/schemas/InterviewRecordReviewQuestionDeepLinkDto"
@@ -3628,6 +3646,18 @@ components:
         questionSegmentEndSequence: { type: integer, nullable: true }
         answerSegmentStartSequence: { type: integer, nullable: true }
         answerSegmentEndSequence: { type: integer, nullable: true }
+        questionRange:
+          allOf:
+            - $ref: "#/components/schemas/InterviewRecordReplayRangeDto"
+          nullable: true
+        answerRange:
+          allOf:
+            - $ref: "#/components/schemas/InterviewRecordReplayRangeDto"
+          nullable: true
+        questionAnswerRange:
+          allOf:
+            - $ref: "#/components/schemas/InterviewRecordReplayRangeDto"
+          nullable: true
     InterviewRecordReviewActionRecommendationsDto:
       type: object
       properties:
@@ -3731,17 +3761,41 @@ components:
         tradeoffAwareQuestionCount: { type: integer }
         uncertainQuestionCount: { type: integer }
         recommendedAction: { type: string }
+        threadRange:
+          allOf:
+            - $ref: "#/components/schemas/InterviewRecordReplayRangeDto"
+          nullable: true
         replayLaunchPreset:
           $ref: "#/components/schemas/InterviewRecordReplayLaunchPresetDto"
         structuringSources:
           type: array
           items: { type: string }
+    InterviewRecordPlaybackDto:
+      type: object
+      properties:
+        playbackAvailable: { type: boolean }
+        sourceAudioFileUrl: { type: string, nullable: true }
+        sourceAudioFileName: { type: string, nullable: true }
+        audioDurationMs: { type: integer, format: int64, nullable: true }
+        sessionRange:
+          allOf:
+            - $ref: "#/components/schemas/InterviewRecordReplayRangeDto"
+          nullable: true
+    InterviewRecordReplayRangeDto:
+      type: object
+      properties:
+        startMs: { type: integer, format: int64 }
+        endMs: { type: integer, format: int64 }
+        durationMs: { type: integer, format: int64 }
+        startTimestampLabel: { type: string }
+        endTimestampLabel: { type: string }
     InterviewTranscriptSegmentDto:
       type: object
       properties:
         id: { type: integer, format: int64 }
         startMs: { type: integer, format: int64 }
         endMs: { type: integer, format: int64 }
+        timestampLabel: { type: string }
         speakerType: { type: string }
         rawText: { type: string, nullable: true }
         cleanedText: { type: string, nullable: true }
@@ -3752,6 +3806,8 @@ components:
       type: object
       properties:
         interviewRecordId: { type: integer, format: int64 }
+        playback:
+          $ref: "#/components/schemas/InterviewRecordPlaybackDto"
         rawTranscript: { type: string, nullable: true }
         cleanedTranscript: { type: string, nullable: true }
         confirmedTranscript: { type: string, nullable: true }
@@ -3805,6 +3861,10 @@ components:
           items: { type: string }
         structuringSource: { type: string }
         orderIndex: { type: integer }
+        replayRange:
+          allOf:
+            - $ref: "#/components/schemas/InterviewRecordReplayRangeDto"
+          nullable: true
     InterviewRecordQuestionDto:
       type: object
       properties:
@@ -3826,6 +3886,18 @@ components:
         parentQuestionId: { type: integer, format: int64, nullable: true }
         structuringSource: { type: string }
         orderIndex: { type: integer }
+        questionRange:
+          allOf:
+            - $ref: "#/components/schemas/InterviewRecordReplayRangeDto"
+          nullable: true
+        answerRange:
+          allOf:
+            - $ref: "#/components/schemas/InterviewRecordReplayRangeDto"
+          nullable: true
+        questionAnswerRange:
+          allOf:
+            - $ref: "#/components/schemas/InterviewRecordReplayRangeDto"
+          nullable: true
         answer:
           allOf:
             - $ref: "#/components/schemas/InterviewRecordQuestionAnswerDto"
@@ -3834,6 +3906,8 @@ components:
       type: object
       properties:
         interviewRecordId: { type: integer, format: int64 }
+        playback:
+          $ref: "#/components/schemas/InterviewRecordPlaybackDto"
         items:
           type: array
           items:

@@ -370,6 +370,7 @@ Acceptance intent:
 22. extend the interview session domain with `replay_mock` so imported real interviews can launch dynamic replay simulations through the existing session engine
 23. extend archive source metadata so imported real-interview questions and replay-simulation questions remain distinguishable from practice and ordinary mock interviews
 24. add frontend-facing contracts for real-interview detail, transcript review, interviewer profile, and replay simulation start flows
+25. expose additive replay timestamp metadata on transcript, question, and review reads so one shared player can drive transcript seek, question-card clips, and thread review
 - keep Swagger/OpenAPI docs in sync with each new endpoint
 
 ## Explicit Deferred Work

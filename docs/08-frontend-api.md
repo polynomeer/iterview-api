@@ -432,6 +432,7 @@ Implemented practical interview record foundation:
   - `POST /api/interview-records/{recordId}/confirm`
 - keep imported real-interview records distinct from interactive mock-session resources
 - transcript review screens should expose `rawTranscript`, `cleanedTranscript`, `confirmedTranscript`, and ordered `segments`
+- transcript, question, and review reads now also expose additive replay metadata so one shared audio player can be driven directly from backend ranges
 - `POST /api/interview-records` is `multipart/form-data` with:
   - required `file`
   - optional `companyName`, `roleName`, `interviewDate`, `interviewType`, `linkedResumeVersionId`, `linkedJobPostingId`, `transcriptText`
@@ -459,12 +460,16 @@ Implemented practical interview record foundation:
   - `overallSummary`
   - `structuringStage`
 - structured question review should consume:
+  - root `playback`
   - `questionType`
   - `topicTags`
   - `intentTags`
   - `structuringSource`
+  - `questionRange`
+  - `answerRange`
+  - `questionAnswerRange`
   - nested answer snapshot fields such as `summary`, `confidenceMarkers`, `weaknessTags`, and `strengthTags`
-- answer snapshots also expose `structuringSource`
+- answer snapshots also expose `structuringSource` and `replayRange`
 - interviewer-profile screens can now consume:
   - `styleTags`
   - `toneProfile`
@@ -477,6 +482,8 @@ Implemented practical interview record foundation:
   - `structuringSource`
 - `GET /api/interview-records/{recordId}/analysis` now also exposes `structuringStage`
 - `GET /api/interview-records/{recordId}/review` exposes review provenance:
+  - `playback`
+    - use this for the shared interview player on review screens
   - `structuringStage`
   - `requiresConfirmation`
   - `deterministicSummary`
@@ -507,6 +514,7 @@ Implemented practical interview record foundation:
   - `transcriptIssueSummary`
     - use this for transcript review priority panels such as `edited`, `speaker override`, or `low confidence`
     - `segmentActions[]` is additive quick-action metadata for jumping from a flagged transcript row into the related question or follow-up thread without rebuilding anchors on the client
+    - `seekRange` is included on each segment action so issue rows can seek the shared player directly
     - each segment action may also carry `deepLink` and `replayLaunchPreset` so transcript-first review UIs can open question detail or replay directly from the issue row
     - `severity`, `priority`, and `reviewerLane` are additive triage metadata for sorting transcript issues and routing them into transcript, question, or thread review lanes
     - `triageReason` and `ctaLabel` are additive copy helpers for top-priority cards and transcript issue buttons
@@ -516,6 +524,7 @@ Implemented practical interview record foundation:
     - use this for practical interview answer-quality panels such as `weak`, `quantified`, `structured`, or `trade-off aware`
   - `timelineNavigation`
     - use this for transcript viewer, question table, and follow-up thread panel cross-navigation without recomputing anchors on the client
+    - each item also includes `questionRange`, `answerRange`, and `questionAnswerRange`
   - `actionRecommendations`
     - use this for primary CTA selection and disabled-state messaging in practical interview review
     - `primaryActionLabel`, `primaryActionTarget`, `primaryActionTargetPayload`, `availableActionLabels`, `availableActionTargets`, `availableActionTargetPayloads`, and `blockingReasonDetails[]` are additive and let the review header CTA reuse the same route/panel/filter semantics as lane cards, while also rendering blocker chips/cards with server-provided labels, severity, ordering, and action targets
@@ -533,11 +542,19 @@ Implemented practical interview record foundation:
     - `topicTags` is included so row-level tag filtering does not require a second `questions` fetch
     - `originType`, `derivedFromResumeSection`, and `derivedFromJobPostingSection` are included so origin badges do not require a second `questions` fetch
     - `confidenceMarkers` is included so confidence/uncertainty badges do not require a second `questions` fetch
+    - replay-aware review tables can use `questionRange`, `answerRange`, and `questionAnswerRange` directly
   - `followUpThreads[]`
     - use this for threaded review panels or grouped follow-up badges without reconstructing parent-child chains on the client
     - thread rows now also include answer-quality counters such as `answeredQuestionCount`, `quantifiedQuestionCount`, `structuredQuestionCount`, `tradeoffAwareQuestionCount`, and `uncertainQuestionCount`
     - `recommendedAction` can drive per-thread CTA labels such as `review weak chain` or `replay chain`
     - `replayLaunchPreset` can drive `replay this chain` actions without building a second preset client-side
+    - `threadRange` can drive thread-level preview playback before or outside replay session launch
+- shared replay ranges include:
+  - `startMs`
+  - `endMs`
+  - `durationMs`
+  - `startTimestampLabel`
+  - `endTimestampLabel`
 - `PATCH /api/interview-records/{recordId}/review` supports bulk review editing:
   - `edits[]`
   - each edit may update `speakerType`, `cleanedText`, and `confirmedText` for one `segmentId`

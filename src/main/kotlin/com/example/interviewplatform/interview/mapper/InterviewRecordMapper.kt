@@ -4,8 +4,10 @@ import com.example.interviewplatform.interview.dto.InterviewRecordAnalysisDto
 import com.example.interviewplatform.interview.dto.InterviewRecordDetailDto
 import com.example.interviewplatform.interview.dto.InterviewRecordFollowUpEdgeDto
 import com.example.interviewplatform.interview.dto.InterviewRecordListItemDto
+import com.example.interviewplatform.interview.dto.InterviewRecordPlaybackDto
 import com.example.interviewplatform.interview.dto.InterviewRecordQuestionAnswerDto
 import com.example.interviewplatform.interview.dto.InterviewRecordQuestionDto
+import com.example.interviewplatform.interview.dto.InterviewRecordReplayRangeDto
 import com.example.interviewplatform.interview.dto.InterviewTranscriptSegmentDto
 import com.example.interviewplatform.interview.dto.InterviewerProfileDto
 import com.example.interviewplatform.interview.entity.InterviewRecordAnswerEntity
@@ -16,6 +18,7 @@ import com.example.interviewplatform.interview.entity.InterviewTranscriptSegment
 import com.example.interviewplatform.interview.entity.InterviewerProfileEntity
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import kotlin.math.max
 
 object InterviewRecordMapper {
     fun toListItemDto(
@@ -78,6 +81,7 @@ object InterviewRecordMapper {
             id = entity.id,
             startMs = entity.startMs,
             endMs = entity.endMs,
+            timestampLabel = formatTimestampLabel(entity.startMs),
             speakerType = entity.speakerType,
             rawText = entity.rawText,
             cleanedText = entity.cleanedText,
@@ -90,6 +94,7 @@ object InterviewRecordMapper {
         entity: InterviewRecordQuestionEntity,
         answer: InterviewRecordAnswerEntity?,
         objectMapper: ObjectMapper,
+        segmentById: Map<Long, InterviewTranscriptSegmentEntity>,
     ): InterviewRecordQuestionDto = InterviewRecordQuestionDto(
         id = entity.id,
         linkedQuestionId = entity.linkedQuestionId,
@@ -105,10 +110,20 @@ object InterviewRecordMapper {
         parentQuestionId = entity.parentQuestionId,
         structuringSource = entity.structuringSource,
         orderIndex = entity.orderIndex,
-        answer = answer?.let { toAnswerDto(it, objectMapper) },
+        questionRange = toReplayRange(entity.segmentStartId, entity.segmentEndId, segmentById),
+        answerRange = answer?.let { toReplayRange(it.segmentStartId, it.segmentEndId, segmentById) },
+        questionAnswerRange = mergeReplayRanges(
+            toReplayRange(entity.segmentStartId, entity.segmentEndId, segmentById),
+            answer?.let { toReplayRange(it.segmentStartId, it.segmentEndId, segmentById) },
+        ),
+        answer = answer?.let { toAnswerDto(it, objectMapper, segmentById) },
     )
 
-    fun toAnswerDto(entity: InterviewRecordAnswerEntity, objectMapper: ObjectMapper): InterviewRecordQuestionAnswerDto =
+    fun toAnswerDto(
+        entity: InterviewRecordAnswerEntity,
+        objectMapper: ObjectMapper,
+        segmentById: Map<Long, InterviewTranscriptSegmentEntity>,
+    ): InterviewRecordQuestionAnswerDto =
         InterviewRecordQuestionAnswerDto(
             id = entity.id,
             text = entity.text,
@@ -119,7 +134,26 @@ object InterviewRecordMapper {
             strengthTags = decodeStringList(entity.strengthTagsJson, objectMapper),
             structuringSource = entity.structuringSource,
             orderIndex = entity.orderIndex,
+            replayRange = toReplayRange(entity.segmentStartId, entity.segmentEndId, segmentById),
         )
+
+    fun toPlaybackDto(
+        entity: InterviewRecordEntity,
+        segments: List<InterviewTranscriptSegmentEntity>,
+    ): InterviewRecordPlaybackDto {
+        val audioDurationMs = entity.sourceAudioDurationMs ?: segments.maxOfOrNull { it.endMs + 1L }
+        val sessionRange = when {
+            segments.isEmpty() -> null
+            else -> toReplayRange(segments.first().startMs, segments.last().endMs)
+        }
+        return InterviewRecordPlaybackDto(
+            playbackAvailable = entity.sourceAudioFileUrl != null && sessionRange != null,
+            sourceAudioFileUrl = entity.sourceAudioFileUrl,
+            sourceAudioFileName = entity.sourceAudioFileName,
+            audioDurationMs = audioDurationMs,
+            sessionRange = sessionRange,
+        )
+    }
 
     fun toFollowUpEdgeDto(entity: InterviewRecordFollowUpEdgeEntity): InterviewRecordFollowUpEdgeDto =
         InterviewRecordFollowUpEdgeDto(
@@ -168,4 +202,51 @@ object InterviewRecordMapper {
     private fun decodeStringList(raw: String, objectMapper: ObjectMapper): List<String> =
         runCatching { objectMapper.readValue(raw, object : TypeReference<List<String>>() {}) }
             .getOrDefault(emptyList())
+
+    fun toReplayRange(
+        startSegmentId: Long?,
+        endSegmentId: Long?,
+        segmentById: Map<Long, InterviewTranscriptSegmentEntity>,
+    ): InterviewRecordReplayRangeDto? {
+        val startMs = startSegmentId?.let(segmentById::get)?.startMs
+        val endMs = endSegmentId?.let(segmentById::get)?.endMs
+        return toReplayRange(startMs, endMs)
+    }
+
+    fun mergeReplayRanges(
+        first: InterviewRecordReplayRangeDto?,
+        second: InterviewRecordReplayRangeDto?,
+    ): InterviewRecordReplayRangeDto? = when {
+        first == null -> second
+        second == null -> first
+        else -> toReplayRange(
+            startMs = minOf(first.startMs, second.startMs),
+            endMs = max(first.endMs, second.endMs),
+        )
+    }
+
+    fun toReplayRange(startMs: Long?, endMs: Long?): InterviewRecordReplayRangeDto? {
+        if (startMs == null || endMs == null) {
+            return null
+        }
+        return InterviewRecordReplayRangeDto(
+            startMs = startMs,
+            endMs = endMs,
+            durationMs = max(0L, endMs - startMs + 1L),
+            startTimestampLabel = formatTimestampLabel(startMs),
+            endTimestampLabel = formatTimestampLabel(endMs),
+        )
+    }
+
+    private fun formatTimestampLabel(timestampMs: Long): String {
+        val totalSeconds = max(0L, timestampMs) / 1_000L
+        val hours = totalSeconds / 3_600L
+        val minutes = (totalSeconds % 3_600L) / 60L
+        val seconds = totalSeconds % 60L
+        return if (hours > 0) {
+            "%d:%02d:%02d".format(hours, minutes, seconds)
+        } else {
+            "%02d:%02d".format(minutes, seconds)
+        }
+    }
 }

@@ -237,6 +237,7 @@ class InterviewRecordService(
         }
         return InterviewRecordTranscriptDto(
             interviewRecordId = record.id,
+            playback = InterviewRecordMapper.toPlaybackDto(record, segments),
             rawTranscript = record.rawTranscript,
             cleanedTranscript = record.cleanedTranscript,
             confirmedTranscript = record.confirmedTranscript,
@@ -498,6 +499,8 @@ class InterviewRecordService(
     @Transactional
     fun listQuestions(userId: Long, recordId: Long): InterviewRecordQuestionsResponseDto {
         val record = requireOwnedRecord(userId, recordId)
+        val segments = interviewTranscriptSegmentRepository.findByInterviewRecordIdOrderBySequenceAsc(recordId)
+        val segmentById = segments.associateBy { it.id }
         val persistedQuestions = interviewRecordQuestionRepository.findByInterviewRecordIdOrderByOrderIndexAsc(recordId)
         val answersByQuestionId = interviewRecordAnswerRepository.findByInterviewRecordQuestionIdIn(
             persistedQuestions.map { it.id },
@@ -527,7 +530,15 @@ class InterviewRecordService(
         }
         return InterviewRecordQuestionsResponseDto(
             interviewRecordId = recordId,
-            items = questions.map { InterviewRecordMapper.toQuestionDto(it, answersByQuestionId[it.id], objectMapper) },
+            playback = InterviewRecordMapper.toPlaybackDto(record, segments),
+            items = questions.map {
+                InterviewRecordMapper.toQuestionDto(
+                    entity = it,
+                    answer = answersByQuestionId[it.id],
+                    objectMapper = objectMapper,
+                    segmentById = segmentById,
+                )
+            },
         )
     }
 
@@ -541,6 +552,7 @@ class InterviewRecordService(
         } else {
             interviewRecordAnswerRepository.findByInterviewRecordQuestionIdIn(questions.map { it.id })
         }
+        val segmentById = segments.associateBy { it.id }
         val segmentSequenceById = segments.associate { it.id to it.sequence }
         val answerByQuestionId = answers.associateBy { it.interviewRecordQuestionId }
         val questionById = questions.associateBy { it.id }
@@ -552,6 +564,10 @@ class InterviewRecordService(
             val strengthTags = answer?.let { decodeStringList(it.strengthTagsJson) }.orEmpty()
             val topicTags = decodeStringList(question.topicTagsJson)
             val originType = resolveReviewQuestionOriginType(question)
+            val questionRange = InterviewRecordMapper.toReplayRange(question.segmentStartId, question.segmentEndId, segmentById)
+            val answerRange = answer?.let {
+                InterviewRecordMapper.toReplayRange(it.segmentStartId, it.segmentEndId, segmentById)
+            }
             InterviewRecordReviewQuestionSummaryDto(
                 questionId = question.id,
                 linkedQuestionId = question.linkedQuestionId,
@@ -579,6 +595,9 @@ class InterviewRecordService(
                 strengthTags = strengthTags,
                 questionStructuringSource = question.structuringSource,
                 answerStructuringSource = answer?.structuringSource,
+                questionRange = questionRange,
+                answerRange = answerRange,
+                questionAnswerRange = InterviewRecordMapper.mergeReplayRanges(questionRange, answerRange),
             )
         }
         val replayReadiness = buildReplayReadiness(questionSummaries, interviewerProfile != null)
@@ -587,12 +606,14 @@ class InterviewRecordService(
             segments = segments,
             questions = questions,
             answers = answers,
+            segmentById = segmentById,
             segmentSequenceById = segmentSequenceById,
             questionById = questionById,
         )
         val followUpThreads = buildReviewFollowUpThreads(questionSummaries)
         return InterviewRecordReviewDto(
             interviewRecordId = record.id,
+            playback = InterviewRecordMapper.toPlaybackDto(record, segments),
             structuringStage = record.structuringStage,
             requiresConfirmation = record.structuringStage != STRUCTURING_STAGE_CONFIRMED,
             deterministicSummary = record.deterministicSummary,
@@ -619,7 +640,7 @@ class InterviewRecordService(
                 followUpThreads = followUpThreads,
             ),
             answerQualitySummary = buildAnswerQualitySummary(answers),
-            timelineNavigation = buildTimelineNavigation(questions, answerByQuestionId, segmentSequenceById),
+            timelineNavigation = buildTimelineNavigation(questions, answerByQuestionId, segmentSequenceById, segmentById),
             actionRecommendations = buildActionRecommendations(
                 recordStructuringStage = record.structuringStage,
                 editedSegmentCount = segments.count(::isEditedSegment),
@@ -1529,6 +1550,7 @@ class InterviewRecordService(
         segments: List<InterviewTranscriptSegmentEntity>,
         questions: List<InterviewRecordQuestionEntity>,
         answers: List<InterviewRecordAnswerEntity>,
+        segmentById: Map<Long, InterviewTranscriptSegmentEntity>,
         segmentSequenceById: Map<Long, Int>,
         questionById: Map<Long, InterviewRecordQuestionEntity>,
     ): InterviewRecordTranscriptIssueSummaryDto {
@@ -1549,10 +1571,18 @@ class InterviewRecordService(
         speakerOverrideSegments.forEach { issueTypesBySequence.computeIfAbsent(it.sequence) { linkedSetOf() }.add(SEGMENT_ISSUE_SPEAKER_OVERRIDE) }
         editedSegments.forEach { issueTypesBySequence.computeIfAbsent(it.sequence) { linkedSetOf() }.add(SEGMENT_ISSUE_CONFIRMED_OVERRIDE) }
         val questionsByRootQuestionId = questions.groupBy { resolveQuestionThreadRootId(it, questionById) }
+        val answerByQuestionId = answers.associateBy { it.interviewRecordQuestionId }
         val segmentActions = issueTypesBySequence.entries.map { (sequence, issueTypes) ->
             val linkedQuestionId = questionIdBySequence[sequence]
             val linkedQuestion = linkedQuestionId?.let(questionById::get)
+            val linkedAnswer = linkedQuestionId?.let(answerByQuestionId::get)
             val threadRootQuestionId = linkedQuestion?.let { resolveQuestionThreadRootId(it, questionById) }
+            val questionRange = linkedQuestion?.let {
+                InterviewRecordMapper.toReplayRange(it.segmentStartId, it.segmentEndId, segmentById)
+            }
+            val answerRange = linkedAnswer?.let {
+                InterviewRecordMapper.toReplayRange(it.segmentStartId, it.segmentEndId, segmentById)
+            }
             InterviewRecordTranscriptSegmentActionDto(
                 sequence = sequence,
                 issueTypes = issueTypes.toList(),
@@ -1568,6 +1598,10 @@ class InterviewRecordService(
                 reviewerLane = resolveSegmentReviewerLane(issueTypes, linkedQuestionId, threadRootQuestionId),
                 linkedQuestionId = linkedQuestionId,
                 threadRootQuestionId = threadRootQuestionId,
+                seekRange = InterviewRecordMapper.mergeReplayRanges(questionRange, answerRange)
+                    ?: segments.firstOrNull { it.sequence == sequence }?.let {
+                        InterviewRecordMapper.toReplayRange(it.startMs, it.endMs)
+                    },
                 deepLink = linkedQuestion?.toReviewQuestionDeepLink(recordId),
                 replayLaunchPreset = threadRootQuestionId?.let { rootQuestionId ->
                     buildThreadReplayLaunchPreset(
@@ -1720,11 +1754,16 @@ class InterviewRecordService(
         questions: List<InterviewRecordQuestionEntity>,
         answerByQuestionId: Map<Long, InterviewRecordAnswerEntity>,
         segmentSequenceById: Map<Long, Int>,
+        segmentById: Map<Long, InterviewTranscriptSegmentEntity>,
     ): InterviewRecordTimelineNavigationDto {
         val questionById = questions.associateBy { it.id }
         return InterviewRecordTimelineNavigationDto(
             items = questions.map { question ->
                 val answer = answerByQuestionId[question.id]
+                val questionRange = InterviewRecordMapper.toReplayRange(question.segmentStartId, question.segmentEndId, segmentById)
+                val answerRange = answer?.let {
+                    InterviewRecordMapper.toReplayRange(it.segmentStartId, it.segmentEndId, segmentById)
+                }
                 InterviewRecordTimelineNavigationItemDto(
                     questionId = question.id,
                     orderIndex = question.orderIndex,
@@ -1734,6 +1773,9 @@ class InterviewRecordService(
                     questionSegmentEndSequence = question.segmentEndId?.let(segmentSequenceById::get),
                     answerSegmentStartSequence = answer?.segmentStartId?.let(segmentSequenceById::get),
                     answerSegmentEndSequence = answer?.segmentEndId?.let(segmentSequenceById::get),
+                    questionRange = questionRange,
+                    answerRange = answerRange,
+                    questionAnswerRange = InterviewRecordMapper.mergeReplayRanges(questionRange, answerRange),
                 )
             },
         )
@@ -2026,6 +2068,9 @@ class InterviewRecordService(
                     "uncertain" in it.confidenceMarkers
                 },
                 recommendedAction = resolveThreadRecommendedAction(sortedThreadSummaries),
+                threadRange = sortedThreadSummaries
+                    .mapNotNull { it.questionAnswerRange ?: InterviewRecordMapper.mergeReplayRanges(it.questionRange, it.answerRange) }
+                    .reduceOrNull(InterviewRecordMapper::mergeReplayRanges),
                 replayLaunchPreset = buildThreadReplayLaunchPresetFromSummaries(
                     recordId = rootSummary.deepLink.sourceInterviewRecordId,
                     threadSummaries = sortedThreadSummaries,

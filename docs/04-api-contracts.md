@@ -2047,6 +2047,13 @@ Current transcript semantics:
   - `cleanedTranscript`
   - `confirmedTranscript`
 - transcript detail also exposes ordered `segments`
+- transcript, question, and review resources now expose additive replay metadata so one shared player can seek without recalculating segment windows on the client
+- transcript detail now also exposes root `playback`:
+  - `playbackAvailable`
+  - `sourceAudioFileUrl`
+  - `sourceAudioFileName`
+  - `audioDurationMs`
+  - `sessionRange`
 - record detail now also exposes structuring provenance:
   - `deterministicSummary`
   - `aiEnrichedSummary`
@@ -2059,6 +2066,7 @@ Current transcript semantics:
   - `confirmedText`
   - `confidenceScore`
   - `sequence`
+  - `timestampLabel`
 - `PATCH /api/interview-records/{recordId}/transcript/segments/{segmentId}` currently accepts additive edits for:
   - `speakerType`
   - `cleanedText`
@@ -2067,12 +2075,16 @@ Current transcript semantics:
 
 Current structured extraction semantics:
 - `GET /api/interview-records/{recordId}/questions` returns ordered imported question assets
+- question reads now also expose root `playback`
 - each question may include:
   - `questionType`
   - `topicTags`
   - `intentTags`
   - `structuringSource`
   - optional derived resume linkage fields
+  - `questionRange`
+  - `answerRange`
+  - `questionAnswerRange`
   - one structured answer snapshot
 - answer snapshots currently expose:
   - `summary`
@@ -2080,6 +2092,7 @@ Current structured extraction semantics:
   - `weaknessTags`
   - `strengthTags`
   - `structuringSource`
+  - `replayRange`
 - `GET /api/interview-records/{recordId}/analysis` currently returns:
   - `totalQuestions`
   - `totalAnswers`
@@ -2090,6 +2103,8 @@ Current structured extraction semantics:
   - `structuringStage`
   - `overallSummary`
 - `GET /api/interview-records/{recordId}/review` currently returns review provenance for the practical-interview workflow:
+  - `playback`
+    - shared player metadata for transcript, question, and thread review screens
   - `structuringStage`
   - `requiresConfirmation`
   - `deterministicSummary`
@@ -2237,6 +2252,7 @@ Current structured extraction semantics:
         - `reviewerLane`
         - `linkedQuestionId`
         - `threadRootQuestionId`
+        - `seekRange`
         - `deepLink`
         - `replayLaunchPreset`
   - `answerQualitySummary`
@@ -2261,6 +2277,9 @@ Current structured extraction semantics:
       - `questionSegmentEndSequence`
       - `answerSegmentStartSequence`
       - `answerSegmentEndSequence`
+      - `questionRange`
+      - `answerRange`
+      - `questionAnswerRange`
   - `actionRecommendations`
     - additive CTA guidance for review UIs
     - includes:
@@ -2338,6 +2357,9 @@ Current structured extraction semantics:
     - `strengthTags`
     - `questionStructuringSource`
     - `answerStructuringSource`
+    - `questionRange`
+    - `answerRange`
+    - `questionAnswerRange`
   - `followUpThreads[]`
     - additive thread/group summary for practical interview review UIs
     - each item includes:
@@ -2356,8 +2378,15 @@ Current structured extraction semantics:
       - `tradeoffAwareQuestionCount`
       - `uncertainQuestionCount`
       - `recommendedAction`
+      - `threadRange`
       - `replayLaunchPreset`
       - `structuringSources[]`
+- shared replay ranges currently include:
+  - `startMs`
+  - `endMs`
+  - `durationMs`
+  - `startTimestampLabel`
+  - `endTimestampLabel`
 - `PATCH /api/interview-records/{recordId}/review` applies bulk transcript review edits:
   - request body:
     - `edits[]`

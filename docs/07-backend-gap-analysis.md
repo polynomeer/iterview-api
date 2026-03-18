@@ -245,7 +245,8 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
 - keep evidence linked to parsed resume records such as project, experience, award, certification, or education when possible
 - no planner-driven `full_coverage` mode yet
 - no session-scoped evidence inventory or coverage state rows yet
-- no practical-interview upload domain for raw audio, staged transcripts, structured real-interview questions, or interviewer-style extraction yet
+- practical-interview upload, staged transcript, structured question/answer, interviewer-profile, and replay-ready review APIs are now implemented
+- additive replay timestamp metadata is now available on transcript, question, and review reads so frontend can build one shared interview player without reconstructing clip windows
 - no `replay_mock` session type yet for running dynamic simulations from imported real interviews
 - no archive source path yet for imported `real_interview` or `replay_simulation` question assets
 - no resume-to-question result map endpoint yet

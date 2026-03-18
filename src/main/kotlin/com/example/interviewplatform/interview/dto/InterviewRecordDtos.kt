@@ -57,6 +57,7 @@ data class InterviewRecordDetailDto(
 
 data class InterviewRecordReviewDto(
     val interviewRecordId: Long,
+    val playback: InterviewRecordPlaybackDto,
     val structuringStage: String,
     val requiresConfirmation: Boolean,
     val deterministicSummary: String?,
@@ -166,6 +167,7 @@ data class InterviewRecordTranscriptSegmentActionDto(
     val reviewerLane: String,
     val linkedQuestionId: Long?,
     val threadRootQuestionId: Long?,
+    val seekRange: InterviewRecordReplayRangeDto?,
     val deepLink: InterviewRecordReviewQuestionDeepLinkDto?,
     val replayLaunchPreset: InterviewRecordReplayLaunchPresetDto?,
 )
@@ -255,6 +257,9 @@ data class InterviewRecordTimelineNavigationItemDto(
     val questionSegmentEndSequence: Int?,
     val answerSegmentStartSequence: Int?,
     val answerSegmentEndSequence: Int?,
+    val questionRange: InterviewRecordReplayRangeDto?,
+    val answerRange: InterviewRecordReplayRangeDto?,
+    val questionAnswerRange: InterviewRecordReplayRangeDto?,
 )
 
 data class InterviewRecordReviewActionRecommendationsDto(
@@ -331,6 +336,9 @@ data class InterviewRecordReviewQuestionSummaryDto(
     val strengthTags: List<String>,
     val questionStructuringSource: String,
     val answerStructuringSource: String?,
+    val questionRange: InterviewRecordReplayRangeDto?,
+    val answerRange: InterviewRecordReplayRangeDto?,
+    val questionAnswerRange: InterviewRecordReplayRangeDto?,
 )
 
 data class InterviewRecordReviewQuestionDeepLinkDto(
@@ -358,14 +366,32 @@ data class InterviewRecordReviewFollowUpThreadDto(
     val tradeoffAwareQuestionCount: Int,
     val uncertainQuestionCount: Int,
     val recommendedAction: String,
+    val threadRange: InterviewRecordReplayRangeDto?,
     val replayLaunchPreset: InterviewRecordReplayLaunchPresetDto,
     val structuringSources: List<String>,
+)
+
+data class InterviewRecordPlaybackDto(
+    val playbackAvailable: Boolean,
+    val sourceAudioFileUrl: String?,
+    val sourceAudioFileName: String?,
+    val audioDurationMs: Long?,
+    val sessionRange: InterviewRecordReplayRangeDto?,
+)
+
+data class InterviewRecordReplayRangeDto(
+    val startMs: Long,
+    val endMs: Long,
+    val durationMs: Long,
+    val startTimestampLabel: String,
+    val endTimestampLabel: String,
 )
 
 data class InterviewTranscriptSegmentDto(
     val id: Long,
     val startMs: Long,
     val endMs: Long,
+    val timestampLabel: String,
     val speakerType: String,
     val rawText: String?,
     val cleanedText: String?,
@@ -376,6 +402,7 @@ data class InterviewTranscriptSegmentDto(
 
 data class InterviewRecordTranscriptDto(
     val interviewRecordId: Long,
+    val playback: InterviewRecordPlaybackDto,
     val rawTranscript: String?,
     val cleanedTranscript: String?,
     val confirmedTranscript: String?,
@@ -420,6 +447,7 @@ data class InterviewRecordQuestionAnswerDto(
     val strengthTags: List<String>,
     val structuringSource: String,
     val orderIndex: Int,
+    val replayRange: InterviewRecordReplayRangeDto?,
 )
 
 data class InterviewRecordQuestionDto(
@@ -437,11 +465,15 @@ data class InterviewRecordQuestionDto(
     val parentQuestionId: Long?,
     val structuringSource: String,
     val orderIndex: Int,
+    val questionRange: InterviewRecordReplayRangeDto?,
+    val answerRange: InterviewRecordReplayRangeDto?,
+    val questionAnswerRange: InterviewRecordReplayRangeDto?,
     val answer: InterviewRecordQuestionAnswerDto?,
 )
 
 data class InterviewRecordQuestionsResponseDto(
     val interviewRecordId: Long,
+    val playback: InterviewRecordPlaybackDto,
     val items: List<InterviewRecordQuestionDto>,
 )
 
