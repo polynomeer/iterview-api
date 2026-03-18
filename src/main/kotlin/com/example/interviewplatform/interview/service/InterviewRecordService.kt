@@ -27,6 +27,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordProvenanceComp
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewQuestionSummaryDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptDto
+import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptionStatusDto
 import com.example.interviewplatform.interview.dto.BulkUpdateInterviewTranscriptSegmentsRequest
 import com.example.interviewplatform.interview.dto.UpdateInterviewTranscriptSegmentRequest
 import com.example.interviewplatform.interview.dto.InterviewerProfileDto
@@ -248,6 +249,42 @@ class InterviewRecordService(
             transcriptLastAttemptAt = record.transcriptLastAttemptAt,
             transcriptNextRetryAt = record.transcriptNextRetryAt,
             segments = segments.map(InterviewRecordMapper::toTranscriptSegmentDto),
+            updatedAt = record.updatedAt,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getTranscriptionStatus(userId: Long, recordId: Long): InterviewRecordTranscriptionStatusDto {
+        val record = requireOwnedRecord(userId, recordId)
+        val inProgress = record.transcriptStatus == TRANSCRIPT_STATUS_PENDING || record.transcriptStatus == TRANSCRIPT_STATUS_PROCESSING
+        val phase = when (record.transcriptStatus) {
+            TRANSCRIPT_STATUS_PENDING -> "queued"
+            TRANSCRIPT_STATUS_PROCESSING -> "extracting"
+            TRANSCRIPT_STATUS_CONFIRMED -> "completed"
+            TRANSCRIPT_STATUS_FAILED -> "failed"
+            else -> "unknown"
+        }
+        val statusMessage = when (phase) {
+            "queued" -> "Transcription is queued and waiting to start."
+            "extracting" -> "Transcription is currently processing."
+            "completed" -> "Transcription completed successfully."
+            "failed" -> record.transcriptErrorMessage ?: "Transcription failed."
+            else -> "Transcription status is unavailable."
+        }
+        return InterviewRecordTranscriptionStatusDto(
+            interviewRecordId = record.id,
+            transcriptStatus = record.transcriptStatus,
+            analysisStatus = record.analysisStatus,
+            inProgress = inProgress,
+            phase = phase,
+            statusMessage = statusMessage,
+            retryScheduled = record.transcriptNextRetryAt != null,
+            transcriptErrorCode = record.transcriptErrorCode,
+            transcriptErrorMessage = record.transcriptErrorMessage,
+            transcriptRetryCount = record.transcriptRetryCount,
+            transcriptLastAttemptAt = record.transcriptLastAttemptAt,
+            transcriptProcessingStartedAt = record.transcriptProcessingStartedAt,
+            transcriptNextRetryAt = record.transcriptNextRetryAt,
             updatedAt = record.updatedAt,
         )
     }

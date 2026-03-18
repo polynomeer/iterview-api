@@ -543,6 +543,33 @@ class InterviewRecordApiIntegrationTest {
     }
 
     @Test
+    fun `transcription status endpoint exposes failed state when extractor is not configured`() {
+        val audio = MockMultipartFile("file", "real-interview.wav", "audio/wav", "fake-audio".toByteArray())
+        val created = mockMvc.perform(
+            multipart("/api/interview-records")
+                .file(audio)
+                .header("Authorization", authHeader),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.transcriptStatus").value("failed"))
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val recordId = created["id"].asLong()
+
+        mockMvc.perform(get("/api/interview-records/$recordId/transcription-status").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.interviewRecordId").value(recordId))
+            .andExpect(jsonPath("$.transcriptStatus").value("failed"))
+            .andExpect(jsonPath("$.inProgress").value(false))
+            .andExpect(jsonPath("$.phase").value("failed"))
+            .andExpect(jsonPath("$.statusMessage").value("Automatic transcription is not configured for this environment."))
+            .andExpect(jsonPath("$.retryScheduled").value(false))
+    }
+
+    @Test
     fun `interviewer profile endpoint backfills profile when analysis status is stale`() {
         val audio = MockMultipartFile("file", "real-interview.wav", "audio/wav", "fake-audio".toByteArray())
         val created = mockMvc.perform(

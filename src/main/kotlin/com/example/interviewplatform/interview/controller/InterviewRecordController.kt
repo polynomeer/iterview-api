@@ -7,6 +7,7 @@ import com.example.interviewplatform.interview.dto.InterviewRecordListItemDto
 import com.example.interviewplatform.interview.dto.InterviewRecordQuestionsResponseDto
 import com.example.interviewplatform.interview.dto.InterviewRecordReviewDto
 import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptDto
+import com.example.interviewplatform.interview.dto.InterviewRecordTranscriptionStatusDto
 import com.example.interviewplatform.interview.dto.BulkUpdateInterviewTranscriptSegmentsRequest
 import com.example.interviewplatform.interview.dto.UpdateInterviewTranscriptSegmentRequest
 import com.example.interviewplatform.interview.dto.InterviewerProfileDto
@@ -75,6 +76,11 @@ class InterviewRecordController(
     @Operation(summary = "Get interview transcript detail")
     fun getTranscript(@PathVariable recordId: Long): InterviewRecordTranscriptDto =
         interviewRecordService.getTranscript(currentUserProvider.currentUserId(), recordId)
+
+    @GetMapping("/{recordId}/transcription-status")
+    @Operation(summary = "Get practical interview transcription processing status")
+    fun getTranscriptionStatus(@PathVariable recordId: Long): InterviewRecordTranscriptionStatusDto =
+        interviewRecordService.getTranscriptionStatus(currentUserProvider.currentUserId(), recordId)
 
     @PatchMapping("/{recordId}/transcript/segments/{segmentId}")
     @Operation(summary = "Update one transcript segment")

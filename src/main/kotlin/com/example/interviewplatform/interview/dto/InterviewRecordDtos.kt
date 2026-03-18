@@ -55,6 +55,23 @@ data class InterviewRecordDetailDto(
     val updatedAt: Instant,
 )
 
+data class InterviewRecordTranscriptionStatusDto(
+    val interviewRecordId: Long,
+    val transcriptStatus: String,
+    val analysisStatus: String,
+    val inProgress: Boolean,
+    val phase: String,
+    val statusMessage: String,
+    val retryScheduled: Boolean,
+    val transcriptErrorCode: String?,
+    val transcriptErrorMessage: String?,
+    val transcriptRetryCount: Int,
+    val transcriptLastAttemptAt: Instant?,
+    val transcriptProcessingStartedAt: Instant?,
+    val transcriptNextRetryAt: Instant?,
+    val updatedAt: Instant,
+)
+
 data class InterviewRecordReviewDto(
     val interviewRecordId: Long,
     val playback: InterviewRecordPlaybackDto,
