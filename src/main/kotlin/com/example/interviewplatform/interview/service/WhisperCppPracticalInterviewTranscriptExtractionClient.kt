@@ -102,18 +102,21 @@ class WhisperCppPracticalInterviewTranscriptExtractionClient(
             command += listOf("-l", requestedLanguage)
         }
         val process = ProcessBuilder(command)
-            .redirectErrorStream(true)
             .start()
-        val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
+        val stdout = process.inputStream.bufferedReader().use { it.readText() }.trim()
+        val stderr = process.errorStream.bufferedReader().use { it.readText() }.trim()
         val finished = process.waitFor(whisperTimeoutSeconds, TimeUnit.SECONDS)
         if (!finished) {
             process.destroyForcibly()
             throw IllegalStateException("Whisper.cpp transcription timed out after ${whisperTimeoutSeconds}s.")
         }
         if (process.exitValue() != 0) {
-            throw IllegalStateException("Whisper.cpp transcription failed with exit code ${process.exitValue()}: $output")
+            val errorDetail = if (stderr.isNotBlank()) stderr else stdout
+            throw IllegalStateException(
+                "Whisper.cpp transcription failed with exit code ${process.exitValue()}: ${truncate(errorDetail)}",
+            )
         }
-        return output
+        return if (containsTimestampLine(stdout)) stdout else stdout + "\n" + stderr
     }
 
     private fun resolveWhisperLanguageCode(inputLanguageHint: String?): String? {
@@ -132,23 +135,51 @@ class WhisperCppPracticalInterviewTranscriptExtractionClient(
         val timestampPattern = Regex(
             """^\s*\[(\d{2}:\d{2}(?::\d{2})?\.\d{3})\s*-->\s*(\d{2}:\d{2}(?::\d{2})?\.\d{3})]\s*(.+?)\s*$""",
         )
-        val lines = output.lineSequence()
+        val rawLines = output.lineSequence()
             .map { it.trim() }
             .filter { it.isNotBlank() }
-            .mapNotNull { line ->
-                val match = timestampPattern.matchEntire(line)
-                if (match != null) {
-                    val start = match.groupValues[1]
-                    val text = match.groupValues[3]
-                    "[${start}] ${heuristicSpeakerLabel(text)}"
-                } else if (!line.startsWith("whisper_") && !line.startsWith("system_info:")) {
-                    heuristicSpeakerLabel(line)
-                } else {
-                    null
-                }
-            }
             .toList()
-        return lines.joinToString("\n").trim()
+
+        val timestampLines = rawLines.mapNotNull { line ->
+            val match = timestampPattern.matchEntire(line) ?: return@mapNotNull null
+            val start = match.groupValues[1]
+            val text = match.groupValues[3]
+            "[${start}] ${heuristicSpeakerLabel(text)}"
+        }
+        if (timestampLines.isNotEmpty()) {
+            return timestampLines.joinToString("\n").trim()
+        }
+
+        val plainLines = rawLines
+            .filterNot(::isWhisperNoiseLine)
+            .map(::heuristicSpeakerLabel)
+        return plainLines.joinToString("\n").trim()
+    }
+
+    private fun containsTimestampLine(output: String): Boolean {
+        val timestampPattern = Regex("""^\s*\[\d{2}:\d{2}(?::\d{2})?\.\d{3}\s*-->""")
+        return output.lineSequence().any { timestampPattern.containsMatchIn(it) }
+    }
+
+    private fun isWhisperNoiseLine(line: String): Boolean {
+        val lowered = line.lowercase()
+        return lowered.startsWith("load_backend:") ||
+            lowered.startsWith("ggml_") ||
+            lowered.startsWith("system_info:") ||
+            lowered.startsWith("whisper_") ||
+            lowered.startsWith("main:") ||
+            lowered.startsWith("metal_") ||
+            lowered.startsWith("cpu_") ||
+            lowered == "..." ||
+            lowered.startsWith("timestamps =")
+    }
+
+    private fun truncate(text: String, maxLength: Int = 700): String {
+        val normalized = text.replace('\n', ' ').trim()
+        if (normalized.length <= maxLength) {
+            return normalized
+        }
+        return normalized.take(maxLength) + "...(truncated)"
     }
 
     private fun heuristicSpeakerLabel(text: String): String {
