@@ -4,19 +4,24 @@ import com.example.interviewplatform.common.service.ClockService
 import com.example.interviewplatform.question.repository.QuestionRepository
 import com.example.interviewplatform.resume.dto.CreateResumeEditorCommentReplyRequest
 import com.example.interviewplatform.resume.dto.CreateResumeEditorCommentRequest
+import com.example.interviewplatform.resume.dto.CreateResumeEditorPresenceRequest
 import com.example.interviewplatform.resume.dto.CreateResumeEditorQuestionCardRequest
 import com.example.interviewplatform.resume.dto.CreateResumeEditorQuestionSuggestionRequest
 import com.example.interviewplatform.resume.dto.CreateResumeEditorRewriteSuggestionRequest
 import com.example.interviewplatform.resume.dto.ImportResumeEditorMarkdownRequest
 import com.example.interviewplatform.resume.dto.ResumeEditorBlockDto
+import com.example.interviewplatform.resume.dto.ResumeEditorChangeSummaryDto
 import com.example.interviewplatform.resume.dto.ResumeEditorCommentReplyDto
 import com.example.interviewplatform.resume.dto.ResumeEditorCommentSummaryDto
 import com.example.interviewplatform.resume.dto.ResumeEditorCommentThreadDto
 import com.example.interviewplatform.resume.dto.ResumeEditorDocumentDto
+import com.example.interviewplatform.resume.dto.ResumeEditorPresenceDto
 import com.example.interviewplatform.resume.dto.ResumeEditorPrintPreviewDto
 import com.example.interviewplatform.resume.dto.ResumeEditorQuestionCardDto
 import com.example.interviewplatform.resume.dto.ResumeEditorQuestionCardSummaryDto
 import com.example.interviewplatform.resume.dto.ResumeEditorQuestionSuggestionResponseDto
+import com.example.interviewplatform.resume.dto.ResumeEditorRevisionDto
+import com.example.interviewplatform.resume.dto.ResumeEditorRevisionListItemDto
 import com.example.interviewplatform.resume.dto.ResumeEditorRewriteSuggestionDto
 import com.example.interviewplatform.resume.dto.ResumeEditorRewriteSuggestionResponseDto
 import com.example.interviewplatform.resume.dto.ResumeEditorSuggestedQuestionDto
@@ -27,8 +32,10 @@ import com.example.interviewplatform.resume.dto.UpdateResumeEditorQuestionCardRe
 import com.example.interviewplatform.resume.entity.ResumeContactPointEntity
 import com.example.interviewplatform.resume.entity.ResumeEditorCommentReplyEntity
 import com.example.interviewplatform.resume.entity.ResumeEditorCommentThreadEntity
+import com.example.interviewplatform.resume.entity.ResumeEditorPresenceSessionEntity
 import com.example.interviewplatform.resume.entity.ResumeEditorQuestionCardEntity
 import com.example.interviewplatform.resume.entity.ResumeEditorWorkspaceEntity
+import com.example.interviewplatform.resume.entity.ResumeEditorWorkspaceRevisionEntity
 import com.example.interviewplatform.resume.entity.ResumeProjectSnapshotEntity
 import com.example.interviewplatform.resume.entity.ResumeProjectTagEntity
 import com.example.interviewplatform.resume.entity.ResumeVersionEntity
@@ -40,8 +47,10 @@ import com.example.interviewplatform.resume.repository.ResumeContactPointReposit
 import com.example.interviewplatform.resume.repository.ResumeEducationItemRepository
 import com.example.interviewplatform.resume.repository.ResumeEditorCommentReplyRepository
 import com.example.interviewplatform.resume.repository.ResumeEditorCommentThreadRepository
+import com.example.interviewplatform.resume.repository.ResumeEditorPresenceSessionRepository
 import com.example.interviewplatform.resume.repository.ResumeEditorQuestionCardRepository
 import com.example.interviewplatform.resume.repository.ResumeEditorWorkspaceRepository
+import com.example.interviewplatform.resume.repository.ResumeEditorWorkspaceRevisionRepository
 import com.example.interviewplatform.resume.repository.ResumeExperienceSnapshotRepository
 import com.example.interviewplatform.resume.repository.ResumeProfileSnapshotRepository
 import com.example.interviewplatform.resume.repository.ResumeProjectSnapshotRepository
@@ -49,12 +58,14 @@ import com.example.interviewplatform.resume.repository.ResumeProjectTagRepositor
 import com.example.interviewplatform.resume.repository.ResumeRiskItemRepository
 import com.example.interviewplatform.resume.repository.ResumeSkillSnapshotRepository
 import com.example.interviewplatform.resume.repository.ResumeVersionRepository
+import com.example.interviewplatform.user.repository.UserRepository
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
+import java.time.temporal.ChronoUnit
 
 @Service
 class ResumeEditorService(
@@ -74,11 +85,14 @@ class ResumeEditorService(
     private val resumeEditorWorkspaceRepository: ResumeEditorWorkspaceRepository,
     private val resumeEditorCommentThreadRepository: ResumeEditorCommentThreadRepository,
     private val resumeEditorCommentReplyRepository: ResumeEditorCommentReplyRepository,
+    private val resumeEditorPresenceSessionRepository: ResumeEditorPresenceSessionRepository,
     private val resumeEditorQuestionCardRepository: ResumeEditorQuestionCardRepository,
+    private val resumeEditorWorkspaceRevisionRepository: ResumeEditorWorkspaceRevisionRepository,
     private val questionRepository: QuestionRepository,
     private val resumeQuestionHeatmapService: ResumeQuestionHeatmapService,
     private val resumeEditorMarkdownService: ResumeEditorMarkdownService,
     private val resumeEditorPrintPreviewService: ResumeEditorPrintPreviewService,
+    private val userRepository: UserRepository,
     private val objectMapper: ObjectMapper,
     private val clockService: ClockService,
 ) {
@@ -90,9 +104,50 @@ class ResumeEditorService(
     }
 
     @Transactional
+    fun getRevisions(userId: Long, versionId: Long): List<ResumeEditorRevisionListItemDto> {
+        val version = requireOwnedVersion(userId, versionId)
+        val workspace = getOrCreateWorkspace(userId, version)
+        return resumeEditorWorkspaceRevisionRepository.findByResumeEditorWorkspaceIdOrderByRevisionNoDesc(workspace.id)
+            .map { it.toListItemDto() }
+    }
+
+    @Transactional
+    fun getRevision(userId: Long, versionId: Long, revisionId: Long): ResumeEditorRevisionDto {
+        requireOwnedVersion(userId, versionId)
+        val revision = resumeEditorWorkspaceRevisionRepository.findByIdAndResumeVersionId(revisionId, versionId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume editor revision not found: $revisionId")
+        return revision.toDetailDto()
+    }
+
+    @Transactional
+    fun upsertPresence(
+        userId: Long,
+        versionId: Long,
+        request: CreateResumeEditorPresenceRequest,
+    ): List<ResumeEditorPresenceDto> {
+        val workspace = getOrCreateWorkspace(userId, requireOwnedVersion(userId, versionId))
+        val now = clockService.now()
+        val existing = resumeEditorPresenceSessionRepository.findByResumeEditorWorkspaceIdAndSessionKey(workspace.id, request.sessionKey.trim())
+        resumeEditorPresenceSessionRepository.save(
+            ResumeEditorPresenceSessionEntity(
+                id = existing?.id ?: 0,
+                resumeEditorWorkspaceId = workspace.id,
+                userId = userId,
+                sessionKey = request.sessionKey.trim(),
+                viewMode = request.viewMode?.trim()?.takeIf { it.isNotEmpty() },
+                selectedBlockId = request.selectedBlockId?.trim()?.takeIf { it.isNotEmpty() },
+                createdAt = existing?.createdAt ?: now,
+                updatedAt = now,
+            ),
+        )
+        return activePresence(workspace.id, userId)
+    }
+
+    @Transactional
     fun updateDocument(userId: Long, versionId: Long, request: UpdateResumeEditorDocumentRequest): ResumeEditorWorkspaceDto {
         val version = requireOwnedVersion(userId, versionId)
         val existing = getOrCreateWorkspace(userId, version)
+        enforceRevision(request.baseRevisionNo, existing.revisionNo)
         requireValidBlocks(request.blocks)
         val document = ResumeEditorDocumentDto(
             astVersion = 1,
@@ -100,7 +155,7 @@ class ResumeEditorService(
             blocks = request.blocks,
             layoutMetadata = request.layoutMetadata,
         )
-        saveWorkspace(existing, document)
+        saveWorkspace(existing, document, userId, request.changeSource?.trim()?.takeIf { it.isNotEmpty() } ?: CHANGE_SOURCE_MANUAL_EDIT)
         return getWorkspace(userId, versionId)
     }
 
@@ -108,6 +163,7 @@ class ResumeEditorService(
     fun importMarkdown(userId: Long, versionId: Long, request: ImportResumeEditorMarkdownRequest): ResumeEditorWorkspaceDto {
         val version = requireOwnedVersion(userId, versionId)
         val existing = getOrCreateWorkspace(userId, version)
+        enforceRevision(request.baseRevisionNo, existing.revisionNo)
         val imported = resumeEditorMarkdownService.parse(request.markdownSource)
         val document = if (request.replaceDocument) {
             imported
@@ -126,7 +182,7 @@ class ResumeEditorService(
                 layoutMetadata = current.layoutMetadata + imported.layoutMetadata,
             )
         }
-        saveWorkspace(existing, document)
+        saveWorkspace(existing, document, userId, request.changeSource?.trim()?.takeIf { it.isNotEmpty() } ?: CHANGE_SOURCE_MARKDOWN_IMPORT)
         return getWorkspace(userId, versionId)
     }
 
@@ -361,11 +417,12 @@ class ResumeEditorService(
         resumeEditorWorkspaceRepository.findByResumeVersionId(version.id)?.let { return it }
         val now = clockService.now()
         val initialDocument = buildInitialDocument(version)
-        return resumeEditorWorkspaceRepository.save(
+        val saved = resumeEditorWorkspaceRepository.save(
             ResumeEditorWorkspaceEntity(
                 userId = userId,
                 resumeVersionId = version.id,
                 workspaceStatus = WORKSPACE_STATUS_DRAFT,
+                revisionNo = 1,
                 markdownSource = initialDocument.markdownSource,
                 documentJson = objectMapper.writeValueAsString(initialDocument.copy(markdownSource = null)),
                 layoutMetadataJson = encodeMap(initialDocument.layoutMetadata),
@@ -373,22 +430,33 @@ class ResumeEditorService(
                 updatedAt = now,
             ),
         )
+        createRevision(saved, userId, CHANGE_SOURCE_BOOTSTRAP, emptyDocument(), initialDocument, now)
+        return saved
     }
 
-    private fun saveWorkspace(existing: ResumeEditorWorkspaceEntity, document: ResumeEditorDocumentDto) {
-        resumeEditorWorkspaceRepository.save(
+    private fun saveWorkspace(
+        existing: ResumeEditorWorkspaceEntity,
+        document: ResumeEditorDocumentDto,
+        userId: Long,
+        changeSource: String,
+    ) {
+        val previous = decodeDocument(existing)
+        val now = clockService.now()
+        val saved = resumeEditorWorkspaceRepository.save(
             ResumeEditorWorkspaceEntity(
                 id = existing.id,
                 userId = existing.userId,
                 resumeVersionId = existing.resumeVersionId,
                 workspaceStatus = WORKSPACE_STATUS_DRAFT,
+                revisionNo = existing.revisionNo + 1,
                 markdownSource = document.markdownSource,
                 documentJson = objectMapper.writeValueAsString(document.copy(markdownSource = null)),
                 layoutMetadataJson = encodeMap(document.layoutMetadata),
                 createdAt = existing.createdAt,
-                updatedAt = clockService.now(),
+                updatedAt = now,
             ),
         )
+        createRevision(saved, userId, changeSource, previous, document, now)
     }
 
     private fun toWorkspaceDto(userId: Long, version: ResumeVersionEntity, workspace: ResumeEditorWorkspaceEntity): ResumeEditorWorkspaceDto {
@@ -412,6 +480,7 @@ class ResumeEditorService(
             sourceVersionNo = version.versionNo,
             sourceFileName = version.fileName,
             workspaceStatus = workspace.workspaceStatus,
+            revisionNo = workspace.revisionNo,
             supportedViewModes = supportedViewModes,
             document = document,
             comments = comments,
@@ -429,6 +498,10 @@ class ResumeEditorService(
             ),
             heatmapAvailable = heatmap.summary.totalLinkedQuestions > 0,
             heatmapSummary = if (heatmap.summary.totalLinkedQuestions > 0) heatmap.summary else null,
+            activePresence = activePresence(workspace.id, userId),
+            latestRevision = resumeEditorWorkspaceRevisionRepository.findByResumeEditorWorkspaceIdOrderByRevisionNoDesc(workspace.id)
+                .firstOrNull()
+                ?.toListItemDto(),
             createdAt = workspace.createdAt,
             updatedAt = workspace.updatedAt,
         )
@@ -727,6 +800,7 @@ class ResumeEditorService(
                 userId = workspace.userId,
                 resumeVersionId = workspace.resumeVersionId,
                 workspaceStatus = workspace.workspaceStatus,
+                revisionNo = workspace.revisionNo,
                 markdownSource = workspace.markdownSource,
                 documentJson = workspace.documentJson,
                 layoutMetadataJson = workspace.layoutMetadataJson,
@@ -758,6 +832,36 @@ class ResumeEditorService(
         listOfNotNull(block.title?.takeIf { it.isNotBlank() }, block.text?.takeIf { it.isNotBlank() })
             .plus(block.lines)
             .joinToString("\n")
+
+    private fun activePresence(workspaceId: Long, currentUserId: Long): List<ResumeEditorPresenceDto> {
+        val cutoff = clockService.now().minus(PRESENCE_TTL_MINUTES, ChronoUnit.MINUTES)
+        val sessions = resumeEditorPresenceSessionRepository.findByResumeEditorWorkspaceIdOrderByUpdatedAtDesc(workspaceId)
+            .filter { !it.updatedAt.isBefore(cutoff) }
+        if (sessions.isEmpty()) {
+            return emptyList()
+        }
+        val usersById = userRepository.findAllById(sessions.map { it.userId }.toSet()).associateBy { it.id }
+        return sessions.map { session ->
+            ResumeEditorPresenceDto(
+                sessionKey = session.sessionKey,
+                userId = session.userId,
+                userLabel = usersById[session.userId]?.email ?: "User ${session.userId}",
+                viewMode = session.viewMode,
+                selectedBlockId = session.selectedBlockId,
+                isCurrentUser = session.userId == currentUserId,
+                updatedAt = session.updatedAt,
+            )
+        }
+    }
+
+    private fun enforceRevision(baseRevisionNo: Int?, currentRevisionNo: Int) {
+        if (baseRevisionNo != null && baseRevisionNo != currentRevisionNo) {
+            throw ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "Resume editor workspace is out of date. Expected revision $baseRevisionNo but current revision is $currentRevisionNo",
+            )
+        }
+    }
 
     private fun resolveSelectedText(block: ResumeEditorBlockDto, selectedText: String?): String =
         selectedText?.trim()?.takeIf { it.isNotEmpty() }
@@ -863,6 +967,61 @@ class ResumeEditorService(
         }
     }
 
+    private fun emptyDocument(): ResumeEditorDocumentDto =
+        ResumeEditorDocumentDto(
+            astVersion = 1,
+            markdownSource = null,
+            blocks = emptyList(),
+            layoutMetadata = emptyMap(),
+        )
+
+    private fun createRevision(
+        workspace: ResumeEditorWorkspaceEntity,
+        userId: Long,
+        changeSource: String,
+        previous: ResumeEditorDocumentDto,
+        current: ResumeEditorDocumentDto,
+        createdAt: java.time.Instant,
+    ) {
+        val summary = buildChangeSummary(previous, current)
+        resumeEditorWorkspaceRevisionRepository.save(
+            ResumeEditorWorkspaceRevisionEntity(
+                resumeEditorWorkspaceId = workspace.id,
+                userId = userId,
+                resumeVersionId = workspace.resumeVersionId,
+                revisionNo = workspace.revisionNo,
+                changeSource = changeSource,
+                changeSummaryJson = objectMapper.writeValueAsString(summary),
+                markdownSource = current.markdownSource,
+                documentJson = objectMapper.writeValueAsString(current.copy(markdownSource = null)),
+                layoutMetadataJson = encodeMap(current.layoutMetadata),
+                createdAt = createdAt,
+            ),
+        )
+    }
+
+    private fun buildChangeSummary(
+        previous: ResumeEditorDocumentDto,
+        current: ResumeEditorDocumentDto,
+    ): ResumeEditorChangeSummaryDto {
+        val previousById = previous.blocks.associateBy { it.blockId }
+        val currentById = current.blocks.associateBy { it.blockId }
+        val added = currentById.keys - previousById.keys
+        val removed = previousById.keys - currentById.keys
+        val updated = currentById.keys.intersect(previousById.keys).filter { key ->
+            currentById[key] != previousById[key]
+        }
+        val previousMarkCount = previous.blocks.sumOf { it.inlineMarks.size }
+        val currentMarkCount = current.blocks.sumOf { it.inlineMarks.size }
+        return ResumeEditorChangeSummaryDto(
+            addedBlockCount = added.size,
+            removedBlockCount = removed.size,
+            updatedBlockCount = updated.size,
+            inlineMarkDelta = currentMarkCount - previousMarkCount,
+            changedBlockIds = (added + removed + updated).sorted(),
+        )
+    }
+
     private fun encodeMap(value: Map<String, String>): String? =
         value.takeIf { it.isNotEmpty() }?.let(objectMapper::writeValueAsString)
 
@@ -878,6 +1037,9 @@ class ResumeEditorService(
         raw?.takeIf { it.isNotBlank() }?.let {
             objectMapper.readValue(it, object : TypeReference<List<String>>() {})
         } ?: emptyList()
+
+    private fun decodeChangeSummary(raw: String): ResumeEditorChangeSummaryDto =
+        objectMapper.readValue(raw, ResumeEditorChangeSummaryDto::class.java)
 
     private fun ResumeEditorCommentThreadEntity.toDto(replies: List<ResumeEditorCommentReplyDto> = emptyList()): ResumeEditorCommentThreadDto =
         ResumeEditorCommentThreadDto(
@@ -924,6 +1086,32 @@ class ResumeEditorService(
             updatedAt = updatedAt,
         )
 
+    private fun ResumeEditorWorkspaceRevisionEntity.toListItemDto(): ResumeEditorRevisionListItemDto =
+        ResumeEditorRevisionListItemDto(
+            id = id,
+            revisionNo = revisionNo,
+            changeSource = changeSource,
+            changeSummary = decodeChangeSummary(changeSummaryJson),
+            createdAt = createdAt,
+        )
+
+    private fun ResumeEditorWorkspaceRevisionEntity.toDetailDto(): ResumeEditorRevisionDto {
+        val stored = objectMapper.readValue(documentJson, ResumeEditorDocumentDto::class.java)
+        return ResumeEditorRevisionDto(
+            id = id,
+            workspaceId = resumeEditorWorkspaceId,
+            resumeVersionId = resumeVersionId,
+            revisionNo = revisionNo,
+            changeSource = changeSource,
+            changeSummary = decodeChangeSummary(changeSummaryJson),
+            document = stored.copy(
+                markdownSource = markdownSource ?: stored.markdownSource ?: resumeEditorMarkdownService.render(stored.blocks),
+                layoutMetadata = decodeMap(layoutMetadataJson).ifEmpty { stored.layoutMetadata },
+            ),
+            createdAt = createdAt,
+        )
+    }
+
     private fun validateCommentStatus(status: String) {
         if (status !in setOf(COMMENT_STATUS_OPEN, COMMENT_STATUS_RESOLVED)) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported comment status: $status")
@@ -940,10 +1128,14 @@ class ResumeEditorService(
         private val numericRegex = Regex("""\b\d+([.,]\d+)?(%|배|ms|초|분|시간|건|명)?\b""")
         private val supportedViewModes = listOf("edit", "review", "heatmap", "print_preview")
         private const val WORKSPACE_STATUS_DRAFT = "draft"
+        private const val CHANGE_SOURCE_BOOTSTRAP = "bootstrap"
+        private const val CHANGE_SOURCE_MANUAL_EDIT = "manual_edit"
+        private const val CHANGE_SOURCE_MARKDOWN_IMPORT = "markdown_import"
         private const val COMMENT_STATUS_OPEN = "open"
         private const val COMMENT_STATUS_RESOLVED = "resolved"
         private const val QUESTION_CARD_STATUS_ACTIVE = "active"
         private const val QUESTION_CARD_STATUS_ARCHIVED = "archived"
         private const val QUESTION_CARD_SOURCE_MANUAL = "manual"
+        private const val PRESENCE_TTL_MINUTES = 10L
     }
 }

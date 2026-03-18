@@ -80,11 +80,14 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `POST /api/resume-versions/{versionId}/editor/comments`
   - `PATCH /api/resume-versions/{versionId}/editor/comments/{commentId}`
   - `POST /api/resume-versions/{versionId}/editor/comments/{commentId}/replies`
+  - `POST /api/resume-versions/{versionId}/editor/presence`
   - `POST /api/resume-versions/{versionId}/editor/question-cards`
   - `PATCH /api/resume-versions/{versionId}/editor/question-cards/{cardId}`
   - `POST /api/resume-versions/{versionId}/editor/auto-question-suggestions`
   - `POST /api/resume-versions/{versionId}/editor/rewrite-suggestions`
   - `GET /api/resume-versions/{versionId}/editor/print-preview`
+  - `GET /api/resume-versions/{versionId}/editor/revisions`
+  - `GET /api/resume-versions/{versionId}/editor/revisions/{revisionId}`
 - resume analysis runs are additive read/write models layered on top of immutable resume versions
 - current backend scope for resume tailoring is:
   - save and parse one job posting
@@ -125,6 +128,16 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `pageEstimate`
   - `plainText`
   - `sections`
+  - `pages`
+- `ResumeEditorWorkspaceDto` now also exposes:
+  - `revisionNo`
+  - `activePresence`
+  - `latestRevision`
+- editor document writes can send:
+  - `baseRevisionNo`
+  - `changeSource`
+- `POST /editor/presence` is the lightweight heartbeat API for collaborative cursors/presence pills
+- `GET /editor/revisions` and `GET /editor/revisions/{revisionId}` are the additive history APIs for revision panels and rollback previews
 - markdown import accepts one markdown payload and either replaces or appends to the current workspace document
 - comment replies are additive thread messages and do not move the original selection anchor
 - each heatmap item currently exposes:

@@ -28,6 +28,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multi
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -1445,7 +1446,128 @@ class ResumeApiIntegrationTest {
             .andExpect(jsonPath("$.resumeVersionId").value(versionId))
             .andExpect(jsonPath("$.pageEstimate").value(1))
             .andExpect(jsonPath("$.sections.length()").isNotEmpty)
+            .andExpect(jsonPath("$.pages.length()").isNotEmpty)
             .andExpect(jsonPath("$.plainText").isNotEmpty)
+    }
+
+    @Test
+    fun `resume editor exposes revisions presence and optimistic conflict handling`() {
+        val resumeId = createResume("Editor Revision Resume")
+        val versionId = createResumeVersion(
+            resumeId = resumeId,
+            fileUrl = "https://files.example.com/editor-revision-resume.pdf",
+            summaryText = "Engineer with revision-aware editor flow.",
+            rawText = """
+                Revision Kim
+                프로젝트
+                Revision Workspace
+                문서 기반 협업 플로우를 설계했습니다.
+            """.trimIndent(),
+            parsedJson = """{"skills":["Kotlin"]}""",
+        )
+
+        val workspace = mockMvc.perform(get("/api/resume-versions/$versionId/editor").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.revisionNo").value(1))
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val block = workspace.path("document").path("blocks").first()
+        val blockId = block.path("blockId").asText()
+
+        mockMvc.perform(
+            post("/api/resume-versions/$versionId/editor/presence")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"sessionKey":"browser-main","viewMode":"edit","selectedBlockId":"$blockId"}"""),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].sessionKey").value("browser-main"))
+            .andExpect(jsonPath("$[0].isCurrentUser").value(true))
+
+        val updatedWorkspace = mockMvc.perform(
+            put("/api/resume-versions/$versionId/editor/document")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "blocks" to listOf(
+                                mapOf(
+                                    "blockId" to blockId,
+                                    "blockType" to block.path("blockType").asText(),
+                                    "title" to block.path("title").takeIf { !it.isNull }?.asText(),
+                                    "text" to "문서 기반 협업 플로우를 설계하고 검토 이력을 revision 단위로 관리했습니다.",
+                                    "lines" to emptyList<String>(),
+                                    "sourceAnchorType" to (block.path("sourceAnchorType").takeIf { !it.isNull }?.asText()),
+                                    "sourceAnchorRecordId" to (block.path("sourceAnchorRecordId").takeIf { !it.isNull }?.asLong()),
+                                    "sourceAnchorKey" to (block.path("sourceAnchorKey").takeIf { !it.isNull }?.asText()),
+                                    "fieldPath" to (block.path("fieldPath").takeIf { !it.isNull }?.asText()),
+                                    "displayOrder" to block.path("displayOrder").asInt(),
+                                    "metadata" to emptyMap<String, String>(),
+                                    "inlineMarks" to emptyList<Map<String, Any>>(),
+                                ),
+                            ),
+                            "markdownSource" to "# Revision Workspace\n문서 기반 협업 플로우를 설계하고 검토 이력을 revision 단위로 관리했습니다.",
+                            "layoutMetadata" to mapOf("printProfile" to "a4_resume"),
+                            "baseRevisionNo" to 1,
+                            "changeSource" to "manual_edit",
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.revisionNo").value(2))
+            .andExpect(jsonPath("$.activePresence.length()").value(1))
+            .andExpect(jsonPath("$.latestRevision.revisionNo").value(2))
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val latestRevisionId = updatedWorkspace.path("latestRevision").path("id").asLong()
+
+        mockMvc.perform(
+            put("/api/resume-versions/$versionId/editor/document")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "blocks" to listOf(
+                                mapOf(
+                                    "blockId" to blockId,
+                                    "blockType" to block.path("blockType").asText(),
+                                    "title" to block.path("title").takeIf { !it.isNull }?.asText(),
+                                    "text" to "stale revision payload",
+                                    "lines" to emptyList<String>(),
+                                    "sourceAnchorType" to (block.path("sourceAnchorType").takeIf { !it.isNull }?.asText()),
+                                    "sourceAnchorRecordId" to (block.path("sourceAnchorRecordId").takeIf { !it.isNull }?.asLong()),
+                                    "sourceAnchorKey" to (block.path("sourceAnchorKey").takeIf { !it.isNull }?.asText()),
+                                    "fieldPath" to (block.path("fieldPath").takeIf { !it.isNull }?.asText()),
+                                    "displayOrder" to block.path("displayOrder").asInt(),
+                                    "metadata" to emptyMap<String, String>(),
+                                    "inlineMarks" to emptyList<Map<String, Any>>(),
+                                ),
+                            ),
+                            "baseRevisionNo" to 1,
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isConflict)
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/editor/revisions").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].revisionNo").value(2))
+            .andExpect(jsonPath("$[0].changeSummary.updatedBlockCount").value(1))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/editor/revisions/$latestRevisionId").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.revisionNo").value(2))
+            .andExpect(jsonPath("$.document.blocks[0].text").value("문서 기반 협업 플로우를 설계하고 검토 이력을 revision 단위로 관리했습니다."))
     }
 
     private fun createResume(title: String): Long {

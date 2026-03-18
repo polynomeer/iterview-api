@@ -192,11 +192,14 @@ Current step status:
    - `POST /api/resume-versions/{versionId}/editor/comments`
    - `PATCH /api/resume-versions/{versionId}/editor/comments/{commentId}`
    - `POST /api/resume-versions/{versionId}/editor/comments/{commentId}/replies`
+   - `POST /api/resume-versions/{versionId}/editor/presence`
    - `POST /api/resume-versions/{versionId}/editor/question-cards`
    - `PATCH /api/resume-versions/{versionId}/editor/question-cards/{cardId}`
    - `POST /api/resume-versions/{versionId}/editor/auto-question-suggestions`
    - `POST /api/resume-versions/{versionId}/editor/rewrite-suggestions`
    - `GET /api/resume-versions/{versionId}/editor/print-preview`
+   - `GET /api/resume-versions/{versionId}/editor/revisions`
+   - `GET /api/resume-versions/{versionId}/editor/revisions/{revisionId}`
 4. lazily bootstrap the first editor document from parsed resume snapshots
 5. persist block-based document JSON and markdown-compatible source together
 6. persist comment threads and question cards as additive annotations
@@ -205,6 +208,8 @@ Current step status:
 9. expose deterministic suggestion endpoints for question generation and rewrite guidance
 10. expose one print-preview read model for editor-driven export flows
 11. surface heatmap availability inside the workspace read
+12. persist revision history and optimistic-write metadata for editor document updates
+13. expose lightweight collaborative presence heartbeats without mutating document content
 
 Acceptance intent:
 - editor writes do not overwrite immutable source versions

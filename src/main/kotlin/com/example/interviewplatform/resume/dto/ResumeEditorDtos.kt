@@ -13,6 +13,7 @@ data class ResumeEditorWorkspaceDto(
     val sourceVersionNo: Int,
     val sourceFileName: String?,
     val workspaceStatus: String,
+    val revisionNo: Int,
     val supportedViewModes: List<String>,
     val document: ResumeEditorDocumentDto,
     val comments: List<ResumeEditorCommentThreadDto>,
@@ -21,6 +22,8 @@ data class ResumeEditorWorkspaceDto(
     val questionCardSummary: ResumeEditorQuestionCardSummaryDto,
     val heatmapAvailable: Boolean,
     val heatmapSummary: ResumeQuestionHeatmapSummaryDto?,
+    val activePresence: List<ResumeEditorPresenceDto>,
+    val latestRevision: ResumeEditorRevisionListItemDto?,
     val createdAt: Instant,
     val updatedAt: Instant,
 )
@@ -62,12 +65,56 @@ data class ResumeEditorPrintPreviewDto(
     val pageEstimate: Int,
     val plainText: String,
     val sections: List<ResumeEditorPrintPreviewSectionDto>,
+    val pages: List<ResumeEditorPrintPreviewPageDto>,
 )
 
 data class ResumeEditorPrintPreviewSectionDto(
     val sectionKey: String,
     val title: String,
     val lines: List<String>,
+)
+
+data class ResumeEditorPrintPreviewPageDto(
+    val pageNumber: Int,
+    val sectionKeys: List<String>,
+    val lineCount: Int,
+)
+
+data class ResumeEditorPresenceDto(
+    val sessionKey: String,
+    val userId: Long,
+    val userLabel: String,
+    val viewMode: String?,
+    val selectedBlockId: String?,
+    val isCurrentUser: Boolean,
+    val updatedAt: Instant,
+)
+
+data class ResumeEditorChangeSummaryDto(
+    val addedBlockCount: Int,
+    val removedBlockCount: Int,
+    val updatedBlockCount: Int,
+    val inlineMarkDelta: Int,
+    val changedBlockIds: List<String>,
+)
+
+data class ResumeEditorRevisionListItemDto(
+    val id: Long,
+    val revisionNo: Int,
+    val changeSource: String,
+    val changeSummary: ResumeEditorChangeSummaryDto,
+    val createdAt: Instant,
+)
+
+data class ResumeEditorRevisionDto(
+    val id: Long,
+    val workspaceId: Long,
+    val resumeVersionId: Long,
+    val revisionNo: Int,
+    val changeSource: String,
+    val changeSummary: ResumeEditorChangeSummaryDto,
+    val document: ResumeEditorDocumentDto,
+    val createdAt: Instant,
 )
 
 data class ResumeEditorCommentReplyDto(
@@ -162,6 +209,9 @@ data class UpdateResumeEditorDocumentRequest(
     val blocks: List<ResumeEditorBlockDto>,
     val markdownSource: String? = null,
     val layoutMetadata: Map<String, String> = emptyMap(),
+    @field:Min(1)
+    val baseRevisionNo: Int? = null,
+    val changeSource: String? = null,
 )
 
 data class CreateResumeEditorCommentRequest(
@@ -235,4 +285,14 @@ data class ImportResumeEditorMarkdownRequest(
     @field:NotBlank
     val markdownSource: String,
     val replaceDocument: Boolean = true,
+    @field:Min(1)
+    val baseRevisionNo: Int? = null,
+    val changeSource: String? = null,
+)
+
+data class CreateResumeEditorPresenceRequest(
+    @field:NotBlank
+    val sessionKey: String,
+    val viewMode: String? = null,
+    val selectedBlockId: String? = null,
 )

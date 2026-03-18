@@ -230,6 +230,37 @@ Interpretation:
 - this is the persisted question-card layer for one resume editor workspace
 - cards can be manually created from a selected block or sentence and may optionally link to a catalog question
 
+### `resume_editor_workspace_revisions`
+- `id`
+- `resume_editor_workspace_id`
+- `user_id`
+- `resume_version_id`
+- `revision_no`
+- `change_source`
+- `change_summary_json`
+- `markdown_source`
+- `document_json`
+- `layout_metadata_json`
+- `created_at`
+
+Interpretation:
+- this is the persisted revision history for one editor workspace
+- revisions let the backend enforce optimistic merge semantics without mutating immutable source resume versions
+
+### `resume_editor_presence_sessions`
+- `id`
+- `resume_editor_workspace_id`
+- `user_id`
+- `session_key`
+- `view_mode`
+- `selected_block_id`
+- `created_at`
+- `updated_at`
+
+Interpretation:
+- this is the lightweight collaborative presence layer for one editor workspace
+- presence is additive session state and expires by recency rather than mutating the document
+
 ### `resume_question_overlay_links` (planned, not yet implemented)
 - `id`
 - `resume_version_id`

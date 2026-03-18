@@ -93,6 +93,10 @@
 - question cards can target one block or selection range and move between `active` and `archived`
 - markdown import can transform pasted markdown into stable editor blocks and inline marks
 - the backend can expose one print-preview read model from the current editor workspace without mutating the immutable source version
+- the print-preview read model can expose page-group hints without requiring true PDF-coordinate pagination
+- editor writes can use additive optimistic revision checks and surface a conflict when the workspace is stale
+- one editor workspace can expose recent collaborative presence sessions without mutating stored document content
+- one editor workspace can expose persisted revision history and change summaries for rollback/review UI
 - deterministic auto-question suggestions can be generated for a selected block or sentence without being auto-persisted
 - deterministic rewrite suggestions can be generated for a selected block or sentence without mutating stored source content
 - scoring rules remain centralized in one service

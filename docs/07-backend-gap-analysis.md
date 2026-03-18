@@ -172,21 +172,26 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
   - `POST /api/resume-versions/{versionId}/editor/comments`
   - `PATCH /api/resume-versions/{versionId}/editor/comments/{commentId}`
   - `POST /api/resume-versions/{versionId}/editor/comments/{commentId}/replies`
+  - `POST /api/resume-versions/{versionId}/editor/presence`
   - `POST /api/resume-versions/{versionId}/editor/question-cards`
   - `PATCH /api/resume-versions/{versionId}/editor/question-cards/{cardId}`
   - `POST /api/resume-versions/{versionId}/editor/auto-question-suggestions`
   - `POST /api/resume-versions/{versionId}/editor/rewrite-suggestions`
   - `GET /api/resume-versions/{versionId}/editor/print-preview`
+  - `GET /api/resume-versions/{versionId}/editor/revisions`
+  - `GET /api/resume-versions/{versionId}/editor/revisions/{revisionId}`
   - lazy workspace bootstrap from parsed resume snapshots
   - persisted workspace document JSON + markdown source
   - persisted comment-thread, comment-reply, and question-card layers
   - persisted inline mark payload inside workspace blocks
   - deterministic markdown import parser for block + inline mark bootstrap
   - deterministic print preview read model for current editor content
+  - persisted workspace revision history with optimistic revision checks
+  - lightweight collaborative presence heartbeat read/write
 - current gap:
-  - no collaborative multi-user presence or optimistic merge handling yet
   - no dedicated rich diff or track-changes model yet
   - no true WYSIWYG print pagination renderer yet
+  - no CRDT or real-time merge engine yet
 
 ### Phase 4 - Question Tree and Recommendation
 - implement tree loading from `question_relationships`

@@ -562,6 +562,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResumeEditorCommentThreadDto"
+  /api/resume-versions/{versionId}/editor/presence:
+    post:
+      tags: [Resume]
+      summary: Upsert one resume editor presence heartbeat
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateResumeEditorPresenceRequest"
+      responses:
+        "200":
+          description: Active resume editor presence sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResumeEditorPresenceDto"
   /api/resume-versions/{versionId}/editor/question-cards:
     post:
       tags: [Resume]
@@ -655,6 +676,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResumeEditorPrintPreviewDto"
+  /api/resume-versions/{versionId}/editor/revisions:
+    get:
+      tags: [Resume]
+      summary: List one resume editor workspace revisions
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Resume editor revision list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResumeEditorRevisionListItemDto"
+  /api/resume-versions/{versionId}/editor/revisions/{revisionId}:
+    get:
+      tags: [Resume]
+      summary: Get one resume editor workspace revision
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+        - name: revisionId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: Resume editor revision detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeEditorRevisionDto"
   /api/resume-versions/{versionId}/analyses:
     get:
       tags: [Resume]
@@ -2031,6 +2084,7 @@ components:
         sourceVersionNo: { type: integer }
         sourceFileName: { type: string, nullable: true }
         workspaceStatus: { type: string }
+        revisionNo: { type: integer }
         supportedViewModes:
           type: array
           items: { type: string }
@@ -2053,6 +2107,14 @@ components:
           allOf:
             - $ref: "#/components/schemas/ResumeQuestionHeatmapSummaryDto"
           nullable: true
+        activePresence:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeEditorPresenceDto"
+        latestRevision:
+          allOf:
+            - $ref: "#/components/schemas/ResumeEditorRevisionListItemDto"
+          nullable: true
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     ResumeEditorPrintPreviewDto:
@@ -2067,6 +2129,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ResumeEditorPrintPreviewSectionDto"
+        pages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeEditorPrintPreviewPageDto"
     ResumeEditorPrintPreviewSectionDto:
       type: object
       properties:
@@ -2075,6 +2141,56 @@ components:
         lines:
           type: array
           items: { type: string }
+    ResumeEditorPrintPreviewPageDto:
+      type: object
+      properties:
+        pageNumber: { type: integer }
+        sectionKeys:
+          type: array
+          items: { type: string }
+        lineCount: { type: integer }
+    ResumeEditorPresenceDto:
+      type: object
+      properties:
+        sessionKey: { type: string }
+        userId: { type: integer, format: int64 }
+        userLabel: { type: string }
+        viewMode: { type: string, nullable: true }
+        selectedBlockId: { type: string, nullable: true }
+        isCurrentUser: { type: boolean }
+        updatedAt: { type: string, format: date-time }
+    ResumeEditorChangeSummaryDto:
+      type: object
+      properties:
+        addedBlockCount: { type: integer }
+        removedBlockCount: { type: integer }
+        updatedBlockCount: { type: integer }
+        inlineMarkDelta: { type: integer }
+        changedBlockIds:
+          type: array
+          items: { type: string }
+    ResumeEditorRevisionListItemDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        revisionNo: { type: integer }
+        changeSource: { type: string }
+        changeSummary:
+          $ref: "#/components/schemas/ResumeEditorChangeSummaryDto"
+        createdAt: { type: string, format: date-time }
+    ResumeEditorRevisionDto:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        workspaceId: { type: integer, format: int64 }
+        resumeVersionId: { type: integer, format: int64 }
+        revisionNo: { type: integer }
+        changeSource: { type: string }
+        changeSummary:
+          $ref: "#/components/schemas/ResumeEditorChangeSummaryDto"
+        document:
+          $ref: "#/components/schemas/ResumeEditorDocumentDto"
+        createdAt: { type: string, format: date-time }
     UpdateResumeEditorDocumentRequest:
       type: object
       properties:
@@ -2086,11 +2202,21 @@ components:
         layoutMetadata:
           type: object
           additionalProperties: { type: string }
+        baseRevisionNo: { type: integer, nullable: true }
+        changeSource: { type: string, nullable: true }
     ImportResumeEditorMarkdownRequest:
       type: object
       properties:
         markdownSource: { type: string }
         replaceDocument: { type: boolean }
+        baseRevisionNo: { type: integer, nullable: true }
+        changeSource: { type: string, nullable: true }
+    CreateResumeEditorPresenceRequest:
+      type: object
+      properties:
+        sessionKey: { type: string }
+        viewMode: { type: string, nullable: true }
+        selectedBlockId: { type: string, nullable: true }
     CreateResumeEditorCommentRequest:
       type: object
       properties:

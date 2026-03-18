@@ -9,19 +9,23 @@ import jakarta.persistence.Table
 import java.time.Instant
 
 @Entity
-@Table(name = "resume_editor_workspaces")
-class ResumeEditorWorkspaceEntity(
+@Table(name = "resume_editor_workspace_revisions")
+class ResumeEditorWorkspaceRevisionEntity(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
+    @Column(name = "resume_editor_workspace_id", nullable = false)
+    val resumeEditorWorkspaceId: Long,
     @Column(name = "user_id", nullable = false)
     val userId: Long,
     @Column(name = "resume_version_id", nullable = false)
     val resumeVersionId: Long,
-    @Column(name = "workspace_status", nullable = false)
-    val workspaceStatus: String,
     @Column(name = "revision_no", nullable = false)
-    val revisionNo: Int = 1,
+    val revisionNo: Int,
+    @Column(name = "change_source", nullable = false)
+    val changeSource: String,
+    @Column(name = "change_summary_json", nullable = false, columnDefinition = "TEXT")
+    val changeSummaryJson: String,
     @Column(name = "markdown_source")
     val markdownSource: String? = null,
     @Column(name = "document_json", nullable = false, columnDefinition = "TEXT")
@@ -30,6 +34,4 @@ class ResumeEditorWorkspaceEntity(
     val layoutMetadataJson: String? = null,
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant,
-    @Column(name = "updated_at", nullable = false)
-    val updatedAt: Instant,
 )

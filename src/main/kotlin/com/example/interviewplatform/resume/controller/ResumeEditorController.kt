@@ -3,14 +3,18 @@ package com.example.interviewplatform.resume.controller
 import com.example.interviewplatform.common.service.CurrentUserProvider
 import com.example.interviewplatform.resume.dto.CreateResumeEditorCommentReplyRequest
 import com.example.interviewplatform.resume.dto.CreateResumeEditorCommentRequest
+import com.example.interviewplatform.resume.dto.CreateResumeEditorPresenceRequest
 import com.example.interviewplatform.resume.dto.CreateResumeEditorQuestionCardRequest
 import com.example.interviewplatform.resume.dto.CreateResumeEditorQuestionSuggestionRequest
 import com.example.interviewplatform.resume.dto.CreateResumeEditorRewriteSuggestionRequest
 import com.example.interviewplatform.resume.dto.ImportResumeEditorMarkdownRequest
 import com.example.interviewplatform.resume.dto.ResumeEditorCommentThreadDto
+import com.example.interviewplatform.resume.dto.ResumeEditorPresenceDto
 import com.example.interviewplatform.resume.dto.ResumeEditorPrintPreviewDto
 import com.example.interviewplatform.resume.dto.ResumeEditorQuestionCardDto
 import com.example.interviewplatform.resume.dto.ResumeEditorQuestionSuggestionResponseDto
+import com.example.interviewplatform.resume.dto.ResumeEditorRevisionDto
+import com.example.interviewplatform.resume.dto.ResumeEditorRevisionListItemDto
 import com.example.interviewplatform.resume.dto.ResumeEditorRewriteSuggestionResponseDto
 import com.example.interviewplatform.resume.dto.ResumeEditorWorkspaceDto
 import com.example.interviewplatform.resume.dto.UpdateResumeEditorCommentRequest
@@ -85,6 +89,14 @@ class ResumeEditorController(
     ): ResumeEditorCommentThreadDto =
         resumeEditorService.createCommentReply(currentUserProvider.currentUserId(), versionId, commentId, request)
 
+    @PostMapping("/presence")
+    @Operation(summary = "Upsert resume editor presence heartbeat")
+    fun upsertPresence(
+        @PathVariable versionId: Long,
+        @Valid @RequestBody request: CreateResumeEditorPresenceRequest,
+    ): List<ResumeEditorPresenceDto> =
+        resumeEditorService.upsertPresence(currentUserProvider.currentUserId(), versionId, request)
+
     @PostMapping("/question-cards")
     @Operation(summary = "Create resume editor question card")
     fun createQuestionCard(
@@ -122,4 +134,17 @@ class ResumeEditorController(
     @Operation(summary = "Build resume editor print preview")
     fun getPrintPreview(@PathVariable versionId: Long): ResumeEditorPrintPreviewDto =
         resumeEditorService.getPrintPreview(currentUserProvider.currentUserId(), versionId)
+
+    @GetMapping("/revisions")
+    @Operation(summary = "List resume editor workspace revisions")
+    fun getRevisions(@PathVariable versionId: Long): List<ResumeEditorRevisionListItemDto> =
+        resumeEditorService.getRevisions(currentUserProvider.currentUserId(), versionId)
+
+    @GetMapping("/revisions/{revisionId}")
+    @Operation(summary = "Get one resume editor workspace revision")
+    fun getRevision(
+        @PathVariable versionId: Long,
+        @PathVariable revisionId: Long,
+    ): ResumeEditorRevisionDto =
+        resumeEditorService.getRevision(currentUserProvider.currentUserId(), versionId, revisionId)
 }

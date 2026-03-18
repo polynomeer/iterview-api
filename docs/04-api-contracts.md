@@ -76,11 +76,14 @@ Authenticated endpoints:
 - `POST /api/resume-versions/{versionId}/editor/comments`
 - `PATCH /api/resume-versions/{versionId}/editor/comments/{commentId}`
 - `POST /api/resume-versions/{versionId}/editor/comments/{commentId}/replies`
+- `POST /api/resume-versions/{versionId}/editor/presence`
 - `POST /api/resume-versions/{versionId}/editor/question-cards`
 - `PATCH /api/resume-versions/{versionId}/editor/question-cards/{cardId}`
 - `POST /api/resume-versions/{versionId}/editor/auto-question-suggestions`
 - `POST /api/resume-versions/{versionId}/editor/rewrite-suggestions`
 - `GET /api/resume-versions/{versionId}/editor/print-preview`
+- `GET /api/resume-versions/{versionId}/editor/revisions`
+- `GET /api/resume-versions/{versionId}/editor/revisions/{revisionId}`
 - `POST /api/resume-versions/{versionId}/activate`
 - `GET /api/home`
 - `POST /api/daily-cards/{dailyCardId}/open`
@@ -628,11 +631,14 @@ Implemented:
 - `POST /api/resume-versions/{versionId}/editor/comments`
 - `PATCH /api/resume-versions/{versionId}/editor/comments/{commentId}`
 - `POST /api/resume-versions/{versionId}/editor/comments/{commentId}/replies`
+- `POST /api/resume-versions/{versionId}/editor/presence`
 - `POST /api/resume-versions/{versionId}/editor/question-cards`
 - `PATCH /api/resume-versions/{versionId}/editor/question-cards/{cardId}`
 - `POST /api/resume-versions/{versionId}/editor/auto-question-suggestions`
 - `POST /api/resume-versions/{versionId}/editor/rewrite-suggestions`
 - `GET /api/resume-versions/{versionId}/editor/print-preview`
+- `GET /api/resume-versions/{versionId}/editor/revisions`
+- `GET /api/resume-versions/{versionId}/editor/revisions/{revisionId}`
 
 Current behavior:
 - one workspace is lazily initialized per `resumeVersionId`
@@ -644,6 +650,7 @@ Current behavior:
   - `sourceVersionNo`
   - `sourceFileName`
   - `workspaceStatus`
+  - `revisionNo`
   - `supportedViewModes`
   - `document`
   - `comments`
@@ -652,6 +659,8 @@ Current behavior:
   - `questionCardSummary`
   - `heatmapAvailable`
   - `heatmapSummary`
+  - `activePresence`
+  - `latestRevision`
 - current `document` payload exposes:
   - `astVersion`
   - `markdownSource`
@@ -689,6 +698,15 @@ Current behavior:
   - `pageEstimate`
   - `plainText`
   - `sections[]`
+- `GET /print-preview` now also exposes `pages[]` so the frontend can render page-group hints without owning pagination heuristics
+- `PUT /document` and `POST /import-markdown` accept additive optimistic-write metadata:
+  - `baseRevisionNo`
+  - `changeSource`
+- `POST /presence` records one lightweight workspace heartbeat with:
+  - `sessionKey`
+  - `viewMode`
+  - `selectedBlockId`
+- `GET /revisions` and `GET /revisions/{revisionId}` expose persisted revision history and one deterministic change summary
 - comment replies are additive thread messages and do not change the original comment anchor
 - `POST /auto-question-suggestions` returns deterministic suggested interview questions for one selected block or sentence
 - `POST /rewrite-suggestions` returns deterministic rewrite guidance for one selected block or sentence
