@@ -194,6 +194,18 @@ Interpretation:
 - this is the persisted inline comment layer for one resume editor workspace
 - comments are additive annotations on top of a block/selection target and do not rewrite source resume text
 
+### `resume_editor_comment_replies`
+- `id`
+- `user_id`
+- `resume_editor_comment_thread_id`
+- `body`
+- `created_at`
+- `updated_at`
+
+Interpretation:
+- this is the persisted reply layer for one resume editor comment thread
+- replies extend the review conversation without mutating the original thread anchor or source resume text
+
 ### `resume_editor_question_cards`
 - `id`
 - `user_id`

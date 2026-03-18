@@ -188,17 +188,23 @@ Current step status:
 3. expose additive APIs for:
    - `GET /api/resume-versions/{versionId}/editor`
    - `PUT /api/resume-versions/{versionId}/editor/document`
+   - `POST /api/resume-versions/{versionId}/editor/import-markdown`
    - `POST /api/resume-versions/{versionId}/editor/comments`
    - `PATCH /api/resume-versions/{versionId}/editor/comments/{commentId}`
+   - `POST /api/resume-versions/{versionId}/editor/comments/{commentId}/replies`
    - `POST /api/resume-versions/{versionId}/editor/question-cards`
    - `PATCH /api/resume-versions/{versionId}/editor/question-cards/{cardId}`
    - `POST /api/resume-versions/{versionId}/editor/auto-question-suggestions`
    - `POST /api/resume-versions/{versionId}/editor/rewrite-suggestions`
+   - `GET /api/resume-versions/{versionId}/editor/print-preview`
 4. lazily bootstrap the first editor document from parsed resume snapshots
 5. persist block-based document JSON and markdown-compatible source together
 6. persist comment threads and question cards as additive annotations
-7. expose deterministic suggestion endpoints for question generation and rewrite guidance
-8. surface heatmap availability inside the workspace read
+7. persist multi-reply comment conversations separately from the original thread anchor
+8. support markdown import and inline mark persistence for headings, bullets, quotes, links, and inline emphasis
+9. expose deterministic suggestion endpoints for question generation and rewrite guidance
+10. expose one print-preview read model for editor-driven export flows
+11. surface heatmap availability inside the workspace read
 
 Acceptance intent:
 - editor writes do not overwrite immutable source versions

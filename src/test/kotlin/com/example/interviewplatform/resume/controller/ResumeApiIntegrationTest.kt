@@ -1352,6 +1352,102 @@ class ResumeApiIntegrationTest {
             .andExpect(jsonPath("$.suggestions[0].partialApplyAllowed").value(true))
     }
 
+    @Test
+    fun `resume editor supports replies markdown import and print preview`() {
+        val resumeId = createResume("Editor Extended Resume")
+        val versionId = createResumeVersion(
+            resumeId = resumeId,
+            fileUrl = "https://files.example.com/editor-extended-resume.pdf",
+            summaryText = "Platform engineer with workflow and cache optimization experience.",
+            rawText = """
+                Extended Kim
+                Mail : editor-extended@example.com
+                프로젝트
+                Creator Pipeline
+                업로드부터 배포까지 이어지는 콘텐츠 파이프라인을 운영했습니다.
+            """.trimIndent(),
+            parsedJson = """{"skills":["Redis","Spring Boot"]}""",
+        )
+
+        val workspace = mockMvc.perform(get("/api/resume-versions/$versionId/editor").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+        val blockId = workspace.path("document").path("blocks").first().path("blockId").asText()
+
+        val commentId = mockMvc.perform(
+            post("/api/resume-versions/$versionId/editor/comments")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "blockId" to blockId,
+                            "selectedText" to "콘텐츠 파이프라인",
+                            "body" to "운영 안정성 근거를 더 보강하면 좋겠습니다.",
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+            .path("id")
+            .asLong()
+
+        mockMvc.perform(
+            post("/api/resume-versions/$versionId/editor/comments/$commentId/replies")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"body":"장애 복구와 재처리 정책을 추가하겠습니다."}"""),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.replyCount").value(1))
+            .andExpect(jsonPath("$.replies[0].body").value("장애 복구와 재처리 정책을 추가하겠습니다."))
+
+        mockMvc.perform(
+            post("/api/resume-versions/$versionId/editor/import-markdown")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "markdownSource" to """
+                                # Jacob Ham
+                                ## Project
+                                Redis **cache**를 적용해 응답 시간을 `4x` 개선했습니다.
+                                - 장애 복구 자동화
+                            """.trimIndent(),
+                            "replaceDocument" to true,
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.document.blocks.length()").isNotEmpty)
+            .andExpect(jsonPath("$.document.blocks[0].title").value("Jacob Ham"))
+            .andExpect(jsonPath("$.document.blocks[2].inlineMarks.length()").value(2))
+            .andExpect(jsonPath("$.document.blocks[2].inlineMarks[0].markType").value("bold"))
+            .andExpect(jsonPath("$.document.blocks[2].inlineMarks[1].markType").value("code"))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/editor").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.commentSummary.totalReplyCount").value(1))
+            .andExpect(jsonPath("$.comments[0].replyCount").value(1))
+            .andExpect(jsonPath("$.comments[0].replies[0].body").value("장애 복구와 재처리 정책을 추가하겠습니다."))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/editor/print-preview").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.resumeVersionId").value(versionId))
+            .andExpect(jsonPath("$.pageEstimate").value(1))
+            .andExpect(jsonPath("$.sections.length()").isNotEmpty)
+            .andExpect(jsonPath("$.plainText").isNotEmpty)
+    }
+
     private fun createResume(title: String): Long {
         val payload = objectMapper.writeValueAsString(
             mapOf(

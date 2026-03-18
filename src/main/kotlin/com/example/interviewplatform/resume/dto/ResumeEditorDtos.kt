@@ -32,6 +32,14 @@ data class ResumeEditorDocumentDto(
     val layoutMetadata: Map<String, String>,
 )
 
+data class ResumeEditorInlineMarkDto(
+    val markType: String,
+    val startOffset: Int,
+    val endOffset: Int,
+    val text: String,
+    val href: String? = null,
+)
+
 data class ResumeEditorBlockDto(
     val blockId: String,
     val blockType: String,
@@ -44,6 +52,30 @@ data class ResumeEditorBlockDto(
     val fieldPath: String?,
     val displayOrder: Int,
     val metadata: Map<String, String>,
+    val inlineMarks: List<ResumeEditorInlineMarkDto> = emptyList(),
+)
+
+data class ResumeEditorPrintPreviewDto(
+    val resumeVersionId: Long,
+    val workspaceId: Long,
+    val title: String,
+    val pageEstimate: Int,
+    val plainText: String,
+    val sections: List<ResumeEditorPrintPreviewSectionDto>,
+)
+
+data class ResumeEditorPrintPreviewSectionDto(
+    val sectionKey: String,
+    val title: String,
+    val lines: List<String>,
+)
+
+data class ResumeEditorCommentReplyDto(
+    val id: Long,
+    val commentThreadId: Long,
+    val body: String,
+    val createdAt: Instant,
+    val updatedAt: Instant,
 )
 
 data class ResumeEditorCommentThreadDto(
@@ -56,6 +88,8 @@ data class ResumeEditorCommentThreadDto(
     val body: String,
     val status: String,
     val resolvedAt: Instant?,
+    val replyCount: Int = 0,
+    val replies: List<ResumeEditorCommentReplyDto> = emptyList(),
     val createdAt: Instant,
     val updatedAt: Instant,
 )
@@ -82,6 +116,7 @@ data class ResumeEditorCommentSummaryDto(
     val totalCount: Int,
     val openCount: Int,
     val resolvedCount: Int,
+    val totalReplyCount: Int = 0,
 )
 
 data class ResumeEditorQuestionCardSummaryDto(
@@ -147,6 +182,11 @@ data class UpdateResumeEditorCommentRequest(
     val status: String? = null,
 )
 
+data class CreateResumeEditorCommentReplyRequest(
+    @field:NotBlank
+    val body: String,
+)
+
 data class CreateResumeEditorQuestionCardRequest(
     @field:NotBlank
     val blockId: String,
@@ -189,4 +229,10 @@ data class CreateResumeEditorRewriteSuggestionRequest(
     val blockId: String,
     val fieldPath: String? = null,
     val selectedText: String? = null,
+)
+
+data class ImportResumeEditorMarkdownRequest(
+    @field:NotBlank
+    val markdownSource: String,
+    val replaceDocument: Boolean = true,
 )

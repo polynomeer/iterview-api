@@ -87,8 +87,12 @@
 - the backend returns a precomputed filter summary so the frontend can render company/date/type chips without rebuilding them from raw question rows
 - one resume version can expose a lazy-initialized editor workspace without mutating the immutable source version
 - the editor workspace can persist block-based document structure plus markdown-compatible source
+- the editor workspace can persist inline formatting marks separately from block text
 - comment threads can target one block or selection range and move between `open` and `resolved`
+- comment threads can accumulate additive replies without losing the original block/selection anchor
 - question cards can target one block or selection range and move between `active` and `archived`
+- markdown import can transform pasted markdown into stable editor blocks and inline marks
+- the backend can expose one print-preview read model from the current editor workspace without mutating the immutable source version
 - deterministic auto-question suggestions can be generated for a selected block or sentence without being auto-persisted
 - deterministic rewrite suggestions can be generated for a selected block or sentence without mutating stored source content
 - scoring rules remain centralized in one service

@@ -72,12 +72,15 @@ Authenticated endpoints:
 - `PATCH /api/resume-versions/{versionId}/question-heatmap/links/{linkId}`
 - `GET /api/resume-versions/{versionId}/editor`
 - `PUT /api/resume-versions/{versionId}/editor/document`
+- `POST /api/resume-versions/{versionId}/editor/import-markdown`
 - `POST /api/resume-versions/{versionId}/editor/comments`
 - `PATCH /api/resume-versions/{versionId}/editor/comments/{commentId}`
+- `POST /api/resume-versions/{versionId}/editor/comments/{commentId}/replies`
 - `POST /api/resume-versions/{versionId}/editor/question-cards`
 - `PATCH /api/resume-versions/{versionId}/editor/question-cards/{cardId}`
 - `POST /api/resume-versions/{versionId}/editor/auto-question-suggestions`
 - `POST /api/resume-versions/{versionId}/editor/rewrite-suggestions`
+- `GET /api/resume-versions/{versionId}/editor/print-preview`
 - `POST /api/resume-versions/{versionId}/activate`
 - `GET /api/home`
 - `POST /api/daily-cards/{dailyCardId}/open`
@@ -621,12 +624,15 @@ Implemented:
 
 - `GET /api/resume-versions/{versionId}/editor`
 - `PUT /api/resume-versions/{versionId}/editor/document`
+- `POST /api/resume-versions/{versionId}/editor/import-markdown`
 - `POST /api/resume-versions/{versionId}/editor/comments`
 - `PATCH /api/resume-versions/{versionId}/editor/comments/{commentId}`
+- `POST /api/resume-versions/{versionId}/editor/comments/{commentId}/replies`
 - `POST /api/resume-versions/{versionId}/editor/question-cards`
 - `PATCH /api/resume-versions/{versionId}/editor/question-cards/{cardId}`
 - `POST /api/resume-versions/{versionId}/editor/auto-question-suggestions`
 - `POST /api/resume-versions/{versionId}/editor/rewrite-suggestions`
+- `GET /api/resume-versions/{versionId}/editor/print-preview`
 
 Current behavior:
 - one workspace is lazily initialized per `resumeVersionId`
@@ -663,14 +669,27 @@ Current behavior:
   - `fieldPath`
   - `displayOrder`
   - `metadata`
+  - `inlineMarks[]`
 - comments are additive selection annotations with statuses:
   - `open`
   - `resolved`
+- comment threads now also expose:
+  - `replyCount`
+  - `replies[]`
+- `commentSummary` now also exposes:
+  - `totalReplyCount`
 - question cards are additive selection annotations with statuses:
   - `active`
   - `archived`
 - current persisted question card source type:
   - `manual`
+- `POST /import-markdown` parses markdown headings, bullets, quotes, links, and inline marks into editor blocks
+- `GET /print-preview` returns one print-oriented read model with:
+  - `title`
+  - `pageEstimate`
+  - `plainText`
+  - `sections[]`
+- comment replies are additive thread messages and do not change the original comment anchor
 - `POST /auto-question-suggestions` returns deterministic suggested interview questions for one selected block or sentence
 - `POST /rewrite-suggestions` returns deterministic rewrite guidance for one selected block or sentence
 - suggestion endpoints do not persist anything unless the client explicitly creates a question card or updates the editor document

@@ -1,11 +1,14 @@
 package com.example.interviewplatform.resume.controller
 
 import com.example.interviewplatform.common.service.CurrentUserProvider
+import com.example.interviewplatform.resume.dto.CreateResumeEditorCommentReplyRequest
 import com.example.interviewplatform.resume.dto.CreateResumeEditorCommentRequest
 import com.example.interviewplatform.resume.dto.CreateResumeEditorQuestionCardRequest
 import com.example.interviewplatform.resume.dto.CreateResumeEditorQuestionSuggestionRequest
 import com.example.interviewplatform.resume.dto.CreateResumeEditorRewriteSuggestionRequest
+import com.example.interviewplatform.resume.dto.ImportResumeEditorMarkdownRequest
 import com.example.interviewplatform.resume.dto.ResumeEditorCommentThreadDto
+import com.example.interviewplatform.resume.dto.ResumeEditorPrintPreviewDto
 import com.example.interviewplatform.resume.dto.ResumeEditorQuestionCardDto
 import com.example.interviewplatform.resume.dto.ResumeEditorQuestionSuggestionResponseDto
 import com.example.interviewplatform.resume.dto.ResumeEditorRewriteSuggestionResponseDto
@@ -48,6 +51,14 @@ class ResumeEditorController(
     ): ResumeEditorWorkspaceDto =
         resumeEditorService.updateDocument(currentUserProvider.currentUserId(), versionId, request)
 
+    @PostMapping("/import-markdown")
+    @Operation(summary = "Import markdown into resume editor workspace")
+    fun importMarkdown(
+        @PathVariable versionId: Long,
+        @Valid @RequestBody request: ImportResumeEditorMarkdownRequest,
+    ): ResumeEditorWorkspaceDto =
+        resumeEditorService.importMarkdown(currentUserProvider.currentUserId(), versionId, request)
+
     @PostMapping("/comments")
     @Operation(summary = "Create resume editor comment thread")
     fun createComment(
@@ -64,6 +75,15 @@ class ResumeEditorController(
         @Valid @RequestBody request: UpdateResumeEditorCommentRequest,
     ): ResumeEditorCommentThreadDto =
         resumeEditorService.updateComment(currentUserProvider.currentUserId(), versionId, commentId, request)
+
+    @PostMapping("/comments/{commentId}/replies")
+    @Operation(summary = "Create resume editor comment reply")
+    fun createCommentReply(
+        @PathVariable versionId: Long,
+        @PathVariable commentId: Long,
+        @Valid @RequestBody request: CreateResumeEditorCommentReplyRequest,
+    ): ResumeEditorCommentThreadDto =
+        resumeEditorService.createCommentReply(currentUserProvider.currentUserId(), versionId, commentId, request)
 
     @PostMapping("/question-cards")
     @Operation(summary = "Create resume editor question card")
@@ -97,4 +117,9 @@ class ResumeEditorController(
         @Valid @RequestBody request: CreateResumeEditorRewriteSuggestionRequest,
     ): ResumeEditorRewriteSuggestionResponseDto =
         resumeEditorService.generateRewriteSuggestions(currentUserProvider.currentUserId(), versionId, request)
+
+    @GetMapping("/print-preview")
+    @Operation(summary = "Build resume editor print preview")
+    fun getPrintPreview(@PathVariable versionId: Long): ResumeEditorPrintPreviewDto =
+        resumeEditorService.getPrintPreview(currentUserProvider.currentUserId(), versionId)
 }

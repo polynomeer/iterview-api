@@ -76,12 +76,15 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 - Resume editor workspace reads and writes are:
   - `GET /api/resume-versions/{versionId}/editor`
   - `PUT /api/resume-versions/{versionId}/editor/document`
+  - `POST /api/resume-versions/{versionId}/editor/import-markdown`
   - `POST /api/resume-versions/{versionId}/editor/comments`
   - `PATCH /api/resume-versions/{versionId}/editor/comments/{commentId}`
+  - `POST /api/resume-versions/{versionId}/editor/comments/{commentId}/replies`
   - `POST /api/resume-versions/{versionId}/editor/question-cards`
   - `PATCH /api/resume-versions/{versionId}/editor/question-cards/{cardId}`
   - `POST /api/resume-versions/{versionId}/editor/auto-question-suggestions`
   - `POST /api/resume-versions/{versionId}/editor/rewrite-suggestions`
+  - `GET /api/resume-versions/{versionId}/editor/print-preview`
 - resume analysis runs are additive read/write models layered on top of immutable resume versions
 - current backend scope for resume tailoring is:
   - save and parse one job posting
@@ -110,6 +113,20 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `filterSummary`
 - `ResumeQuestionHeatmapItemDto` now also exposes:
   - `overlayTargets`
+- `ResumeEditorBlockDto` now also exposes:
+  - `inlineMarks`
+- `ResumeEditorCommentThreadDto` now also exposes:
+  - `replyCount`
+  - `replies`
+- `ResumeEditorCommentSummaryDto` now also exposes:
+  - `totalReplyCount`
+- `ResumeEditorPrintPreviewDto` now exposes:
+  - `title`
+  - `pageEstimate`
+  - `plainText`
+  - `sections`
+- markdown import accepts one markdown payload and either replaces or appends to the current workspace document
+- comment replies are additive thread messages and do not move the original selection anchor
 - each heatmap item currently exposes:
   - anchor identity such as `anchorType`, `anchorRecordId`, and `anchorKey`
   - `label`

@@ -32,14 +32,17 @@
 
 * `GET /api/resume-versions/{versionId}/editor`
 * `PUT /api/resume-versions/{versionId}/editor/document`
+* `POST /api/resume-versions/{versionId}/editor/import-markdown`
 * `POST /api/resume-versions/{versionId}/editor/comments`
 * `PATCH /api/resume-versions/{versionId}/editor/comments/{commentId}`
+* `POST /api/resume-versions/{versionId}/editor/comments/{commentId}/replies`
 * `POST /api/resume-versions/{versionId}/editor/question-cards`
 * `PATCH /api/resume-versions/{versionId}/editor/question-cards/{cardId}`
 * `POST /api/resume-versions/{versionId}/editor/auto-question-suggestions`
 * `POST /api/resume-versions/{versionId}/editor/rewrite-suggestions`
+* `GET /api/resume-versions/{versionId}/editor/print-preview`
 
-즉 현재는 프론트가 바로 붙일 수 있는 **workspace contract + annotation persistence + deterministic suggestion API**까지 구현된 상태로 보는 것이 맞습니다.
+즉 현재는 프론트가 바로 붙일 수 있는 **workspace contract + annotation persistence + markdown import + print preview + deterministic suggestion API**까지 구현된 상태로 보는 것이 맞습니다.
 
 ---
 

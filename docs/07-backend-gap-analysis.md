@@ -168,19 +168,25 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
 - implemented:
   - `GET /api/resume-versions/{versionId}/editor`
   - `PUT /api/resume-versions/{versionId}/editor/document`
+  - `POST /api/resume-versions/{versionId}/editor/import-markdown`
   - `POST /api/resume-versions/{versionId}/editor/comments`
   - `PATCH /api/resume-versions/{versionId}/editor/comments/{commentId}`
+  - `POST /api/resume-versions/{versionId}/editor/comments/{commentId}/replies`
   - `POST /api/resume-versions/{versionId}/editor/question-cards`
   - `PATCH /api/resume-versions/{versionId}/editor/question-cards/{cardId}`
   - `POST /api/resume-versions/{versionId}/editor/auto-question-suggestions`
   - `POST /api/resume-versions/{versionId}/editor/rewrite-suggestions`
+  - `GET /api/resume-versions/{versionId}/editor/print-preview`
   - lazy workspace bootstrap from parsed resume snapshots
   - persisted workspace document JSON + markdown source
-  - persisted comment-thread and question-card layers
+  - persisted comment-thread, comment-reply, and question-card layers
+  - persisted inline mark payload inside workspace blocks
+  - deterministic markdown import parser for block + inline mark bootstrap
+  - deterministic print preview read model for current editor content
 - current gap:
-  - no collaborative multi-reply comment thread yet
-  - no dedicated markdown paste/import parser yet
-  - no editor-specific print preview renderer yet
+  - no collaborative multi-user presence or optimistic merge handling yet
+  - no dedicated rich diff or track-changes model yet
+  - no true WYSIWYG print pagination renderer yet
 
 ### Phase 4 - Question Tree and Recommendation
 - implement tree loading from `question_relationships`
