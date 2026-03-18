@@ -70,6 +70,14 @@ Authenticated endpoints:
 - `GET /api/resume-versions/{versionId}/question-heatmap/overlay-targets`
 - `POST /api/resume-versions/{versionId}/question-heatmap/links`
 - `PATCH /api/resume-versions/{versionId}/question-heatmap/links/{linkId}`
+- `GET /api/resume-versions/{versionId}/editor`
+- `PUT /api/resume-versions/{versionId}/editor/document`
+- `POST /api/resume-versions/{versionId}/editor/comments`
+- `PATCH /api/resume-versions/{versionId}/editor/comments/{commentId}`
+- `POST /api/resume-versions/{versionId}/editor/question-cards`
+- `PATCH /api/resume-versions/{versionId}/editor/question-cards/{cardId}`
+- `POST /api/resume-versions/{versionId}/editor/auto-question-suggestions`
+- `POST /api/resume-versions/{versionId}/editor/rewrite-suggestions`
 - `POST /api/resume-versions/{versionId}/activate`
 - `GET /api/home`
 - `POST /api/daily-cards/{dailyCardId}/open`
@@ -607,6 +615,65 @@ Current behavior:
   - phrase-only reads
   - keyword-only reads
   - sentence-only review lanes
+
+### Resume Editor Workspace
+Implemented:
+
+- `GET /api/resume-versions/{versionId}/editor`
+- `PUT /api/resume-versions/{versionId}/editor/document`
+- `POST /api/resume-versions/{versionId}/editor/comments`
+- `PATCH /api/resume-versions/{versionId}/editor/comments/{commentId}`
+- `POST /api/resume-versions/{versionId}/editor/question-cards`
+- `PATCH /api/resume-versions/{versionId}/editor/question-cards/{cardId}`
+- `POST /api/resume-versions/{versionId}/editor/auto-question-suggestions`
+- `POST /api/resume-versions/{versionId}/editor/rewrite-suggestions`
+
+Current behavior:
+- one workspace is lazily initialized per `resumeVersionId`
+- the first workspace document is bootstrapped from existing parsed resume snapshots
+- workspace writes update the editor-layer document only and do not mutate `resume_versions` or extracted snapshot rows
+- `GET /editor` currently exposes:
+  - `workspaceId`
+  - `resumeVersionId`
+  - `sourceVersionNo`
+  - `sourceFileName`
+  - `workspaceStatus`
+  - `supportedViewModes`
+  - `document`
+  - `comments`
+  - `questionCards`
+  - `commentSummary`
+  - `questionCardSummary`
+  - `heatmapAvailable`
+  - `heatmapSummary`
+- current `document` payload exposes:
+  - `astVersion`
+  - `markdownSource`
+  - `blocks[]`
+  - `layoutMetadata`
+- current block payload exposes:
+  - `blockId`
+  - `blockType`
+  - `title`
+  - `text`
+  - `lines[]`
+  - `sourceAnchorType`
+  - `sourceAnchorRecordId`
+  - `sourceAnchorKey`
+  - `fieldPath`
+  - `displayOrder`
+  - `metadata`
+- comments are additive selection annotations with statuses:
+  - `open`
+  - `resolved`
+- question cards are additive selection annotations with statuses:
+  - `active`
+  - `archived`
+- current persisted question card source type:
+  - `manual`
+- `POST /auto-question-suggestions` returns deterministic suggested interview questions for one selected block or sentence
+- `POST /rewrite-suggestions` returns deterministic rewrite guidance for one selected block or sentence
+- suggestion endpoints do not persist anything unless the client explicitly creates a question card or updates the editor document
 
 Notes:
 - supported file types are PNG, JPEG, WEBP, and GIF

@@ -1191,6 +1191,167 @@ class ResumeApiIntegrationTest {
             .andExpect(jsonPath("$.summary.totalAnchors").value(0))
     }
 
+    @Test
+    fun `resume editor workspace bootstraps from immutable version and persists comments and question cards`() {
+        val resumeId = createResume("Editor Resume")
+        val versionId = createResumeVersion(
+            resumeId = resumeId,
+            fileUrl = "https://files.example.com/editor-resume.pdf",
+            summaryText = "Backend engineer who improved creator pipeline reliability.",
+            rawText = """
+                Editor Kim
+                Mail : editor@example.com
+                프로젝트
+                크리에이터 스튜디오 개발
+                B2C 오디오 콘텐츠 제작 플랫폼 크리에이터 스튜디오를 신규 구축하여 누구나 쉽게 오디오 콘텐츠를 제작하고 배포할 수 있도록 지원
+            """.trimIndent(),
+            parsedJson = """{"skills":["Spring Boot","Redis"]}""",
+        )
+
+        val workspace = mockMvc.perform(get("/api/resume-versions/$versionId/editor").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.resumeVersionId").value(versionId))
+            .andExpect(jsonPath("$.workspaceStatus").value("draft"))
+            .andExpect(jsonPath("$.supportedViewModes[0]").value("edit"))
+            .andExpect(jsonPath("$.document.astVersion").value(1))
+            .andExpect(jsonPath("$.document.blocks.length()").isNotEmpty)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val blockId = workspace.path("document").path("blocks").first().path("blockId").asText()
+
+        mockMvc.perform(
+            post("/api/resume-versions/$versionId/editor/comments")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "blockId" to blockId,
+                            "selectedText" to "creator pipeline reliability",
+                            "body" to "이 문장은 장애 복구 방식까지 드러나면 더 강해집니다.",
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.blockId").value(blockId))
+            .andExpect(jsonPath("$.status").value("open"))
+
+        val questionCardId = mockMvc.perform(
+            post("/api/resume-versions/$versionId/editor/question-cards")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "blockId" to blockId,
+                            "selectedText" to "creator pipeline reliability",
+                            "title" to "장애 복구 질문",
+                            "questionText" to "이 파이프라인에서 중간 실패가 나면 어떤 방식으로 복구했나요?",
+                            "questionType" to "technical_deep_dive",
+                            "followUpSuggestions" to listOf("재처리는 어떻게 했나요?", "중복 처리는 어떻게 막았나요?"),
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.sourceType").value("manual"))
+            .andExpect(jsonPath("$.status").value("active"))
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+            .path("id")
+            .asLong()
+
+        mockMvc.perform(
+            patch("/api/resume-versions/$versionId/editor/question-cards/$questionCardId")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"status":"archived"}"""),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.status").value("archived"))
+
+        mockMvc.perform(get("/api/resume-versions/$versionId/editor").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.comments.length()").value(1))
+            .andExpect(jsonPath("$.commentSummary.totalCount").value(1))
+            .andExpect(jsonPath("$.commentSummary.openCount").value(1))
+            .andExpect(jsonPath("$.questionCards.length()").value(1))
+            .andExpect(jsonPath("$.questionCardSummary.totalCount").value(1))
+            .andExpect(jsonPath("$.questionCardSummary.archivedCount").value(1))
+    }
+
+    @Test
+    fun `resume editor suggestion endpoints return deterministic question and rewrite guidance`() {
+        val resumeId = createResume("Editor Suggestion Resume")
+        val versionId = createResumeVersion(
+            resumeId = resumeId,
+            fileUrl = "https://files.example.com/editor-suggestion-resume.pdf",
+            summaryText = "Backend engineer with Redis and API optimization experience.",
+            rawText = """
+                Suggestion Kim
+                프로젝트
+                Payments Platform Revamp
+                Redis 캐시를 적용해 응답 시간을 4배 개선했습니다.
+            """.trimIndent(),
+            parsedJson = """{"skills":["Redis"]}""",
+        )
+
+        val workspace = mockMvc.perform(get("/api/resume-versions/$versionId/editor").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val projectBlockId = workspace.path("document").path("blocks").firstOrNull {
+            it.path("blockType").asText() == "project_item"
+        }?.path("blockId")?.asText() ?: workspace.path("document").path("blocks").first().path("blockId").asText()
+
+        mockMvc.perform(
+            post("/api/resume-versions/$versionId/editor/auto-question-suggestions")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "blockId" to projectBlockId,
+                            "selectedText" to "Redis 캐시를 적용해 응답 시간을 4배 개선했습니다.",
+                            "maxSuggestions" to 3,
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.sourceType").value("heuristic"))
+            .andExpect(jsonPath("$.suggestions.length()").value(3))
+            .andExpect(jsonPath("$.suggestions[0].questionText").isNotEmpty)
+
+        mockMvc.perform(
+            post("/api/resume-versions/$versionId/editor/rewrite-suggestions")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "blockId" to projectBlockId,
+                            "selectedText" to "서비스 성능 개선을 담당했습니다.",
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.sourceType").value("heuristic"))
+            .andExpect(jsonPath("$.suggestions.length()").isNotEmpty)
+            .andExpect(jsonPath("$.suggestions[0].suggestedText").isNotEmpty)
+            .andExpect(jsonPath("$.suggestions[0].partialApplyAllowed").value(true))
+    }
+
     private fun createResume(title: String): Long {
         val payload = objectMapper.writeValueAsString(
             mapOf(

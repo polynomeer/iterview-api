@@ -178,6 +178,32 @@ Current step status:
   - block and sentence target generation during resume extraction and re-extraction
   - public read API for overlay targets
   - question-to-overlay linking
+
+## Phase 1E - Resume Editor Workspace
+1. add Flyway migration for:
+   - `resume_editor_workspaces`
+   - `resume_editor_comment_threads`
+   - `resume_editor_question_cards`
+2. keep `resume_versions` immutable and add an editor-layer workspace on top
+3. expose additive APIs for:
+   - `GET /api/resume-versions/{versionId}/editor`
+   - `PUT /api/resume-versions/{versionId}/editor/document`
+   - `POST /api/resume-versions/{versionId}/editor/comments`
+   - `PATCH /api/resume-versions/{versionId}/editor/comments/{commentId}`
+   - `POST /api/resume-versions/{versionId}/editor/question-cards`
+   - `PATCH /api/resume-versions/{versionId}/editor/question-cards/{cardId}`
+   - `POST /api/resume-versions/{versionId}/editor/auto-question-suggestions`
+   - `POST /api/resume-versions/{versionId}/editor/rewrite-suggestions`
+4. lazily bootstrap the first editor document from parsed resume snapshots
+5. persist block-based document JSON and markdown-compatible source together
+6. persist comment threads and question cards as additive annotations
+7. expose deterministic suggestion endpoints for question generation and rewrite guidance
+8. surface heatmap availability inside the workspace read
+
+Acceptance intent:
+- editor writes do not overwrite immutable source versions
+- comments and question cards stay attached to block/selection coordinates
+- resume editor and heatmap can share the same parsed anchor model
   - additive `overlayTargets` on heatmap reads
   - phrase and keyword overlay target generation
   - sentence-level and micro-target manual remap through existing heatmap link APIs

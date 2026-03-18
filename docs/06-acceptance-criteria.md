@@ -85,6 +85,12 @@
   - `phrase`
   - `keyword`
 - the backend returns a precomputed filter summary so the frontend can render company/date/type chips without rebuilding them from raw question rows
+- one resume version can expose a lazy-initialized editor workspace without mutating the immutable source version
+- the editor workspace can persist block-based document structure plus markdown-compatible source
+- comment threads can target one block or selection range and move between `open` and `resolved`
+- question cards can target one block or selection range and move between `active` and `archived`
+- deterministic auto-question suggestions can be generated for a selected block or sentence without being auto-persisted
+- deterministic rewrite suggestions can be generated for a selected block or sentence without mutating stored source content
 - scoring rules remain centralized in one service
 
 ## Review Queue and Learning Loop

@@ -156,7 +156,67 @@ Interpretation:
 - these rows are now exposed through:
   - nested `overlayTargets[]` on `GET /api/resume-versions/{versionId}/question-heatmap`
   - flattened `GET /api/resume-versions/{versionId}/question-heatmap/overlay-targets`
-- these rows are currently an internal persistence layer and are not yet exposed through a public API
+- these rows are now part of the public read contract for frontend heatmap and overlay viewers
+
+### `resume_editor_workspaces`
+- `id`
+- `user_id`
+- `resume_version_id`
+- `workspace_status`
+- `markdown_source`
+- `document_json`
+- `layout_metadata_json`
+- `created_at`
+- `updated_at`
+
+Interpretation:
+- this is the additive document workspace layer on top of one immutable `resume_version`
+- updating this row never mutates the source `resume_versions` record
+- `document_json` stores the block-based editor document and `markdown_source` preserves markdown portability
+
+### `resume_editor_comment_threads`
+- `id`
+- `user_id`
+- `resume_editor_workspace_id`
+- `resume_version_id`
+- `block_id`
+- `field_path`
+- `selection_start_offset`
+- `selection_end_offset`
+- `selected_text`
+- `body`
+- `status`
+- `resolved_at`
+- `created_at`
+- `updated_at`
+
+Interpretation:
+- this is the persisted inline comment layer for one resume editor workspace
+- comments are additive annotations on top of a block/selection target and do not rewrite source resume text
+
+### `resume_editor_question_cards`
+- `id`
+- `user_id`
+- `resume_editor_workspace_id`
+- `resume_version_id`
+- `block_id`
+- `field_path`
+- `selection_start_offset`
+- `selection_end_offset`
+- `selected_text`
+- `title`
+- `question_text`
+- `question_type`
+- `source_type`
+- `linked_question_id`
+- `status`
+- `follow_up_suggestions_json`
+- `created_at`
+- `updated_at`
+
+Interpretation:
+- this is the persisted question-card layer for one resume editor workspace
+- cards can be manually created from a selected block or sentence and may optionally link to a catalog question
 
 ### `resume_question_overlay_links` (planned, not yet implemented)
 - `id`

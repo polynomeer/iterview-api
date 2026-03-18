@@ -16,6 +16,7 @@ Implemented today:
 - saved job-posting parsing APIs
 - persisted resume analysis runs and suggestion acceptance APIs
 - resume interview heatmap aggregation and manual remap APIs
+- resume editor workspace APIs for block documents, comments, question cards, and deterministic editor suggestions
 
 This is the stable baseline and should remain operational throughout the extension work.
 
@@ -162,6 +163,24 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
 - current gap:
   - no sentence-offset or PDF-coordinate overlay yet
   - no precomputed anchor summary table; aggregation is computed on read from practical interview data plus manual overrides
+
+### Phase 3C - Resume Editor Workspace
+- implemented:
+  - `GET /api/resume-versions/{versionId}/editor`
+  - `PUT /api/resume-versions/{versionId}/editor/document`
+  - `POST /api/resume-versions/{versionId}/editor/comments`
+  - `PATCH /api/resume-versions/{versionId}/editor/comments/{commentId}`
+  - `POST /api/resume-versions/{versionId}/editor/question-cards`
+  - `PATCH /api/resume-versions/{versionId}/editor/question-cards/{cardId}`
+  - `POST /api/resume-versions/{versionId}/editor/auto-question-suggestions`
+  - `POST /api/resume-versions/{versionId}/editor/rewrite-suggestions`
+  - lazy workspace bootstrap from parsed resume snapshots
+  - persisted workspace document JSON + markdown source
+  - persisted comment-thread and question-card layers
+- current gap:
+  - no collaborative multi-reply comment thread yet
+  - no dedicated markdown paste/import parser yet
+  - no editor-specific print preview renderer yet
 
 ### Phase 4 - Question Tree and Recommendation
 - implement tree loading from `question_relationships`

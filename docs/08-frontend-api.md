@@ -73,6 +73,15 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
   - `GET /api/resume-versions/{versionId}/question-heatmap/overlay-targets`
   - `POST /api/resume-versions/{versionId}/question-heatmap/links`
   - `PATCH /api/resume-versions/{versionId}/question-heatmap/links/{linkId}`
+- Resume editor workspace reads and writes are:
+  - `GET /api/resume-versions/{versionId}/editor`
+  - `PUT /api/resume-versions/{versionId}/editor/document`
+  - `POST /api/resume-versions/{versionId}/editor/comments`
+  - `PATCH /api/resume-versions/{versionId}/editor/comments/{commentId}`
+  - `POST /api/resume-versions/{versionId}/editor/question-cards`
+  - `PATCH /api/resume-versions/{versionId}/editor/question-cards/{cardId}`
+  - `POST /api/resume-versions/{versionId}/editor/auto-question-suggestions`
+  - `POST /api/resume-versions/{versionId}/editor/rewrite-suggestions`
 - resume analysis runs are additive read/write models layered on top of immutable resume versions
 - current backend scope for resume tailoring is:
   - save and parse one job posting
@@ -178,6 +187,19 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 - frontend should support both whole-block questions and sentence-specific question cards in the same viewer
 - frontend should also treat `phrase` and `keyword` as valid overlay target types rather than unsupported noise
 - for `targetType`-filtered reads, frontend should treat `filterSummary` as the source of truth for chip counts and applied filter badges
+- `GET /api/resume-versions/{versionId}/editor` is the current document-centered workspace contract layered on top of one immutable resume version
+- the workspace response currently includes:
+  - `supportedViewModes`
+  - `document`
+  - `comments`
+  - `questionCards`
+  - `commentSummary`
+  - `questionCardSummary`
+  - `heatmapAvailable`
+  - `heatmapSummary`
+- `document.blocks[]` is the current annotation unit and `blockId` should be treated as the stable comment/question-card target
+- each block also carries `sourceAnchorType`, `sourceAnchorRecordId`, `sourceAnchorKey`, and `fieldPath` so editor annotations can align with heatmap overlays
+- current editor suggestion endpoints are deterministic helper APIs; they return candidate questions or rewrite guidance but do not persist them automatically
 
 ## Local Heatmap Demo
 - the backend does not render the hover UI by itself; the current sentence/phrase/keyword overlay viewer must be implemented in the frontend
