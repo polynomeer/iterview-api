@@ -1,6 +1,7 @@
 package com.example.interviewplatform.interview.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.nio.file.Files
@@ -25,6 +26,10 @@ class OpenAiPracticalInterviewTranscriptExtractionClient(
     private val promptVersion: String,
     @Value("\${app.interview.transcription.timeout-seconds:60}")
     private val timeoutSeconds: Long,
+    @Value("\${app.interview.transcription.labeling.timeout-seconds:\${app.interview.transcription.timeout-seconds:60}}")
+    private val labelingTimeoutSeconds: Long,
+    @Value("\${app.interview.transcription.labeling.fail-open:true}")
+    private val speakerLabelingFailOpen: Boolean,
     @Value("\${app.interview.transcription.max-file-size-bytes:26214400}")
     private val maxFileSizeBytes: Long,
     @Value("\${app.interview.transcription.chunking.enabled:true}")
@@ -43,7 +48,17 @@ class OpenAiPracticalInterviewTranscriptExtractionClient(
     override fun extract(input: PracticalInterviewTranscriptExtractionInput): ExtractedPracticalInterviewTranscript {
         require(isEnabled()) { "OpenAI practical interview transcription is not configured" }
         val rawTranscript = transcribeAudio(input)
-        val speakerLabeledTranscript = labelSpeakers(rawTranscript)
+        val speakerLabeledTranscript = runCatching { labelSpeakers(rawTranscript) }
+            .getOrElse { ex ->
+                if (!speakerLabelingFailOpen) {
+                    throw ex
+                }
+                logger.warn(
+                    "Speaker labeling failed; falling back to heuristic labeling. reason={}",
+                    ex.message,
+                )
+                heuristicLabelSpeakers(rawTranscript)
+            }
         return ExtractedPracticalInterviewTranscript(
             transcriptText = speakerLabeledTranscript,
             llmModel = labelingModel,
@@ -222,7 +237,7 @@ class OpenAiPracticalInterviewTranscriptExtractionClient(
             url = "${baseUrl.trimEnd('/')}/responses",
             apiKey = apiKey,
             body = body,
-            timeout = Duration.ofSeconds(timeoutSeconds),
+            timeout = Duration.ofSeconds(labelingTimeoutSeconds),
         )
         val root = objectMapper.readTree(response)
         val outputText = root.path("output_text").asText(null)
@@ -239,6 +254,28 @@ class OpenAiPracticalInterviewTranscriptExtractionClient(
         }
         return transcriptLines.joinToString("\n")
     }
+
+    private fun heuristicLabelSpeakers(rawTranscript: String): String =
+        rawTranscript.lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .map { line ->
+                val lowered = line.lowercase()
+                val hasSpeakerPrefix = lowered.startsWith("interviewer:") ||
+                    lowered.startsWith("candidate:") ||
+                    lowered.startsWith("면접관:") ||
+                    lowered.startsWith("지원자:") ||
+                    lowered.startsWith("q:") ||
+                    lowered.startsWith("a:")
+                if (hasSpeakerPrefix) {
+                    line
+                } else if (line.endsWith("?")) {
+                    "interviewer: $line"
+                } else {
+                    "candidate: $line"
+                }
+            }
+            .joinToString("\n")
 
     private fun systemPrompt(): String = """
         You are converting a raw interview transcript into speaker-labeled lines for downstream parsing.
@@ -278,4 +315,8 @@ class OpenAiPracticalInterviewTranscriptExtractionClient(
         ),
         "required" to listOf("lines"),
     )
+
+    companion object {
+        private val logger = LoggerFactory.getLogger(OpenAiPracticalInterviewTranscriptExtractionClient::class.java)
+    }
 }
