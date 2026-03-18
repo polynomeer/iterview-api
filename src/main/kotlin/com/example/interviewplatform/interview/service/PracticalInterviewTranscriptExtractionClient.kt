@@ -12,6 +12,7 @@ data class PracticalInterviewTranscriptExtractionInput(
     val audioFilePath: Path,
     val fileName: String,
     val contentType: String?,
+    val languageHint: String? = null,
 )
 
 data class ExtractedPracticalInterviewTranscript(

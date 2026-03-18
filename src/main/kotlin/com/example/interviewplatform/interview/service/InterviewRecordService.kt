@@ -46,6 +46,7 @@ import com.example.interviewplatform.interview.repository.InterviewTranscriptSeg
 import com.example.interviewplatform.interview.repository.InterviewerProfileRepository
 import com.example.interviewplatform.resume.repository.ResumeRepository
 import com.example.interviewplatform.resume.repository.ResumeVersionRepository
+import com.example.interviewplatform.user.repository.UserSettingsRepository
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
@@ -76,6 +77,7 @@ class InterviewRecordService(
     private val practicalInterviewStructuringEnrichmentService: PracticalInterviewStructuringEnrichmentService,
     private val resumeRepository: ResumeRepository,
     private val resumeVersionRepository: ResumeVersionRepository,
+    private val userSettingsRepository: UserSettingsRepository,
     private val clockService: ClockService,
     private val objectMapper: ObjectMapper,
     private val eventPublisher: ApplicationEventPublisher,
@@ -411,6 +413,7 @@ class InterviewRecordService(
                 audioFilePath = audioPath,
                 fileName = processingRecord.sourceAudioFileName ?: audioPath.fileName.toString(),
                 contentType = processingRecord.sourceAudioContentType,
+                languageHint = resolveTranscriptionLanguage(processingRecord.userId),
             )
             if (transcript.isNullOrBlank()) {
                 markTranscriptionFailure(
@@ -3096,6 +3099,17 @@ class InterviewRecordService(
             SPEAKER_TYPE_INTERVIEWER to normalized
         } else {
             SPEAKER_TYPE_CANDIDATE to normalized
+        }
+    }
+
+    private fun resolveTranscriptionLanguage(userId: Long): String {
+        val preferredLanguage = userSettingsRepository.findById(userId).orElse(null)
+            ?.preferredLanguage
+            ?.trim()
+            ?.lowercase()
+        return when (preferredLanguage) {
+            "ko", "en" -> preferredLanguage
+            else -> "ko"
         }
     }
 

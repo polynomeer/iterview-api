@@ -121,6 +121,7 @@ SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun
 - `APP_INTERVIEW_TRANSCRIPTION_WHISPER_TIMEOUT_SECONDS` (default: `1800`)
 - `APP_INTERVIEW_TRANSCRIPTION_WHISPER_FFMPEG_COMMAND` (default: `ffmpeg`)
 - `APP_INTERVIEW_TRANSCRIPTION_WHISPER_FFMPEG_TIMEOUT_SECONDS` (default: `300`)
+- whisper provider uses `user_settings.preferred_language` (`ko`/`en`) as transcription language hint when available
 - `APP_INTERVIEW_TRANSCRIPTION_API_KEY` (optional; required only for `openai`)
 - `APP_INTERVIEW_TRANSCRIPTION_MAX_FILE_SIZE_BYTES` (default: `26214400`; 25MB)
 - `APP_INTERVIEW_TRANSCRIPTION_CHUNKING_ENABLED` (default: `true`)

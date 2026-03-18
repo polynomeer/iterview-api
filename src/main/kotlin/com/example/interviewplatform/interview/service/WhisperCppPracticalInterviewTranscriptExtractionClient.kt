@@ -36,7 +36,10 @@ class WhisperCppPracticalInterviewTranscriptExtractionClient(
         }
         val normalizedAudioPath = convertToWhisperCompatibleWav(input.audioFilePath)
         try {
-            val output = runWhisper(normalizedAudioPath)
+            val output = runWhisper(
+                audioPath = normalizedAudioPath,
+                languageHint = input.languageHint,
+            )
             val transcript = parseWhisperOutput(output)
             if (transcript.isBlank()) {
                 throw IllegalStateException("Whisper.cpp transcription returned empty output.")
@@ -86,7 +89,8 @@ class WhisperCppPracticalInterviewTranscriptExtractionClient(
         return targetPath
     }
 
-    private fun runWhisper(audioPath: Path): String {
+    private fun runWhisper(audioPath: Path, languageHint: String?): String {
+        val requestedLanguage = resolveWhisperLanguageCode(inputLanguageHint = languageHint)
         val command = mutableListOf(
             whisperCommand,
             "-m",
@@ -94,8 +98,8 @@ class WhisperCppPracticalInterviewTranscriptExtractionClient(
             "-f",
             audioPath.toString(),
         )
-        if (!whisperLanguage.equals("auto", ignoreCase = true)) {
-            command += listOf("-l", whisperLanguage)
+        if (requestedLanguage != null) {
+            command += listOf("-l", requestedLanguage)
         }
         val process = ProcessBuilder(command)
             .redirectErrorStream(true)
@@ -110,6 +114,18 @@ class WhisperCppPracticalInterviewTranscriptExtractionClient(
             throw IllegalStateException("Whisper.cpp transcription failed with exit code ${process.exitValue()}: $output")
         }
         return output
+    }
+
+    private fun resolveWhisperLanguageCode(inputLanguageHint: String?): String? {
+        val normalizedHint = inputLanguageHint?.trim()?.lowercase()
+        if (normalizedHint == "ko" || normalizedHint == "en") {
+            return normalizedHint
+        }
+        val configured = whisperLanguage.trim().lowercase()
+        if (configured == "auto" || configured.isBlank()) {
+            return null
+        }
+        return configured
     }
 
     private fun parseWhisperOutput(output: String): String {
