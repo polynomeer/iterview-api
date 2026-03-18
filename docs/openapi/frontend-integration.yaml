@@ -708,6 +708,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResumeEditorRevisionDto"
+  /api/resume-versions/{versionId}/editor/tracked-changes:
+    get:
+      tags: [Resume]
+      summary: Compare two resume editor revisions
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+        - name: fromRevisionId
+          in: query
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: toRevisionId
+          in: query
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: Resume editor tracked changes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeEditorTrackedChangesDto"
+  /api/resume-versions/{versionId}/editor/merge-preview:
+    post:
+      tags: [Resume]
+      summary: Preview one server-assisted resume editor merge
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResumeEditorMergePreviewRequest"
+      responses:
+        "200":
+          description: Resume editor merge preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeEditorMergePreviewDto"
   /api/resume-versions/{versionId}/analyses:
     get:
       tags: [Resume]
@@ -2133,6 +2173,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ResumeEditorPrintPreviewPageDto"
+        layoutItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeEditorPrintLayoutItemDto"
     ResumeEditorPrintPreviewSectionDto:
       type: object
       properties:
@@ -2149,6 +2193,15 @@ components:
           type: array
           items: { type: string }
         lineCount: { type: integer }
+    ResumeEditorPrintLayoutItemDto:
+      type: object
+      properties:
+        pageNumber: { type: integer }
+        sectionKey: { type: string }
+        blockId: { type: string }
+        blockType: { type: string }
+        yOffsetLines: { type: integer }
+        estimatedLineSpan: { type: integer }
     ResumeEditorPresenceDto:
       type: object
       properties:
@@ -2191,6 +2244,51 @@ components:
         document:
           $ref: "#/components/schemas/ResumeEditorDocumentDto"
         createdAt: { type: string, format: date-time }
+    ResumeEditorTrackedChangesDto:
+      type: object
+      properties:
+        resumeVersionId: { type: integer, format: int64 }
+        fromRevisionId: { type: integer, format: int64 }
+        toRevisionId: { type: integer, format: int64 }
+        changeSummary:
+          $ref: "#/components/schemas/ResumeEditorChangeSummaryDto"
+        changes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeEditorTrackedChangeDto"
+    ResumeEditorTrackedChangeDto:
+      type: object
+      properties:
+        blockId: { type: string }
+        changeType: { type: string }
+        beforeBlockType: { type: string, nullable: true }
+        afterBlockType: { type: string, nullable: true }
+        beforeText: { type: string, nullable: true }
+        afterText: { type: string, nullable: true }
+        fieldPath: { type: string, nullable: true }
+    ResumeEditorMergePreviewDto:
+      type: object
+      properties:
+        resumeVersionId: { type: integer, format: int64 }
+        baseRevisionId: { type: integer, format: int64 }
+        currentRevisionId: { type: integer, format: int64 }
+        mergeStatus: { type: string }
+        mergedDocument:
+          $ref: "#/components/schemas/ResumeEditorDocumentDto"
+        conflicts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeEditorMergeConflictDto"
+        changeSummary:
+          $ref: "#/components/schemas/ResumeEditorChangeSummaryDto"
+    ResumeEditorMergeConflictDto:
+      type: object
+      properties:
+        blockId: { type: string }
+        conflictType: { type: string }
+        baseText: { type: string, nullable: true }
+        currentText: { type: string, nullable: true }
+        proposedText: { type: string, nullable: true }
     UpdateResumeEditorDocumentRequest:
       type: object
       properties:
@@ -2217,6 +2315,18 @@ components:
         sessionKey: { type: string }
         viewMode: { type: string, nullable: true }
         selectedBlockId: { type: string, nullable: true }
+    ResumeEditorMergePreviewRequest:
+      type: object
+      properties:
+        blocks:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeEditorBlockDto"
+        markdownSource: { type: string, nullable: true }
+        layoutMetadata:
+          type: object
+          additionalProperties: { type: string }
+        baseRevisionNo: { type: integer }
     CreateResumeEditorCommentRequest:
       type: object
       properties:

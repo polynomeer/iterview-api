@@ -210,6 +210,7 @@ Current step status:
 11. surface heatmap availability inside the workspace read
 12. persist revision history and optimistic-write metadata for editor document updates
 13. expose lightweight collaborative presence heartbeats without mutating document content
+14. expose deterministic revision compare and 3-way merge preview for stale-write recovery
 
 Acceptance intent:
 - editor writes do not overwrite immutable source versions

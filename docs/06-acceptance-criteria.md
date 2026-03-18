@@ -97,6 +97,8 @@
 - editor writes can use additive optimistic revision checks and surface a conflict when the workspace is stale
 - one editor workspace can expose recent collaborative presence sessions without mutating stored document content
 - one editor workspace can expose persisted revision history and change summaries for rollback/review UI
+- the backend can expose block-level tracked changes between two persisted revisions
+- the backend can expose a server-assisted 3-way merge preview for stale editor writes without auto-persisting the merge result
 - deterministic auto-question suggestions can be generated for a selected block or sentence without being auto-persisted
 - deterministic rewrite suggestions can be generated for a selected block or sentence without mutating stored source content
 - scoring rules remain centralized in one service

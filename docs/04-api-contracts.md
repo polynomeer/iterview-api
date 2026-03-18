@@ -84,6 +84,8 @@ Authenticated endpoints:
 - `GET /api/resume-versions/{versionId}/editor/print-preview`
 - `GET /api/resume-versions/{versionId}/editor/revisions`
 - `GET /api/resume-versions/{versionId}/editor/revisions/{revisionId}`
+- `GET /api/resume-versions/{versionId}/editor/tracked-changes`
+- `POST /api/resume-versions/{versionId}/editor/merge-preview`
 - `POST /api/resume-versions/{versionId}/activate`
 - `GET /api/home`
 - `POST /api/daily-cards/{dailyCardId}/open`
@@ -639,6 +641,8 @@ Implemented:
 - `GET /api/resume-versions/{versionId}/editor/print-preview`
 - `GET /api/resume-versions/{versionId}/editor/revisions`
 - `GET /api/resume-versions/{versionId}/editor/revisions/{revisionId}`
+- `GET /api/resume-versions/{versionId}/editor/tracked-changes`
+- `POST /api/resume-versions/{versionId}/editor/merge-preview`
 
 Current behavior:
 - one workspace is lazily initialized per `resumeVersionId`
@@ -707,6 +711,16 @@ Current behavior:
   - `viewMode`
   - `selectedBlockId`
 - `GET /revisions` and `GET /revisions/{revisionId}` expose persisted revision history and one deterministic change summary
+- `GET /tracked-changes` exposes block-level added/updated/removed diffs between any two revisions
+- `POST /merge-preview` performs one deterministic 3-way merge preview from:
+  - one stale `baseRevisionNo`
+  - the current workspace document
+  - one proposed document payload
+- merge preview does not persist anything automatically; it returns:
+  - `mergeStatus`
+  - `mergedDocument`
+  - `conflicts[]`
+  - `changeSummary`
 - comment replies are additive thread messages and do not change the original comment anchor
 - `POST /auto-question-suggestions` returns deterministic suggested interview questions for one selected block or sentence
 - `POST /rewrite-suggestions` returns deterministic rewrite guidance for one selected block or sentence

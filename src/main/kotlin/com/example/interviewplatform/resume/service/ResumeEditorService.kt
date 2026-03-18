@@ -15,6 +15,9 @@ import com.example.interviewplatform.resume.dto.ResumeEditorCommentReplyDto
 import com.example.interviewplatform.resume.dto.ResumeEditorCommentSummaryDto
 import com.example.interviewplatform.resume.dto.ResumeEditorCommentThreadDto
 import com.example.interviewplatform.resume.dto.ResumeEditorDocumentDto
+import com.example.interviewplatform.resume.dto.ResumeEditorMergeConflictDto
+import com.example.interviewplatform.resume.dto.ResumeEditorMergePreviewDto
+import com.example.interviewplatform.resume.dto.ResumeEditorMergePreviewRequest
 import com.example.interviewplatform.resume.dto.ResumeEditorPresenceDto
 import com.example.interviewplatform.resume.dto.ResumeEditorPrintPreviewDto
 import com.example.interviewplatform.resume.dto.ResumeEditorQuestionCardDto
@@ -25,6 +28,8 @@ import com.example.interviewplatform.resume.dto.ResumeEditorRevisionListItemDto
 import com.example.interviewplatform.resume.dto.ResumeEditorRewriteSuggestionDto
 import com.example.interviewplatform.resume.dto.ResumeEditorRewriteSuggestionResponseDto
 import com.example.interviewplatform.resume.dto.ResumeEditorSuggestedQuestionDto
+import com.example.interviewplatform.resume.dto.ResumeEditorTrackedChangeDto
+import com.example.interviewplatform.resume.dto.ResumeEditorTrackedChangesDto
 import com.example.interviewplatform.resume.dto.ResumeEditorWorkspaceDto
 import com.example.interviewplatform.resume.dto.UpdateResumeEditorCommentRequest
 import com.example.interviewplatform.resume.dto.UpdateResumeEditorDocumentRequest
@@ -117,6 +122,61 @@ class ResumeEditorService(
         val revision = resumeEditorWorkspaceRevisionRepository.findByIdAndResumeVersionId(revisionId, versionId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume editor revision not found: $revisionId")
         return revision.toDetailDto()
+    }
+
+    @Transactional
+    fun getTrackedChanges(
+        userId: Long,
+        versionId: Long,
+        fromRevisionId: Long,
+        toRevisionId: Long,
+    ): ResumeEditorTrackedChangesDto {
+        requireOwnedVersion(userId, versionId)
+        val fromRevision = resumeEditorWorkspaceRevisionRepository.findByIdAndResumeVersionId(fromRevisionId, versionId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume editor revision not found: $fromRevisionId")
+        val toRevision = resumeEditorWorkspaceRevisionRepository.findByIdAndResumeVersionId(toRevisionId, versionId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume editor revision not found: $toRevisionId")
+        val changes = buildTrackedChanges(fromRevision.toDocument(), toRevision.toDocument())
+        return ResumeEditorTrackedChangesDto(
+            resumeVersionId = versionId,
+            fromRevisionId = fromRevisionId,
+            toRevisionId = toRevisionId,
+            changeSummary = buildChangeSummary(fromRevision.toDocument(), toRevision.toDocument()),
+            changes = changes,
+        )
+    }
+
+    @Transactional
+    fun getMergePreview(
+        userId: Long,
+        versionId: Long,
+        request: ResumeEditorMergePreviewRequest,
+    ): ResumeEditorMergePreviewDto {
+        val version = requireOwnedVersion(userId, versionId)
+        val workspace = getOrCreateWorkspace(userId, version)
+        val baseRevision = resumeEditorWorkspaceRevisionRepository.findByResumeEditorWorkspaceIdAndRevisionNo(workspace.id, request.baseRevisionNo)
+            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Base revision not found: ${request.baseRevisionNo}")
+        requireValidBlocks(request.blocks)
+        val currentDocument = decodeDocument(workspace)
+        val proposedDocument = ResumeEditorDocumentDto(
+            astVersion = 1,
+            markdownSource = request.markdownSource?.trim()?.takeIf { it.isNotEmpty() } ?: resumeEditorMarkdownService.render(request.blocks),
+            blocks = request.blocks,
+            layoutMetadata = request.layoutMetadata,
+        )
+        val mergeResult = mergeDocuments(baseRevision.toDocument(), currentDocument, proposedDocument)
+        val currentRevision = resumeEditorWorkspaceRevisionRepository.findByResumeEditorWorkspaceIdOrderByRevisionNoDesc(workspace.id)
+            .firstOrNull()
+            ?: baseRevision
+        return ResumeEditorMergePreviewDto(
+            resumeVersionId = versionId,
+            baseRevisionId = baseRevision.id,
+            currentRevisionId = currentRevision.id,
+            mergeStatus = if (mergeResult.conflicts.isEmpty()) "clean" else "conflicted",
+            mergedDocument = mergeResult.document,
+            conflicts = mergeResult.conflicts,
+            changeSummary = buildChangeSummary(currentDocument, mergeResult.document),
+        )
     }
 
     @Transactional
@@ -1022,6 +1082,104 @@ class ResumeEditorService(
         )
     }
 
+    private fun buildTrackedChanges(
+        previous: ResumeEditorDocumentDto,
+        current: ResumeEditorDocumentDto,
+    ): List<ResumeEditorTrackedChangeDto> {
+        val previousById = previous.blocks.associateBy { it.blockId }
+        val currentById = current.blocks.associateBy { it.blockId }
+        val orderedIds = (previous.blocks.map { it.blockId } + current.blocks.map { it.blockId }).distinct()
+        return orderedIds.mapNotNull { blockId ->
+            val before = previousById[blockId]
+            val after = currentById[blockId]
+            when {
+                before == null && after != null -> ResumeEditorTrackedChangeDto(
+                    blockId = blockId,
+                    changeType = "added",
+                    beforeBlockType = null,
+                    afterBlockType = after.blockType,
+                    beforeText = null,
+                    afterText = blockContent(after),
+                    fieldPath = after.fieldPath,
+                )
+                before != null && after == null -> ResumeEditorTrackedChangeDto(
+                    blockId = blockId,
+                    changeType = "removed",
+                    beforeBlockType = before.blockType,
+                    afterBlockType = null,
+                    beforeText = blockContent(before),
+                    afterText = null,
+                    fieldPath = before.fieldPath,
+                )
+                before != null && after != null && before != after -> ResumeEditorTrackedChangeDto(
+                    blockId = blockId,
+                    changeType = "updated",
+                    beforeBlockType = before.blockType,
+                    afterBlockType = after.blockType,
+                    beforeText = blockContent(before),
+                    afterText = blockContent(after),
+                    fieldPath = after.fieldPath ?: before.fieldPath,
+                )
+                else -> null
+            }
+        }
+    }
+
+    private fun mergeDocuments(
+        base: ResumeEditorDocumentDto,
+        current: ResumeEditorDocumentDto,
+        proposed: ResumeEditorDocumentDto,
+    ): MergeResult {
+        if (current == base) {
+            return MergeResult(proposed, emptyList())
+        }
+        val baseById = base.blocks.associateBy { it.blockId }
+        val currentById = current.blocks.associateBy { it.blockId }
+        val proposedById = proposed.blocks.associateBy { it.blockId }
+        val orderedIds = (current.blocks.map { it.blockId } + proposed.blocks.map { it.blockId } + base.blocks.map { it.blockId }).distinct()
+        val mergedBlocks = mutableListOf<ResumeEditorBlockDto>()
+        val conflicts = mutableListOf<ResumeEditorMergeConflictDto>()
+
+        orderedIds.forEach { blockId ->
+            val baseBlock = baseById[blockId]
+            val currentBlock = currentById[blockId]
+            val proposedBlock = proposedById[blockId]
+            val mergedBlock = when {
+                currentBlock == baseBlock -> proposedBlock
+                proposedBlock == baseBlock -> currentBlock
+                currentBlock == proposedBlock -> currentBlock
+                currentBlock == null && proposedBlock != null && baseBlock == null -> proposedBlock
+                proposedBlock == null && currentBlock != null && baseBlock == null -> currentBlock
+                else -> {
+                    conflicts += ResumeEditorMergeConflictDto(
+                        blockId = blockId,
+                        conflictType = when {
+                            currentBlock == null || proposedBlock == null -> "deletion_conflict"
+                            else -> "content_conflict"
+                        },
+                        baseText = baseBlock?.let(::blockContent),
+                        currentText = currentBlock?.let(::blockContent),
+                        proposedText = proposedBlock?.let(::blockContent),
+                    )
+                    currentBlock
+                }
+            }
+            if (mergedBlock != null) {
+                mergedBlocks += mergedBlock.copy(displayOrder = mergedBlocks.size)
+            }
+        }
+
+        return MergeResult(
+            document = ResumeEditorDocumentDto(
+                astVersion = current.astVersion,
+                markdownSource = resumeEditorMarkdownService.render(mergedBlocks),
+                blocks = mergedBlocks,
+                layoutMetadata = current.layoutMetadata + proposed.layoutMetadata,
+            ),
+            conflicts = conflicts,
+        )
+    }
+
     private fun encodeMap(value: Map<String, String>): String? =
         value.takeIf { it.isNotEmpty() }?.let(objectMapper::writeValueAsString)
 
@@ -1095,8 +1253,15 @@ class ResumeEditorService(
             createdAt = createdAt,
         )
 
-    private fun ResumeEditorWorkspaceRevisionEntity.toDetailDto(): ResumeEditorRevisionDto {
+    private fun ResumeEditorWorkspaceRevisionEntity.toDocument(): ResumeEditorDocumentDto {
         val stored = objectMapper.readValue(documentJson, ResumeEditorDocumentDto::class.java)
+        return stored.copy(
+            markdownSource = markdownSource ?: stored.markdownSource ?: resumeEditorMarkdownService.render(stored.blocks),
+            layoutMetadata = decodeMap(layoutMetadataJson).ifEmpty { stored.layoutMetadata },
+        )
+    }
+
+    private fun ResumeEditorWorkspaceRevisionEntity.toDetailDto(): ResumeEditorRevisionDto {
         return ResumeEditorRevisionDto(
             id = id,
             workspaceId = resumeEditorWorkspaceId,
@@ -1104,10 +1269,7 @@ class ResumeEditorService(
             revisionNo = revisionNo,
             changeSource = changeSource,
             changeSummary = decodeChangeSummary(changeSummaryJson),
-            document = stored.copy(
-                markdownSource = markdownSource ?: stored.markdownSource ?: resumeEditorMarkdownService.render(stored.blocks),
-                layoutMetadata = decodeMap(layoutMetadataJson).ifEmpty { stored.layoutMetadata },
-            ),
+            document = toDocument(),
             createdAt = createdAt,
         )
     }
@@ -1138,4 +1300,9 @@ class ResumeEditorService(
         private const val QUESTION_CARD_SOURCE_MANUAL = "manual"
         private const val PRESENCE_TTL_MINUTES = 10L
     }
+
+    private data class MergeResult(
+        val document: ResumeEditorDocumentDto,
+        val conflicts: List<ResumeEditorMergeConflictDto>,
+    )
 }

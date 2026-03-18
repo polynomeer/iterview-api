@@ -180,6 +180,8 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
   - `GET /api/resume-versions/{versionId}/editor/print-preview`
   - `GET /api/resume-versions/{versionId}/editor/revisions`
   - `GET /api/resume-versions/{versionId}/editor/revisions/{revisionId}`
+  - `GET /api/resume-versions/{versionId}/editor/tracked-changes`
+  - `POST /api/resume-versions/{versionId}/editor/merge-preview`
   - lazy workspace bootstrap from parsed resume snapshots
   - persisted workspace document JSON + markdown source
   - persisted comment-thread, comment-reply, and question-card layers
@@ -188,6 +190,7 @@ The rewritten docs mark interview-session work as deferred, but the requested ex
   - deterministic print preview read model for current editor content
   - persisted workspace revision history with optimistic revision checks
   - lightweight collaborative presence heartbeat read/write
+  - deterministic revision compare and server-assisted merge preview
 - current gap:
   - no dedicated rich diff or track-changes model yet
   - no true WYSIWYG print pagination renderer yet

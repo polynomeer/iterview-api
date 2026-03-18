@@ -44,8 +44,10 @@
 * `GET /api/resume-versions/{versionId}/editor/print-preview`
 * `GET /api/resume-versions/{versionId}/editor/revisions`
 * `GET /api/resume-versions/{versionId}/editor/revisions/{revisionId}`
+* `GET /api/resume-versions/{versionId}/editor/tracked-changes`
+* `POST /api/resume-versions/{versionId}/editor/merge-preview`
 
-즉 현재는 프론트가 바로 붙일 수 있는 **workspace contract + annotation persistence + markdown import + print preview + deterministic suggestion API + optimistic revision history + lightweight presence API**까지 구현된 상태로 보는 것이 맞습니다.
+즉 현재는 프론트가 바로 붙일 수 있는 **workspace contract + annotation persistence + markdown import + print preview + deterministic suggestion API + optimistic revision history + lightweight presence API + tracked changes + merge preview API**까지 구현된 상태로 보는 것이 맞습니다.
 
 ---
 

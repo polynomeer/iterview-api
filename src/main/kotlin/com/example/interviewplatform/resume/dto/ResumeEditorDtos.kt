@@ -66,6 +66,7 @@ data class ResumeEditorPrintPreviewDto(
     val plainText: String,
     val sections: List<ResumeEditorPrintPreviewSectionDto>,
     val pages: List<ResumeEditorPrintPreviewPageDto>,
+    val layoutItems: List<ResumeEditorPrintLayoutItemDto>,
 )
 
 data class ResumeEditorPrintPreviewSectionDto(
@@ -78,6 +79,15 @@ data class ResumeEditorPrintPreviewPageDto(
     val pageNumber: Int,
     val sectionKeys: List<String>,
     val lineCount: Int,
+)
+
+data class ResumeEditorPrintLayoutItemDto(
+    val pageNumber: Int,
+    val sectionKey: String,
+    val blockId: String,
+    val blockType: String,
+    val yOffsetLines: Int,
+    val estimatedLineSpan: Int,
 )
 
 data class ResumeEditorPresenceDto(
@@ -115,6 +125,42 @@ data class ResumeEditorRevisionDto(
     val changeSummary: ResumeEditorChangeSummaryDto,
     val document: ResumeEditorDocumentDto,
     val createdAt: Instant,
+)
+
+data class ResumeEditorTrackedChangesDto(
+    val resumeVersionId: Long,
+    val fromRevisionId: Long,
+    val toRevisionId: Long,
+    val changeSummary: ResumeEditorChangeSummaryDto,
+    val changes: List<ResumeEditorTrackedChangeDto>,
+)
+
+data class ResumeEditorTrackedChangeDto(
+    val blockId: String,
+    val changeType: String,
+    val beforeBlockType: String?,
+    val afterBlockType: String?,
+    val beforeText: String?,
+    val afterText: String?,
+    val fieldPath: String?,
+)
+
+data class ResumeEditorMergePreviewDto(
+    val resumeVersionId: Long,
+    val baseRevisionId: Long,
+    val currentRevisionId: Long,
+    val mergeStatus: String,
+    val mergedDocument: ResumeEditorDocumentDto,
+    val conflicts: List<ResumeEditorMergeConflictDto>,
+    val changeSummary: ResumeEditorChangeSummaryDto,
+)
+
+data class ResumeEditorMergeConflictDto(
+    val blockId: String,
+    val conflictType: String,
+    val baseText: String?,
+    val currentText: String?,
+    val proposedText: String?,
 )
 
 data class ResumeEditorCommentReplyDto(
@@ -295,4 +341,14 @@ data class CreateResumeEditorPresenceRequest(
     val sessionKey: String,
     val viewMode: String? = null,
     val selectedBlockId: String? = null,
+)
+
+data class ResumeEditorMergePreviewRequest(
+    @field:NotEmpty
+    @field:Valid
+    val blocks: List<ResumeEditorBlockDto>,
+    val markdownSource: String? = null,
+    val layoutMetadata: Map<String, String> = emptyMap(),
+    @field:Min(1)
+    val baseRevisionNo: Int,
 )

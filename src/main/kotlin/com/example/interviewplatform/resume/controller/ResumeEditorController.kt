@@ -9,6 +9,8 @@ import com.example.interviewplatform.resume.dto.CreateResumeEditorQuestionSugges
 import com.example.interviewplatform.resume.dto.CreateResumeEditorRewriteSuggestionRequest
 import com.example.interviewplatform.resume.dto.ImportResumeEditorMarkdownRequest
 import com.example.interviewplatform.resume.dto.ResumeEditorCommentThreadDto
+import com.example.interviewplatform.resume.dto.ResumeEditorMergePreviewDto
+import com.example.interviewplatform.resume.dto.ResumeEditorMergePreviewRequest
 import com.example.interviewplatform.resume.dto.ResumeEditorPresenceDto
 import com.example.interviewplatform.resume.dto.ResumeEditorPrintPreviewDto
 import com.example.interviewplatform.resume.dto.ResumeEditorQuestionCardDto
@@ -16,6 +18,7 @@ import com.example.interviewplatform.resume.dto.ResumeEditorQuestionSuggestionRe
 import com.example.interviewplatform.resume.dto.ResumeEditorRevisionDto
 import com.example.interviewplatform.resume.dto.ResumeEditorRevisionListItemDto
 import com.example.interviewplatform.resume.dto.ResumeEditorRewriteSuggestionResponseDto
+import com.example.interviewplatform.resume.dto.ResumeEditorTrackedChangesDto
 import com.example.interviewplatform.resume.dto.ResumeEditorWorkspaceDto
 import com.example.interviewplatform.resume.dto.UpdateResumeEditorCommentRequest
 import com.example.interviewplatform.resume.dto.UpdateResumeEditorDocumentRequest
@@ -32,6 +35,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @Tag(name = "Resume Editor")
@@ -147,4 +151,21 @@ class ResumeEditorController(
         @PathVariable revisionId: Long,
     ): ResumeEditorRevisionDto =
         resumeEditorService.getRevision(currentUserProvider.currentUserId(), versionId, revisionId)
+
+    @GetMapping("/tracked-changes")
+    @Operation(summary = "Compare two resume editor revisions")
+    fun getTrackedChanges(
+        @PathVariable versionId: Long,
+        @RequestParam fromRevisionId: Long,
+        @RequestParam toRevisionId: Long,
+    ): ResumeEditorTrackedChangesDto =
+        resumeEditorService.getTrackedChanges(currentUserProvider.currentUserId(), versionId, fromRevisionId, toRevisionId)
+
+    @PostMapping("/merge-preview")
+    @Operation(summary = "Preview server-assisted merge for a stale resume editor write")
+    fun getMergePreview(
+        @PathVariable versionId: Long,
+        @Valid @RequestBody request: ResumeEditorMergePreviewRequest,
+    ): ResumeEditorMergePreviewDto =
+        resumeEditorService.getMergePreview(currentUserProvider.currentUserId(), versionId, request)
 }

@@ -1447,6 +1447,7 @@ class ResumeApiIntegrationTest {
             .andExpect(jsonPath("$.pageEstimate").value(1))
             .andExpect(jsonPath("$.sections.length()").isNotEmpty)
             .andExpect(jsonPath("$.pages.length()").isNotEmpty)
+            .andExpect(jsonPath("$.layoutItems.length()").isNotEmpty)
             .andExpect(jsonPath("$.plainText").isNotEmpty)
     }
 
@@ -1568,6 +1569,51 @@ class ResumeApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.revisionNo").value(2))
             .andExpect(jsonPath("$.document.blocks[0].text").value("문서 기반 협업 플로우를 설계하고 검토 이력을 revision 단위로 관리했습니다."))
+
+        mockMvc.perform(
+            get("/api/resume-versions/$versionId/editor/tracked-changes")
+                .param("fromRevisionId", "1")
+                .param("toRevisionId", latestRevisionId.toString())
+                .header("Authorization", authHeader),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.fromRevisionId").value(1))
+            .andExpect(jsonPath("$.toRevisionId").value(latestRevisionId))
+            .andExpect(jsonPath("$.changeSummary.updatedBlockCount").value(1))
+            .andExpect(jsonPath("$.changes[0].changeType").value("updated"))
+
+        mockMvc.perform(
+            post("/api/resume-versions/$versionId/editor/merge-preview")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "blocks" to listOf(
+                                mapOf(
+                                    "blockId" to blockId,
+                                    "blockType" to block.path("blockType").asText(),
+                                    "title" to block.path("title").takeIf { !it.isNull }?.asText(),
+                                    "text" to "다른 사용자가 같은 블록을 별도 방향으로 수정한 경우를 가정합니다.",
+                                    "lines" to emptyList<String>(),
+                                    "sourceAnchorType" to (block.path("sourceAnchorType").takeIf { !it.isNull }?.asText()),
+                                    "sourceAnchorRecordId" to (block.path("sourceAnchorRecordId").takeIf { !it.isNull }?.asLong()),
+                                    "sourceAnchorKey" to (block.path("sourceAnchorKey").takeIf { !it.isNull }?.asText()),
+                                    "fieldPath" to (block.path("fieldPath").takeIf { !it.isNull }?.asText()),
+                                    "displayOrder" to block.path("displayOrder").asInt(),
+                                    "metadata" to emptyMap<String, String>(),
+                                    "inlineMarks" to emptyList<Map<String, Any>>(),
+                                ),
+                            ),
+                            "baseRevisionNo" to 1,
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.mergeStatus").value("conflicted"))
+            .andExpect(jsonPath("$.conflicts.length()").value(1))
+            .andExpect(jsonPath("$.conflicts[0].blockId").value(blockId))
     }
 
     private fun createResume(title: String): Long {
