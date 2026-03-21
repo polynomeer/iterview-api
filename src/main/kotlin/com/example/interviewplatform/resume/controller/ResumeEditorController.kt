@@ -8,6 +8,7 @@ import com.example.interviewplatform.resume.dto.CreateResumeEditorQuestionCardRe
 import com.example.interviewplatform.resume.dto.CreateResumeEditorQuestionSuggestionRequest
 import com.example.interviewplatform.resume.dto.CreateResumeEditorRewriteSuggestionRequest
 import com.example.interviewplatform.resume.dto.ImportResumeEditorMarkdownRequest
+import com.example.interviewplatform.resume.dto.PatchResumeEditorDocumentOperationsRequest
 import com.example.interviewplatform.resume.dto.ResumeEditorCommentThreadDto
 import com.example.interviewplatform.resume.dto.ResumeEditorMergePreviewDto
 import com.example.interviewplatform.resume.dto.ResumeEditorMergePreviewRequest
@@ -58,6 +59,14 @@ class ResumeEditorController(
         @Valid @RequestBody request: UpdateResumeEditorDocumentRequest,
     ): ResumeEditorWorkspaceDto =
         resumeEditorService.updateDocument(currentUserProvider.currentUserId(), versionId, request)
+
+    @PatchMapping("/document/operations")
+    @Operation(summary = "Apply granular operations to one resume editor document")
+    fun patchDocumentOperations(
+        @PathVariable versionId: Long,
+        @Valid @RequestBody request: PatchResumeEditorDocumentOperationsRequest,
+    ): ResumeEditorWorkspaceDto =
+        resumeEditorService.patchDocumentOperations(currentUserProvider.currentUserId(), versionId, request)
 
     @PostMapping("/import-markdown")
     @Operation(summary = "Import markdown into resume editor workspace")

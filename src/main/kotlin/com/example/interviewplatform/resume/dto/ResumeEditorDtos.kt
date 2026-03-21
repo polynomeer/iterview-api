@@ -14,6 +14,9 @@ data class ResumeEditorWorkspaceDto(
     val sourceFileName: String?,
     val workspaceStatus: String,
     val revisionNo: Int,
+    val documentModel: String,
+    val selectionCapabilities: ResumeEditorSelectionCapabilitiesDto,
+    val contextMenuActions: List<String>,
     val supportedViewModes: List<String>,
     val document: ResumeEditorDocumentDto,
     val comments: List<ResumeEditorCommentThreadDto>,
@@ -32,7 +35,49 @@ data class ResumeEditorDocumentDto(
     val astVersion: Int,
     val markdownSource: String?,
     val blocks: List<ResumeEditorBlockDto>,
+    val rootNodeId: String? = null,
+    val nodes: List<ResumeEditorNodeDto> = emptyList(),
+    val tableOfContents: List<ResumeEditorTableOfContentsItemDto> = emptyList(),
     val layoutMetadata: Map<String, String>,
+)
+
+data class ResumeEditorSelectionCapabilitiesDto(
+    val supportsRichTree: Boolean,
+    val supportsOperations: Boolean,
+    val supportsInlineSelections: Boolean,
+    val supportsContextualComments: Boolean,
+    val supportsContextualQuestionCards: Boolean,
+    val supportsContextualSuggestions: Boolean,
+)
+
+data class ResumeEditorTableOfContentsItemDto(
+    val nodeId: String,
+    val title: String,
+    val depth: Int,
+    val fieldPath: String?,
+)
+
+data class ResumeEditorTextRunDto(
+    val text: String,
+    val marks: List<String> = emptyList(),
+    val href: String? = null,
+)
+
+data class ResumeEditorNodeDto(
+    val nodeId: String,
+    val parentNodeId: String?,
+    val nodeType: String,
+    val text: String?,
+    val textRuns: List<ResumeEditorTextRunDto> = emptyList(),
+    val children: List<String> = emptyList(),
+    val collapsed: Boolean = false,
+    val depth: Int,
+    val sourceAnchorType: String?,
+    val sourceAnchorRecordId: Long?,
+    val sourceAnchorKey: String?,
+    val fieldPath: String?,
+    val displayOrder: Int,
+    val metadata: Map<String, String> = emptyMap(),
 )
 
 data class ResumeEditorInlineMarkDto(
@@ -137,12 +182,20 @@ data class ResumeEditorTrackedChangesDto(
 
 data class ResumeEditorTrackedChangeDto(
     val blockId: String,
+    val nodeId: String,
     val changeType: String,
     val beforeBlockType: String?,
     val afterBlockType: String?,
     val beforeText: String?,
     val afterText: String?,
     val fieldPath: String?,
+    val beforeParentNodeId: String? = null,
+    val afterParentNodeId: String? = null,
+    val beforeDepth: Int? = null,
+    val afterDepth: Int? = null,
+    val textChanged: Boolean = false,
+    val structureChanged: Boolean = false,
+    val moveRelated: Boolean = false,
 )
 
 data class ResumeEditorMergePreviewDto(
@@ -157,10 +210,26 @@ data class ResumeEditorMergePreviewDto(
 
 data class ResumeEditorMergeConflictDto(
     val blockId: String,
+    val nodeId: String,
     val conflictType: String,
     val baseText: String?,
     val currentText: String?,
     val proposedText: String?,
+    val conflictScopes: List<String> = emptyList(),
+    val baseParentNodeId: String? = null,
+    val currentParentNodeId: String? = null,
+    val proposedParentNodeId: String? = null,
+)
+
+data class ResumeEditorSelectionAnchorDto(
+    val nodeId: String,
+    val anchorPath: String? = null,
+    val fieldPath: String? = null,
+    val selectionStartOffset: Int? = null,
+    val selectionEndOffset: Int? = null,
+    val selectedText: String? = null,
+    val anchorQuote: String? = null,
+    val sentenceIndex: Int? = null,
 )
 
 data class ResumeEditorCommentReplyDto(
@@ -174,6 +243,7 @@ data class ResumeEditorCommentReplyDto(
 data class ResumeEditorCommentThreadDto(
     val id: Long,
     val blockId: String,
+    val selectionAnchor: ResumeEditorSelectionAnchorDto?,
     val fieldPath: String?,
     val selectionStartOffset: Int?,
     val selectionEndOffset: Int?,
@@ -190,6 +260,7 @@ data class ResumeEditorCommentThreadDto(
 data class ResumeEditorQuestionCardDto(
     val id: Long,
     val blockId: String,
+    val selectionAnchor: ResumeEditorSelectionAnchorDto?,
     val fieldPath: String?,
     val selectionStartOffset: Int?,
     val selectionEndOffset: Int?,
@@ -221,6 +292,7 @@ data class ResumeEditorQuestionCardSummaryDto(
 data class ResumeEditorQuestionSuggestionResponseDto(
     val resumeVersionId: Long,
     val blockId: String,
+    val selectionAnchor: ResumeEditorSelectionAnchorDto?,
     val selectedText: String,
     val sourceType: String,
     val suggestions: List<ResumeEditorSuggestedQuestionDto>,
@@ -237,6 +309,7 @@ data class ResumeEditorSuggestedQuestionDto(
 data class ResumeEditorRewriteSuggestionResponseDto(
     val resumeVersionId: Long,
     val blockId: String,
+    val selectionAnchor: ResumeEditorSelectionAnchorDto?,
     val selectedText: String,
     val sourceType: String,
     val suggestions: List<ResumeEditorRewriteSuggestionDto>,
@@ -250,9 +323,12 @@ data class ResumeEditorRewriteSuggestionDto(
 )
 
 data class UpdateResumeEditorDocumentRequest(
-    @field:NotEmpty
     @field:Valid
-    val blocks: List<ResumeEditorBlockDto>,
+    val blocks: List<ResumeEditorBlockDto>? = null,
+    val rootNodeId: String? = null,
+    @field:Valid
+    val nodes: List<ResumeEditorNodeDto>? = null,
+    val tableOfContents: List<ResumeEditorTableOfContentsItemDto>? = null,
     val markdownSource: String? = null,
     val layoutMetadata: Map<String, String> = emptyMap(),
     @field:Min(1)
@@ -260,9 +336,37 @@ data class UpdateResumeEditorDocumentRequest(
     val changeSource: String? = null,
 )
 
-data class CreateResumeEditorCommentRequest(
+data class ResumeEditorDocumentOperationDto(
     @field:NotBlank
-    val blockId: String,
+    val operationType: String,
+    val nodeId: String? = null,
+    val parentNodeId: String? = null,
+    val referenceNodeId: String? = null,
+    val text: String? = null,
+    @field:Min(0)
+    val startOffset: Int? = null,
+    @field:Min(0)
+    val endOffset: Int? = null,
+    val nodeType: String? = null,
+    val markType: String? = null,
+    val href: String? = null,
+    val collapsed: Boolean? = null,
+)
+
+data class PatchResumeEditorDocumentOperationsRequest(
+    @field:NotEmpty
+    @field:Valid
+    val operations: List<ResumeEditorDocumentOperationDto>,
+    @field:Min(1)
+    val baseRevisionNo: Int? = null,
+    val changeSource: String? = null,
+    val clientSessionKey: String? = null,
+    val clientChangeId: String? = null,
+)
+
+data class CreateResumeEditorCommentRequest(
+    val blockId: String? = null,
+    val selectionAnchor: ResumeEditorSelectionAnchorDto? = null,
     val fieldPath: String? = null,
     @field:Min(0)
     val selectionStartOffset: Int? = null,
@@ -284,8 +388,8 @@ data class CreateResumeEditorCommentReplyRequest(
 )
 
 data class CreateResumeEditorQuestionCardRequest(
-    @field:NotBlank
-    val blockId: String,
+    val blockId: String? = null,
+    val selectionAnchor: ResumeEditorSelectionAnchorDto? = null,
     val fieldPath: String? = null,
     @field:Min(0)
     val selectionStartOffset: Int? = null,
@@ -311,8 +415,8 @@ data class UpdateResumeEditorQuestionCardRequest(
 )
 
 data class CreateResumeEditorQuestionSuggestionRequest(
-    @field:NotBlank
-    val blockId: String,
+    val blockId: String? = null,
+    val selectionAnchor: ResumeEditorSelectionAnchorDto? = null,
     val fieldPath: String? = null,
     val selectedText: String? = null,
     @field:Min(1)
@@ -321,8 +425,8 @@ data class CreateResumeEditorQuestionSuggestionRequest(
 )
 
 data class CreateResumeEditorRewriteSuggestionRequest(
-    @field:NotBlank
-    val blockId: String,
+    val blockId: String? = null,
+    val selectionAnchor: ResumeEditorSelectionAnchorDto? = null,
     val fieldPath: String? = null,
     val selectedText: String? = null,
 )
@@ -344,9 +448,12 @@ data class CreateResumeEditorPresenceRequest(
 )
 
 data class ResumeEditorMergePreviewRequest(
-    @field:NotEmpty
     @field:Valid
-    val blocks: List<ResumeEditorBlockDto>,
+    val blocks: List<ResumeEditorBlockDto>? = null,
+    val rootNodeId: String? = null,
+    @field:Valid
+    val nodes: List<ResumeEditorNodeDto>? = null,
+    val tableOfContents: List<ResumeEditorTableOfContentsItemDto>? = null,
     val markdownSource: String? = null,
     val layoutMetadata: Map<String, String> = emptyMap(),
     @field:Min(1)

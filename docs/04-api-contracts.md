@@ -2461,31 +2461,43 @@ Current implemented follow-up behavior:
   - `sourceInterviewRecordId`
   - `sourceInterviewQuestionId`
 
-## Planned Additive API - Resume Editor V2
+## Live Additive API - Resume Editor V2
 
-The current live editor contract is still the block-oriented v1 workspace. The next editor slice should add a richer document model without breaking v1.
+The resume editor now exposes one additive v2 contract on top of the existing v1 block workspace. The migration rule is:
 
-Planned additive endpoints:
+- `blocks[]` and `markdownSource` remain live for coarse replacement and fallback rendering
+- `documentModel = rich_tree` tells clients they can render the richer document surface
+- rich node reads and operation patch writes are additive, not breaking
+
+Live additive endpoint:
 
 - `PATCH /api/resume-versions/{versionId}/editor/document/operations`
 
-Planned additive contract direction:
+Live additive contract:
 
-- extend `GET /api/resume-versions/{versionId}/editor` with:
+- `GET /api/resume-versions/{versionId}/editor` now includes:
   - `documentModel`
   - `selectionCapabilities`
   - `contextMenuActions`
   - `document.rootNodeId`
   - `document.nodes[]`
   - `document.tableOfContents[]`
-- extend annotation and suggestion request DTOs with one additive `selectionAnchor` object
-- extend tracked changes and merge preview so conflicts can be node-aware and structure-aware
-- keep `PUT /editor/document`, `POST /editor/import-markdown`, and legacy `blocks[]` during migration
+- comment, question-card, and suggestion payloads now accept additive `selectionAnchor`
+- tracked changes and merge preview now expose node-aware and structure-aware metadata
+- `PUT /editor/document` and `POST /editor/import-markdown` remain supported
 
-Planned additive DTOs include:
+Live additive DTOs:
 
+- `ResumeEditorSelectionCapabilitiesDto`
 - `ResumeEditorNodeDto`
 - `ResumeEditorTextRunDto`
+- `ResumeEditorTableOfContentsItemDto`
 - `ResumeEditorSelectionAnchorDto`
 - `ResumeEditorDocumentOperationDto`
 - `PatchResumeEditorDocumentOperationsRequest`
+
+Current compatibility behavior:
+
+- v1 clients can continue using `document.blocks[]`
+- v2 clients should prefer `documentModel = rich_tree` plus `document.nodes[]`
+- `baseRevisionNo` remains the optimistic concurrency guard for both `PUT /editor/document` and `PATCH /editor/document/operations`

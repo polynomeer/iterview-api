@@ -478,6 +478,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResumeEditorWorkspaceDto"
+  /api/resume-versions/{versionId}/editor/document/operations:
+    patch:
+      tags: [Resume]
+      summary: Apply granular operations to one resume editor document
+      parameters:
+        - $ref: "#/components/parameters/VersionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchResumeEditorDocumentOperationsRequest"
+      responses:
+        "200":
+          description: Updated resume editor workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeEditorWorkspaceDto"
   /api/resume-versions/{versionId}/editor/import-markdown:
     post:
       tags: [Resume]
@@ -2066,9 +2085,91 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ResumeEditorBlockDto"
+        rootNodeId: { type: string, nullable: true }
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeEditorNodeDto"
+        tableOfContents:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeEditorTableOfContentsItemDto"
         layoutMetadata:
           type: object
           additionalProperties: { type: string }
+    ResumeEditorSelectionCapabilitiesDto:
+      type: object
+      properties:
+        supportsRichTree: { type: boolean }
+        supportsOperations: { type: boolean }
+        supportsInlineSelections: { type: boolean }
+        supportsContextualComments: { type: boolean }
+        supportsContextualQuestionCards: { type: boolean }
+        supportsContextualSuggestions: { type: boolean }
+    ResumeEditorTableOfContentsItemDto:
+      type: object
+      properties:
+        nodeId: { type: string }
+        title: { type: string }
+        depth: { type: integer }
+        fieldPath: { type: string, nullable: true }
+    ResumeEditorTextRunDto:
+      type: object
+      properties:
+        text: { type: string }
+        marks:
+          type: array
+          items: { type: string }
+        href: { type: string, nullable: true }
+    ResumeEditorNodeDto:
+      type: object
+      properties:
+        nodeId: { type: string }
+        parentNodeId: { type: string, nullable: true }
+        nodeType: { type: string }
+        text: { type: string, nullable: true }
+        textRuns:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeEditorTextRunDto"
+        children:
+          type: array
+          items: { type: string }
+        collapsed: { type: boolean }
+        depth: { type: integer }
+        sourceAnchorType: { type: string, nullable: true }
+        sourceAnchorRecordId: { type: integer, format: int64, nullable: true }
+        sourceAnchorKey: { type: string, nullable: true }
+        fieldPath: { type: string, nullable: true }
+        displayOrder: { type: integer }
+        metadata:
+          type: object
+          additionalProperties: { type: string }
+    ResumeEditorSelectionAnchorDto:
+      type: object
+      properties:
+        nodeId: { type: string }
+        anchorPath: { type: string, nullable: true }
+        fieldPath: { type: string, nullable: true }
+        selectionStartOffset: { type: integer, nullable: true }
+        selectionEndOffset: { type: integer, nullable: true }
+        selectedText: { type: string, nullable: true }
+        anchorQuote: { type: string, nullable: true }
+        sentenceIndex: { type: integer, nullable: true }
+    ResumeEditorDocumentOperationDto:
+      type: object
+      properties:
+        operationType: { type: string }
+        nodeId: { type: string, nullable: true }
+        parentNodeId: { type: string, nullable: true }
+        referenceNodeId: { type: string, nullable: true }
+        text: { type: string, nullable: true }
+        startOffset: { type: integer, nullable: true }
+        endOffset: { type: integer, nullable: true }
+        nodeType: { type: string, nullable: true }
+        markType: { type: string, nullable: true }
+        href: { type: string, nullable: true }
+        collapsed: { type: boolean, nullable: true }
     ResumeEditorCommentReplyDto:
       type: object
       properties:
@@ -2082,6 +2183,10 @@ components:
       properties:
         id: { type: integer, format: int64 }
         blockId: { type: string }
+        selectionAnchor:
+          allOf:
+            - $ref: "#/components/schemas/ResumeEditorSelectionAnchorDto"
+          nullable: true
         fieldPath: { type: string, nullable: true }
         selectionStartOffset: { type: integer, nullable: true }
         selectionEndOffset: { type: integer, nullable: true }
@@ -2101,6 +2206,10 @@ components:
       properties:
         id: { type: integer, format: int64 }
         blockId: { type: string }
+        selectionAnchor:
+          allOf:
+            - $ref: "#/components/schemas/ResumeEditorSelectionAnchorDto"
+          nullable: true
         fieldPath: { type: string, nullable: true }
         selectionStartOffset: { type: integer, nullable: true }
         selectionEndOffset: { type: integer, nullable: true }
@@ -2125,6 +2234,12 @@ components:
         sourceFileName: { type: string, nullable: true }
         workspaceStatus: { type: string }
         revisionNo: { type: integer }
+        documentModel: { type: string }
+        selectionCapabilities:
+          $ref: "#/components/schemas/ResumeEditorSelectionCapabilitiesDto"
+        contextMenuActions:
+          type: array
+          items: { type: string }
         supportedViewModes:
           type: array
           items: { type: string }
@@ -2260,12 +2375,20 @@ components:
       type: object
       properties:
         blockId: { type: string }
+        nodeId: { type: string }
         changeType: { type: string }
         beforeBlockType: { type: string, nullable: true }
         afterBlockType: { type: string, nullable: true }
         beforeText: { type: string, nullable: true }
         afterText: { type: string, nullable: true }
         fieldPath: { type: string, nullable: true }
+        beforeParentNodeId: { type: string, nullable: true }
+        afterParentNodeId: { type: string, nullable: true }
+        beforeDepth: { type: integer, nullable: true }
+        afterDepth: { type: integer, nullable: true }
+        textChanged: { type: boolean }
+        structureChanged: { type: boolean }
+        moveRelated: { type: boolean }
     ResumeEditorMergePreviewDto:
       type: object
       properties:
@@ -2285,10 +2408,17 @@ components:
       type: object
       properties:
         blockId: { type: string }
+        nodeId: { type: string }
         conflictType: { type: string }
         baseText: { type: string, nullable: true }
         currentText: { type: string, nullable: true }
         proposedText: { type: string, nullable: true }
+        conflictScopes:
+          type: array
+          items: { type: string }
+        baseParentNodeId: { type: string, nullable: true }
+        currentParentNodeId: { type: string, nullable: true }
+        proposedParentNodeId: { type: string, nullable: true }
     UpdateResumeEditorDocumentRequest:
       type: object
       properties:
@@ -2296,12 +2426,32 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ResumeEditorBlockDto"
+        rootNodeId: { type: string, nullable: true }
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeEditorNodeDto"
+        tableOfContents:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeEditorTableOfContentsItemDto"
         markdownSource: { type: string, nullable: true }
         layoutMetadata:
           type: object
           additionalProperties: { type: string }
         baseRevisionNo: { type: integer, nullable: true }
         changeSource: { type: string, nullable: true }
+    PatchResumeEditorDocumentOperationsRequest:
+      type: object
+      properties:
+        operations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeEditorDocumentOperationDto"
+        baseRevisionNo: { type: integer, nullable: true }
+        changeSource: { type: string, nullable: true }
+        clientSessionKey: { type: string, nullable: true }
+        clientChangeId: { type: string, nullable: true }
     ImportResumeEditorMarkdownRequest:
       type: object
       properties:
@@ -2322,6 +2472,15 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ResumeEditorBlockDto"
+        rootNodeId: { type: string, nullable: true }
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeEditorNodeDto"
+        tableOfContents:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumeEditorTableOfContentsItemDto"
         markdownSource: { type: string, nullable: true }
         layoutMetadata:
           type: object
@@ -2330,7 +2489,11 @@ components:
     CreateResumeEditorCommentRequest:
       type: object
       properties:
-        blockId: { type: string }
+        blockId: { type: string, nullable: true }
+        selectionAnchor:
+          allOf:
+            - $ref: "#/components/schemas/ResumeEditorSelectionAnchorDto"
+          nullable: true
         fieldPath: { type: string, nullable: true }
         selectionStartOffset: { type: integer, nullable: true }
         selectionEndOffset: { type: integer, nullable: true }
@@ -2348,7 +2511,11 @@ components:
     CreateResumeEditorQuestionCardRequest:
       type: object
       properties:
-        blockId: { type: string }
+        blockId: { type: string, nullable: true }
+        selectionAnchor:
+          allOf:
+            - $ref: "#/components/schemas/ResumeEditorSelectionAnchorDto"
+          nullable: true
         fieldPath: { type: string, nullable: true }
         selectionStartOffset: { type: integer, nullable: true }
         selectionEndOffset: { type: integer, nullable: true }
@@ -2387,6 +2554,10 @@ components:
       properties:
         resumeVersionId: { type: integer, format: int64 }
         blockId: { type: string }
+        selectionAnchor:
+          allOf:
+            - $ref: "#/components/schemas/ResumeEditorSelectionAnchorDto"
+          nullable: true
         selectedText: { type: string }
         sourceType: { type: string }
         suggestions:
@@ -2396,7 +2567,11 @@ components:
     CreateResumeEditorQuestionSuggestionRequest:
       type: object
       properties:
-        blockId: { type: string }
+        blockId: { type: string, nullable: true }
+        selectionAnchor:
+          allOf:
+            - $ref: "#/components/schemas/ResumeEditorSelectionAnchorDto"
+          nullable: true
         fieldPath: { type: string, nullable: true }
         selectedText: { type: string, nullable: true }
         maxSuggestions: { type: integer }
@@ -2412,6 +2587,10 @@ components:
       properties:
         resumeVersionId: { type: integer, format: int64 }
         blockId: { type: string }
+        selectionAnchor:
+          allOf:
+            - $ref: "#/components/schemas/ResumeEditorSelectionAnchorDto"
+          nullable: true
         selectedText: { type: string }
         sourceType: { type: string }
         suggestions:
@@ -2421,7 +2600,11 @@ components:
     CreateResumeEditorRewriteSuggestionRequest:
       type: object
       properties:
-        blockId: { type: string }
+        blockId: { type: string, nullable: true }
+        selectionAnchor:
+          allOf:
+            - $ref: "#/components/schemas/ResumeEditorSelectionAnchorDto"
+          nullable: true
         fieldPath: { type: string, nullable: true }
         selectedText: { type: string, nullable: true }
     ResumeQuestionHeatmapSummaryDto:

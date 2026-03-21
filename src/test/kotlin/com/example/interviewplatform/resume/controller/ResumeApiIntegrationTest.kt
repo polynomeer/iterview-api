@@ -1213,8 +1213,15 @@ class ResumeApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.resumeVersionId").value(versionId))
             .andExpect(jsonPath("$.workspaceStatus").value("draft"))
+            .andExpect(jsonPath("$.documentModel").value("rich_tree"))
+            .andExpect(jsonPath("$.selectionCapabilities.supportsRichTree").value(true))
+            .andExpect(jsonPath("$.selectionCapabilities.supportsOperations").value(true))
+            .andExpect(jsonPath("$.contextMenuActions.length()").isNotEmpty)
             .andExpect(jsonPath("$.supportedViewModes[0]").value("edit"))
-            .andExpect(jsonPath("$.document.astVersion").value(1))
+            .andExpect(jsonPath("$.document.astVersion").value(2))
+            .andExpect(jsonPath("$.document.rootNodeId").value("root"))
+            .andExpect(jsonPath("$.document.nodes.length()").isNotEmpty)
+            .andExpect(jsonPath("$.document.tableOfContents").isArray)
             .andExpect(jsonPath("$.document.blocks.length()").isNotEmpty)
             .andReturn()
             .response
@@ -1239,6 +1246,7 @@ class ResumeApiIntegrationTest {
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.blockId").value(blockId))
+            .andExpect(jsonPath("$.selectionAnchor.nodeId").value(blockId))
             .andExpect(jsonPath("$.status").value("open"))
 
         val questionCardId = mockMvc.perform(
@@ -1261,6 +1269,7 @@ class ResumeApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.sourceType").value("manual"))
             .andExpect(jsonPath("$.status").value("active"))
+            .andExpect(jsonPath("$.selectionAnchor.nodeId").value(blockId))
             .andReturn()
             .response
             .contentAsString
@@ -1330,6 +1339,7 @@ class ResumeApiIntegrationTest {
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.sourceType").value("heuristic"))
+            .andExpect(jsonPath("$.selectionAnchor.nodeId").value(projectBlockId))
             .andExpect(jsonPath("$.suggestions.length()").value(3))
             .andExpect(jsonPath("$.suggestions[0].questionText").isNotEmpty)
 
@@ -1348,6 +1358,7 @@ class ResumeApiIntegrationTest {
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.sourceType").value("heuristic"))
+            .andExpect(jsonPath("$.selectionAnchor.nodeId").value(projectBlockId))
             .andExpect(jsonPath("$.suggestions.length()").isNotEmpty)
             .andExpect(jsonPath("$.suggestions[0].suggestedText").isNotEmpty)
             .andExpect(jsonPath("$.suggestions[0].partialApplyAllowed").value(true))
@@ -1408,6 +1419,7 @@ class ResumeApiIntegrationTest {
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.replyCount").value(1))
+            .andExpect(jsonPath("$.selectionAnchor.nodeId").value(blockId))
             .andExpect(jsonPath("$.replies[0].body").value("장애 복구와 재처리 정책을 추가하겠습니다."))
 
         mockMvc.perform(
@@ -1475,7 +1487,9 @@ class ResumeApiIntegrationTest {
             .contentAsString
             .let(objectMapper::readTree)
 
-        val block = workspace.path("document").path("blocks").first()
+        val block = workspace.path("document").path("blocks").firstOrNull {
+            it.path("blockType").asText() != "header"
+        } ?: workspace.path("document").path("blocks").first()
         val blockId = block.path("blockId").asText()
 
         mockMvc.perform(
@@ -1563,12 +1577,13 @@ class ResumeApiIntegrationTest {
         mockMvc.perform(get("/api/resume-versions/$versionId/editor/revisions").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$[0].revisionNo").value(2))
-            .andExpect(jsonPath("$[0].changeSummary.updatedBlockCount").value(1))
+            .andExpect(jsonPath("$[0].changeSummary.changedBlockIds.length()").value(org.hamcrest.Matchers.greaterThan(0)))
 
         mockMvc.perform(get("/api/resume-versions/$versionId/editor/revisions/$latestRevisionId").header("Authorization", authHeader))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.revisionNo").value(2))
-            .andExpect(jsonPath("$.document.blocks[0].text").value("문서 기반 협업 플로우를 설계하고 검토 이력을 revision 단위로 관리했습니다."))
+            .andExpect(jsonPath("$.document.rootNodeId").value("root"))
+            .andExpect(jsonPath("$.document.nodes.length()").isNotEmpty)
 
         mockMvc.perform(
             get("/api/resume-versions/$versionId/editor/tracked-changes")
@@ -1579,8 +1594,10 @@ class ResumeApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.fromRevisionId").value(1))
             .andExpect(jsonPath("$.toRevisionId").value(latestRevisionId))
-            .andExpect(jsonPath("$.changeSummary.updatedBlockCount").value(1))
-            .andExpect(jsonPath("$.changes[0].changeType").value("updated"))
+            .andExpect(jsonPath("$.changeSummary.changedBlockIds.length()").value(org.hamcrest.Matchers.greaterThan(0)))
+            .andExpect(jsonPath("$.changes[0].nodeId").exists())
+            .andExpect(jsonPath("$.changes[0].changeType").isNotEmpty)
+            .andExpect(jsonPath("$.changes[0].textChanged").exists())
 
         mockMvc.perform(
             post("/api/resume-versions/$versionId/editor/merge-preview")
@@ -1614,6 +1631,93 @@ class ResumeApiIntegrationTest {
             .andExpect(jsonPath("$.mergeStatus").value("conflicted"))
             .andExpect(jsonPath("$.conflicts.length()").value(1))
             .andExpect(jsonPath("$.conflicts[0].blockId").value(blockId))
+            .andExpect(jsonPath("$.conflicts[0].nodeId").value(blockId))
+            .andExpect(jsonPath("$.conflicts[0].conflictScopes.length()").isNotEmpty)
+    }
+
+    @Test
+    fun `resume editor supports granular document operations and rich tracked changes`() {
+        val resumeId = createResume("Editor Operations Resume")
+        val versionId = createResumeVersion(
+            resumeId = resumeId,
+            fileUrl = "https://files.example.com/editor-ops-resume.pdf",
+            summaryText = "Engineer with operation-based editor workflow.",
+            rawText = """
+                Ops Kim
+                프로젝트
+                Creator Pipeline
+                콘텐츠 파이프라인 안정화를 주도했습니다.
+            """.trimIndent(),
+            parsedJson = """{"skills":["Kotlin","Redis"]}""",
+        )
+
+        val workspace = mockMvc.perform(get("/api/resume-versions/$versionId/editor").header("Authorization", authHeader))
+            .andExpect(status().isOk)
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val targetBlock = workspace.path("document").path("blocks").first()
+        val blockId = targetBlock.path("blockId").asText()
+
+        val updatedWorkspace = mockMvc.perform(
+            patch("/api/resume-versions/$versionId/editor/document/operations")
+                .header("Authorization", authHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "baseRevisionNo" to 1,
+                            "changeSource" to "operation_patch",
+                            "clientSessionKey" to "browser-main",
+                            "clientChangeId" to "change-1",
+                            "operations" to listOf(
+                                mapOf(
+                                    "operationType" to "text_replace",
+                                    "nodeId" to blockId,
+                                    "startOffset" to 0,
+                                    "endOffset" to 5,
+                                    "text" to "문서형 편집기",
+                                ),
+                                mapOf(
+                                    "operationType" to "inline_mark_add",
+                                    "nodeId" to blockId,
+                                    "startOffset" to 0,
+                                    "endOffset" to 6,
+                                    "markType" to "highlight",
+                                ),
+                                mapOf(
+                                    "operationType" to "collapse_toggle",
+                                    "nodeId" to blockId,
+                                    "collapsed" to true,
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.revisionNo").value(2))
+            .andExpect(jsonPath("$.document.nodes[?(@.nodeId=='$blockId')].collapsed").value(org.hamcrest.Matchers.hasItem(true)))
+            .andExpect(jsonPath("$.document.blocks[?(@.blockId=='$blockId')].inlineMarks[0].markType").value(org.hamcrest.Matchers.hasItem("highlight")))
+            .andReturn()
+            .response
+            .contentAsString
+            .let(objectMapper::readTree)
+
+        val latestRevisionId = updatedWorkspace.path("latestRevision").path("id").asLong()
+
+        mockMvc.perform(
+            get("/api/resume-versions/$versionId/editor/tracked-changes")
+                .param("fromRevisionId", "1")
+                .param("toRevisionId", latestRevisionId.toString())
+                .header("Authorization", authHeader),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.changes[0].nodeId").exists())
+            .andExpect(jsonPath("$.changes[0].textChanged").value(true))
+            .andExpect(jsonPath("$.changes[0].structureChanged").value(true))
     }
 
     private fun createResume(title: String): Long {

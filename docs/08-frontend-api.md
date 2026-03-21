@@ -572,35 +572,37 @@ Implemented practical interview record foundation:
 - For PR review, schema discussion, or frontend mocking, use the checked-in snapshot file.
 - If the runtime API and snapshot diverge, treat the runtime `/v3/api-docs` as the operational source and update the snapshot in the same backend change.
 
-## Planned Resume Editor V2
+## Resume Editor V2
 
-The current runtime editor API is still v1 and block-oriented enough for a markdown-first fallback workspace. A true Notion-level frontend needs additive backend changes.
+The runtime editor API now supports additive v2 rich-document behavior while preserving the v1 block and markdown fallback.
 
-Planned additive editor upgrades:
+Live additive editor upgrades:
 
-- keep `GET /api/resume-versions/{versionId}/editor` as the main workspace read, but extend it with:
+- `GET /api/resume-versions/{versionId}/editor` now returns:
   - `documentModel = rich_tree`
   - `document.rootNodeId`
   - `document.nodes[]`
   - `document.tableOfContents[]`
   - `selectionCapabilities`
   - `contextMenuActions`
-- add `PATCH /api/resume-versions/{versionId}/editor/document/operations` for granular rich-document writes
-- keep `PUT /editor/document` for coarse full-document replacement
-- broaden comment, question-card, and suggestion request payloads to accept one additive `selectionAnchor` object instead of only one flat `blockId`
-- extend presence payloads to optionally include one focused node or selection anchor
-- extend tracked changes and merge preview so they can describe node-level text edits, structural moves, and structural conflicts
+- `PATCH /api/resume-versions/{versionId}/editor/document/operations` is live for granular rich-document writes
+- `PUT /editor/document` remains live for coarse full-document replacement
+- comment, question-card, and suggestion request payloads now accept additive `selectionAnchor`
+- tracked changes and merge preview now include richer node-aware metadata
 
-Planned additive DTOs:
+Live additive DTOs:
 
+- `ResumeEditorSelectionCapabilitiesDto`
 - `ResumeEditorNodeDto`
 - `ResumeEditorTextRunDto`
+- `ResumeEditorTableOfContentsItemDto`
 - `ResumeEditorSelectionAnchorDto`
 - `ResumeEditorDocumentOperationDto`
 - `PatchResumeEditorDocumentOperationsRequest`
 
 Frontend integration expectation for v2:
 
-1. if the workspace exposes `documentModel = rich_tree`, the frontend should render one document-centered editor surface with contextual popovers
-2. if the richer model is absent, the frontend should fall back to the current markdown or block-oriented workspace
-3. live runtime OpenAPI remains the source of truth over this planned section once implementation begins
+1. if the workspace exposes `documentModel = rich_tree`, render one document-centered editor surface and treat `nodes[]` as the richer semantic model
+2. keep `blocks[]` and `markdownSource` as migration-safe fallback paths
+3. prefer `selectionAnchor` over raw `blockId` for comments, question cards, and suggestion flows
+4. prefer `PATCH /editor/document/operations` for contextual granular edits and keep `PUT /editor/document` for full replace flows
