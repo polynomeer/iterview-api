@@ -571,3 +571,36 @@ Implemented practical interview record foundation:
 - During local integration, point Swagger or codegen tooling at `/v3/api-docs`.
 - For PR review, schema discussion, or frontend mocking, use the checked-in snapshot file.
 - If the runtime API and snapshot diverge, treat the runtime `/v3/api-docs` as the operational source and update the snapshot in the same backend change.
+
+## Planned Resume Editor V2
+
+The current runtime editor API is still v1 and block-oriented enough for a markdown-first fallback workspace. A true Notion-level frontend needs additive backend changes.
+
+Planned additive editor upgrades:
+
+- keep `GET /api/resume-versions/{versionId}/editor` as the main workspace read, but extend it with:
+  - `documentModel = rich_tree`
+  - `document.rootNodeId`
+  - `document.nodes[]`
+  - `document.tableOfContents[]`
+  - `selectionCapabilities`
+  - `contextMenuActions`
+- add `PATCH /api/resume-versions/{versionId}/editor/document/operations` for granular rich-document writes
+- keep `PUT /editor/document` for coarse full-document replacement
+- broaden comment, question-card, and suggestion request payloads to accept one additive `selectionAnchor` object instead of only one flat `blockId`
+- extend presence payloads to optionally include one focused node or selection anchor
+- extend tracked changes and merge preview so they can describe node-level text edits, structural moves, and structural conflicts
+
+Planned additive DTOs:
+
+- `ResumeEditorNodeDto`
+- `ResumeEditorTextRunDto`
+- `ResumeEditorSelectionAnchorDto`
+- `ResumeEditorDocumentOperationDto`
+- `PatchResumeEditorDocumentOperationsRequest`
+
+Frontend integration expectation for v2:
+
+1. if the workspace exposes `documentModel = rich_tree`, the frontend should render one document-centered editor surface with contextual popovers
+2. if the richer model is absent, the frontend should fall back to the current markdown or block-oriented workspace
+3. live runtime OpenAPI remains the source of truth over this planned section once implementation begins

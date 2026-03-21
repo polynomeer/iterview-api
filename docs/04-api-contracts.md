@@ -2460,3 +2460,32 @@ Current implemented follow-up behavior:
   - `sourceLabel = Real Interview`
   - `sourceInterviewRecordId`
   - `sourceInterviewQuestionId`
+
+## Planned Additive API - Resume Editor V2
+
+The current live editor contract is still the block-oriented v1 workspace. The next editor slice should add a richer document model without breaking v1.
+
+Planned additive endpoints:
+
+- `PATCH /api/resume-versions/{versionId}/editor/document/operations`
+
+Planned additive contract direction:
+
+- extend `GET /api/resume-versions/{versionId}/editor` with:
+  - `documentModel`
+  - `selectionCapabilities`
+  - `contextMenuActions`
+  - `document.rootNodeId`
+  - `document.nodes[]`
+  - `document.tableOfContents[]`
+- extend annotation and suggestion request DTOs with one additive `selectionAnchor` object
+- extend tracked changes and merge preview so conflicts can be node-aware and structure-aware
+- keep `PUT /editor/document`, `POST /editor/import-markdown`, and legacy `blocks[]` during migration
+
+Planned additive DTOs include:
+
+- `ResumeEditorNodeDto`
+- `ResumeEditorTextRunDto`
+- `ResumeEditorSelectionAnchorDto`
+- `ResumeEditorDocumentOperationDto`
+- `PatchResumeEditorDocumentOperationsRequest`
