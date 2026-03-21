@@ -1,8 +1,24 @@
 # Resume Editor V2 Backend Prompt
 
-You are implementing the backend API upgrade for the Iterview resume editor so the frontend can provide a Notion-level resume workspace on top of immutable resume versions.
+You are implementing Resume Editor V2 for Iterview.
 
-Use the existing backend architecture, runtime OpenAPI style, and current resume-editor slice as the base. The new work must preserve the current immutable resume-version model and additive editor workspace model.
+This document is both the design brief and the execution prompt. Do not treat it as planning-only. Carry the work through backend implementation, tests, runtime OpenAPI, checked-in OpenAPI, and backend docs.
+
+## Read First
+
+Review and extend the current backend implementation and docs around the editor slice:
+
+- `/Users/hammac/Projects/iterview-api/docs/openapi/frontend-integration.yaml`
+- `/Users/hammac/Projects/iterview-api/docs/08-frontend-api.md`
+- `/Users/hammac/Projects/iterview-api/docs/04-api-contracts.md`
+- `/Users/hammac/Projects/iterview-api/docs/feature-resume-editor.md`
+
+Source-of-truth priority:
+
+1. runtime OpenAPI at `/v3/api-docs`
+2. checked-in OpenAPI snapshot
+3. backend docs
+4. frontend docs
 
 ## Product Goal
 
@@ -26,10 +42,11 @@ The frontend should be able to render one main document surface instead of one r
 - resume versions remain immutable
 - editor remains one additive workspace layer on top of one immutable resume version
 - current v1 endpoints should stay available during migration where practical
-- new fields should be additive when possible
-- the checked-in OpenAPI snapshot and frontend-facing docs must be updated
+- additive changes are strongly preferred over breaking changes
 - merge-preview and revision semantics must still work with optimistic concurrency
-- this is not CRDT or true collaborative editing; presence remains lightweight
+- `baseRevisionNo` remains the concurrency guard
+- this is not CRDT or true collaborative editing
+- presence remains lightweight heartbeat state only
 
 ## Current backend baseline
 
@@ -82,7 +99,7 @@ The backend should still be able to materialize:
 - `markdownSource`
 - legacy `blocks[]`
 
-during the migration period.
+for the migration period.
 
 ### 2. Operation-based editing API
 
@@ -182,43 +199,103 @@ This is needed so resume heatmap and editor annotations can stay aligned.
 - keep current v1 block fields while introducing v2 rich-node fields
 - if `documentModel` is absent, frontend should still be able to fall back to v1 behavior
 
-## Documentation and API outputs required
+## Minimum implementation scope
+
+Implement the backend slices needed for:
+
+1. rich document model support
+2. operation-based editor writes
+3. stable selection anchors for comments/question cards/suggestions
+4. rich tracked changes
+5. rich merge preview
+6. revision and print-preview compatibility
+7. source-anchor alignment for heatmap/editor interoperability
+
+## Expected live API surface
+
+Keep existing endpoints working:
+
+- `GET /api/resume-versions/{versionId}/editor`
+- `PUT /api/resume-versions/{versionId}/editor/document`
+- `POST /api/resume-versions/{versionId}/editor/import-markdown`
+- existing comment, reply, question-card, suggestion, presence, print-preview, revision, tracked-change, merge-preview endpoints
+
+Add the new granular write endpoint:
+
+- `PATCH /api/resume-versions/{versionId}/editor/document/operations`
+
+Upgrade existing editor DTOs and request DTOs to support the v2 rich-node model and selection anchors while remaining migration-safe.
+
+## Required backend deliverables
+
+### 1. Implementation
+
+Implement:
+
+- rich document persistence/materialization for editor workspace reads
+- operation patch handling
+- selection-anchor aware comment creation
+- selection-anchor aware question-card creation
+- selection-anchor aware suggestion requests
+- rich merge preview behavior
+- rich tracked changes behavior
+
+### 2. Tests
+
+Add or update backend tests for:
+
+- workspace bootstrap into rich document form
+- operation-based patching
+- markdown import compatibility with the rich document model
+- comment creation on inline range anchors
+- question-card creation on inline range anchors
+- suggestion requests on inline range anchors
+- tracked changes across revisions
+- merge preview with text conflicts
+- merge preview with structural conflicts
+
+### 3. API/docs
 
 Update:
 
-- runtime OpenAPI
-- `docs/openapi/frontend-integration.yaml`
-- `docs/08-frontend-api.md`
-- `docs/feature-resume-editor.md`
-- any relevant API contract docs
+- runtime OpenAPI generation
+- `/Users/hammac/Projects/iterview-api/docs/openapi/frontend-integration.yaml`
+- `/Users/hammac/Projects/iterview-api/docs/08-frontend-api.md`
+- `/Users/hammac/Projects/iterview-api/docs/04-api-contracts.md`
+- `/Users/hammac/Projects/iterview-api/docs/feature-resume-editor.md`
 
 Document clearly:
 
 - what is live v1
-- what is live or planned v2
-- migration and compatibility behavior
+- what is additive v2
+- migration compatibility behavior
 
-## Testing expectations
+## Implementation guidance
 
-Add backend tests for:
+- prefer extending the current editor slice rather than creating a disconnected parallel system
+- keep legacy `blocks[]` and `markdownSource` materialization available while v2 rolls out
+- make the rich-node model the long-term source for editor semantics
+- ensure merge preview and tracked changes can reference stable node identifiers
+- preserve source-anchor metadata on rich nodes so resume heatmap integration remains possible
+- do not stop at DTO definitions or docs-only updates
+- if runtime OpenAPI and checked-in docs differ, update the checked-in docs to match runtime OpenAPI
 
-- workspace bootstrap into rich document form
-- operation-based document patching
-- selection-anchor comment creation
-- selection-anchor question-card creation
-- suggestion requests on inline anchors
-- merge preview with text conflict
-- merge preview with structural conflict
-- tracked changes across revisions
-- markdown import compatibility with the rich document model
+## Output format
 
-## Output expectations
-
-For each completed backend slice, report:
+For each completed slice, report:
 
 1. what was implemented
 2. which files changed
 3. which endpoints and DTOs were added or updated
 4. what remains next
 
-If runtime OpenAPI and checked-in docs differ, make runtime OpenAPI the source of truth and update the checked-in docs to match.
+## Definition of done
+
+The task is only done when:
+
+- backend implementation is complete for the agreed v2 scope
+- relevant automated tests pass
+- runtime OpenAPI reflects the new contracts
+- checked-in OpenAPI snapshot matches runtime behavior
+- backend docs are updated
+- migration compatibility with v1 editor behavior is preserved
