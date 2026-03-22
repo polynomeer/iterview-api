@@ -144,6 +144,10 @@ It is intentionally additive. Existing baseline endpoints such as auth, profile,
 - `POST /editor/merge-preview` is the additive stale-write recovery API for server-assisted merge flows
 - markdown import accepts one markdown payload and either replaces or appends to the current workspace document
 - comment replies are additive thread messages and do not move the original selection anchor
+- comment and question-card anchors now preserve richer recovery metadata under the same `selectionAnchor` shape
+- tracked changes now also include `beforeTextLines` and `afterTextLines`
+- merge preview conflicts now also include `baseTextLines`, `currentTextLines`, and `proposedTextLines`
+- print preview and PDF export now use one shared line-estimation strategy, so preview page hints should be treated as closer to export output than before
 - each heatmap item currently exposes:
   - anchor identity such as `anchorType`, `anchorRecordId`, and `anchorKey`
   - `label`

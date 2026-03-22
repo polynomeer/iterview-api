@@ -14,7 +14,9 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 @Service
-class ResumeAnalysisPdfExportService {
+class ResumeAnalysisPdfExportService(
+    private val layoutEstimator: ResumeEditorLayoutEstimator,
+) {
     fun export(document: TailoredResumeDocument): PdfExportResult {
         PDDocument().use { pdf ->
             val regularFont = loadUnicodeFont(pdf) ?: PDType1Font(Standard14Fonts.FontName.HELVETICA)
@@ -50,7 +52,7 @@ class ResumeAnalysisPdfExportService {
             document.targetRole?.let { writeLine(it, regularFont, 10f) }
             document.summary?.let {
                 y -= 4f
-                wrapText(it, 92).forEach { line ->
+                layoutEstimator.wrapText(it).forEach { line ->
                     writeLine(line, regularFont, 10f)
                 }
             }
@@ -59,7 +61,7 @@ class ResumeAnalysisPdfExportService {
                 y -= 6f
                 writeLine(section.title, boldFont, 12f)
                 section.lines.forEach { line ->
-                    wrapText(line, 92).forEach { wrapped ->
+                    layoutEstimator.wrapText(line).forEach { wrapped ->
                         writeLine("• $wrapped", regularFont, 10f, 60f)
                     }
                 }
@@ -73,29 +75,6 @@ class ResumeAnalysisPdfExportService {
                 pageCount = pdf.numberOfPages,
             )
         }
-    }
-
-    private fun wrapText(text: String, maxChars: Int): List<String> {
-        if (text.length <= maxChars) {
-            return listOf(text)
-        }
-        val parts = mutableListOf<String>()
-        var current = StringBuilder()
-        text.split(" ").forEach { token ->
-            if (current.isNotEmpty() && current.length + token.length + 1 > maxChars) {
-                parts += current.toString()
-                current = StringBuilder(token)
-            } else {
-                if (current.isNotEmpty()) {
-                    current.append(' ')
-                }
-                current.append(token)
-            }
-        }
-        if (current.isNotEmpty()) {
-            parts += current.toString()
-        }
-        return parts
     }
 
     private fun loadUnicodeFont(document: PDDocument): PDFont? =

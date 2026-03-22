@@ -66,6 +66,9 @@ class ResumeEditorService(
     private val resumeQuestionHeatmapService: ResumeQuestionHeatmapService,
     private val resumeEditorMarkdownService: ResumeEditorMarkdownService,
     private val resumeEditorPrintPreviewService: ResumeEditorPrintPreviewService,
+    private val resumeEditorDocumentModelService: ResumeEditorDocumentModelService,
+    private val resumeEditorSelectionAnchorService: ResumeEditorSelectionAnchorService,
+    private val resumeEditorDiffService: ResumeEditorDiffService,
     private val userRepository: UserRepository,
     private val objectMapper: ObjectMapper,
     private val clockService: ClockService,
@@ -105,12 +108,12 @@ class ResumeEditorService(
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume editor revision not found: $fromRevisionId")
         val toRevision = resumeEditorWorkspaceRevisionRepository.findByIdAndResumeVersionId(toRevisionId, versionId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume editor revision not found: $toRevisionId")
-        val changes = buildTrackedChanges(fromRevision.toDocument(), toRevision.toDocument())
+        val changes = resumeEditorDiffService.buildTrackedChanges(fromRevision.toDocument(), toRevision.toDocument())
         return ResumeEditorTrackedChangesDto(
             resumeVersionId = versionId,
             fromRevisionId = fromRevisionId,
             toRevisionId = toRevisionId,
-            changeSummary = buildChangeSummary(fromRevision.toDocument(), toRevision.toDocument()),
+            changeSummary = resumeEditorDiffService.buildChangeSummary(fromRevision.toDocument(), toRevision.toDocument()),
             changes = changes,
         )
     }
@@ -126,7 +129,7 @@ class ResumeEditorService(
         val baseRevision = resumeEditorWorkspaceRevisionRepository.findByResumeEditorWorkspaceIdAndRevisionNo(workspace.id, request.baseRevisionNo)
             ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Base revision not found: ${request.baseRevisionNo}")
         val currentDocument = decodeDocument(workspace)
-        val proposedDocument = materializeDocument(
+        val proposedDocument = resumeEditorDocumentModelService.materializeDocument(
             currentDocument = currentDocument,
             blocks = request.blocks,
             rootNodeId = request.rootNodeId,
@@ -146,7 +149,7 @@ class ResumeEditorService(
             mergeStatus = if (mergeResult.conflicts.isEmpty()) "clean" else "conflicted",
             mergedDocument = mergeResult.document,
             conflicts = mergeResult.conflicts,
-            changeSummary = buildChangeSummary(currentDocument, mergeResult.document),
+            changeSummary = resumeEditorDiffService.buildChangeSummary(currentDocument, mergeResult.document),
         )
     }
 
@@ -179,7 +182,7 @@ class ResumeEditorService(
         val version = requireOwnedVersion(userId, versionId)
         val existing = getOrCreateWorkspace(userId, version)
         enforceRevision(request.baseRevisionNo, existing.revisionNo)
-        val document = materializeDocument(
+        val document = resumeEditorDocumentModelService.materializeDocument(
             currentDocument = decodeDocument(existing),
             blocks = request.blocks,
             rootNodeId = request.rootNodeId,
@@ -202,7 +205,7 @@ class ResumeEditorService(
         val existing = getOrCreateWorkspace(userId, version)
         enforceRevision(request.baseRevisionNo, existing.revisionNo)
         val currentDocument = decodeDocument(existing)
-        val updatedDocument = applyOperations(currentDocument, request.operations)
+        val updatedDocument = resumeEditorDocumentModelService.applyOperations(currentDocument, request.operations)
         val source = request.changeSource?.trim()?.takeIf { it.isNotEmpty() }
             ?: if (!request.clientChangeId.isNullOrBlank()) {
                 "operations:${request.clientChangeId.trim()}"
@@ -220,7 +223,7 @@ class ResumeEditorService(
         enforceRevision(request.baseRevisionNo, existing.revisionNo)
         val imported = resumeEditorMarkdownService.parse(request.markdownSource)
         val document = if (request.replaceDocument) {
-            normalizeDocument(imported)
+            resumeEditorDocumentModelService.normalizeDocument(imported)
         } else {
             val current = decodeDocument(existing)
             val appendedBlocks = imported.blocks.mapIndexed { index, block ->
@@ -229,7 +232,7 @@ class ResumeEditorService(
                     displayOrder = current.blocks.size + index,
                 )
             }
-            normalizeDocument(
+            resumeEditorDocumentModelService.normalizeDocument(
                 ResumeEditorDocumentDto(
                     astVersion = 1,
                     markdownSource = listOfNotNull(current.markdownSource, imported.markdownSource).joinToString("\n\n").trim(),
@@ -246,7 +249,7 @@ class ResumeEditorService(
     fun createComment(userId: Long, versionId: Long, request: CreateResumeEditorCommentRequest): ResumeEditorCommentThreadDto {
         val workspace = getOrCreateWorkspace(userId, requireOwnedVersion(userId, versionId))
         val document = decodeDocument(workspace)
-        val selectionAnchor = resolveSelectionAnchor(
+        val selectionAnchor = resumeEditorSelectionAnchorService.resolveSelectionAnchor(
             document = document,
             blockId = request.blockId,
             selectionAnchor = request.selectionAnchor,
@@ -266,6 +269,9 @@ class ResumeEditorService(
                 selectionStartOffset = selectionAnchor.selectionStartOffset,
                 selectionEndOffset = selectionAnchor.selectionEndOffset,
                 selectedText = selectionAnchor.selectedText ?: selectionAnchor.anchorQuote,
+                anchorPath = selectionAnchor.anchorPath,
+                anchorQuote = selectionAnchor.anchorQuote,
+                sentenceIndex = selectionAnchor.sentenceIndex,
                 body = request.body.trim(),
                 status = COMMENT_STATUS_OPEN,
                 resolvedAt = null,
@@ -274,7 +280,7 @@ class ResumeEditorService(
             ),
         )
         touchWorkspace(workspace)
-        return saved.toDto()
+        return resumeEditorSelectionAnchorService.toCommentDto(saved, emptyList())
     }
 
     @Transactional
@@ -302,7 +308,7 @@ class ResumeEditorService(
         )
         val replies = resumeEditorCommentReplyRepository.findByResumeEditorCommentThreadIdInOrderByCreatedAtAsc(listOf(comment.id))
             .map { it.toDto() }
-        return comment.toDto(replies)
+        return resumeEditorSelectionAnchorService.toCommentDto(comment, replies)
     }
 
     @Transactional
@@ -331,6 +337,9 @@ class ResumeEditorService(
                 selectionStartOffset = existing.selectionStartOffset,
                 selectionEndOffset = existing.selectionEndOffset,
                 selectedText = existing.selectedText,
+                anchorPath = existing.anchorPath,
+                anchorQuote = existing.anchorQuote,
+                sentenceIndex = existing.sentenceIndex,
                 body = request.body?.trim()?.takeIf { it.isNotEmpty() } ?: existing.body,
                 status = status,
                 resolvedAt = if (status == COMMENT_STATUS_RESOLVED) clockService.now() else null,
@@ -340,7 +349,7 @@ class ResumeEditorService(
         )
         val replies = resumeEditorCommentReplyRepository.findByResumeEditorCommentThreadIdInOrderByCreatedAtAsc(listOf(updated.id))
             .map { it.toDto() }
-        return updated.toDto(replies)
+        return resumeEditorSelectionAnchorService.toCommentDto(updated, replies)
     }
 
     @Transactional
@@ -351,7 +360,7 @@ class ResumeEditorService(
     ): ResumeEditorQuestionCardDto {
         val workspace = getOrCreateWorkspace(userId, requireOwnedVersion(userId, versionId))
         val document = decodeDocument(workspace)
-        val selectionAnchor = resolveSelectionAnchor(
+        val selectionAnchor = resumeEditorSelectionAnchorService.resolveSelectionAnchor(
             document = document,
             blockId = request.blockId,
             selectionAnchor = request.selectionAnchor,
@@ -376,6 +385,9 @@ class ResumeEditorService(
                 selectionStartOffset = selectionAnchor.selectionStartOffset,
                 selectionEndOffset = selectionAnchor.selectionEndOffset,
                 selectedText = selectionAnchor.selectedText ?: selectionAnchor.anchorQuote,
+                anchorPath = selectionAnchor.anchorPath,
+                anchorQuote = selectionAnchor.anchorQuote,
+                sentenceIndex = selectionAnchor.sentenceIndex,
                 title = request.title?.trim()?.takeIf { it.isNotEmpty() },
                 questionText = request.questionText.trim(),
                 questionType = request.questionType.trim().lowercase(),
@@ -388,7 +400,7 @@ class ResumeEditorService(
             ),
         )
         touchWorkspace(workspace)
-        return saved.toDto()
+        return resumeEditorSelectionAnchorService.toQuestionCardDto(saved, decodeList(saved.followUpSuggestionsJson))
     }
 
     @Transactional
@@ -422,6 +434,9 @@ class ResumeEditorService(
                 selectionStartOffset = existing.selectionStartOffset,
                 selectionEndOffset = existing.selectionEndOffset,
                 selectedText = existing.selectedText,
+                anchorPath = existing.anchorPath,
+                anchorQuote = existing.anchorQuote,
+                sentenceIndex = existing.sentenceIndex,
                 title = request.title?.trim()?.takeIf { it.isNotEmpty() } ?: existing.title,
                 questionText = request.questionText?.trim()?.takeIf { it.isNotEmpty() } ?: existing.questionText,
                 questionType = request.questionType?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: existing.questionType,
@@ -433,7 +448,7 @@ class ResumeEditorService(
                 updatedAt = clockService.now(),
             ),
         )
-        return updated.toDto()
+        return resumeEditorSelectionAnchorService.toQuestionCardDto(updated, decodeList(updated.followUpSuggestionsJson))
     }
 
     @Transactional
@@ -444,7 +459,7 @@ class ResumeEditorService(
     ): ResumeEditorQuestionSuggestionResponseDto {
         val workspace = getOrCreateWorkspace(userId, requireOwnedVersion(userId, versionId))
         val document = decodeDocument(workspace)
-        val selectionAnchor = resolveSelectionAnchor(
+        val selectionAnchor = resumeEditorSelectionAnchorService.resolveSelectionAnchor(
             document = document,
             blockId = request.blockId,
             selectionAnchor = request.selectionAnchor,
@@ -453,7 +468,7 @@ class ResumeEditorService(
             selectionEndOffset = null,
             selectedText = request.selectedText,
         )
-        val node = requireNode(document, selectionAnchor.nodeId)
+        val node = resumeEditorSelectionAnchorService.requireNode(document, selectionAnchor.nodeId)
         val selectedText = resolveSelectedText(node, selectionAnchor.selectedText)
         return ResumeEditorQuestionSuggestionResponseDto(
             resumeVersionId = versionId,
@@ -473,7 +488,7 @@ class ResumeEditorService(
     ): ResumeEditorRewriteSuggestionResponseDto {
         val workspace = getOrCreateWorkspace(userId, requireOwnedVersion(userId, versionId))
         val document = decodeDocument(workspace)
-        val selectionAnchor = resolveSelectionAnchor(
+        val selectionAnchor = resumeEditorSelectionAnchorService.resolveSelectionAnchor(
             document = document,
             blockId = request.blockId,
             selectionAnchor = request.selectionAnchor,
@@ -482,7 +497,7 @@ class ResumeEditorService(
             selectionEndOffset = null,
             selectedText = request.selectedText,
         )
-        val node = requireNode(document, selectionAnchor.nodeId)
+        val node = resumeEditorSelectionAnchorService.requireNode(document, selectionAnchor.nodeId)
         val selectedText = resolveSelectedText(node, selectionAnchor.selectedText)
         return ResumeEditorRewriteSuggestionResponseDto(
             resumeVersionId = versionId,
@@ -563,10 +578,10 @@ class ResumeEditorService(
                 .groupBy { it.resumeEditorCommentThreadId }
         }
         val comments = commentEntities.map { entity ->
-            entity.toDto(repliesByThreadId[entity.id].orEmpty().map { reply -> reply.toDto() })
+            resumeEditorSelectionAnchorService.toCommentDto(entity, repliesByThreadId[entity.id].orEmpty().map { reply -> reply.toDto() })
         }
         val questionCards = resumeEditorQuestionCardRepository.findByResumeEditorWorkspaceIdOrderByCreatedAtAsc(workspace.id)
-            .map { it.toDto() }
+            .map { resumeEditorSelectionAnchorService.toQuestionCardDto(it, decodeList(it.followUpSuggestionsJson)) }
         val heatmap = resumeQuestionHeatmapService.getHeatmap(userId, version.id, "all")
         return ResumeEditorWorkspaceDto(
             workspaceId = workspace.id,
@@ -835,7 +850,7 @@ class ResumeEditorService(
                 metadata = emptyMap(),
             )
         }
-        return normalizeDocument(
+        return resumeEditorDocumentModelService.normalizeDocument(
             ResumeEditorDocumentDto(
                 astVersion = 1,
                 markdownSource = resumeEditorMarkdownService.render(blocks),
@@ -889,7 +904,7 @@ class ResumeEditorService(
 
     private fun decodeDocument(workspace: ResumeEditorWorkspaceEntity): ResumeEditorDocumentDto {
         val stored = objectMapper.readValue(workspace.documentJson, ResumeEditorDocumentDto::class.java)
-        return normalizeDocument(stored.copy(
+        return resumeEditorDocumentModelService.normalizeDocument(stored.copy(
             markdownSource = workspace.markdownSource ?: stored.markdownSource ?: resumeEditorMarkdownService.render(stored.blocks),
             layoutMetadata = decodeMap(workspace.layoutMetadataJson).ifEmpty { stored.layoutMetadata },
         ))
@@ -1625,14 +1640,7 @@ class ResumeEditorService(
     }
 
     private fun emptyDocument(): ResumeEditorDocumentDto =
-        normalizeDocument(
-            ResumeEditorDocumentDto(
-                astVersion = 1,
-                markdownSource = null,
-                blocks = emptyList(),
-                layoutMetadata = emptyMap(),
-            ),
-        )
+        resumeEditorDocumentModelService.emptyDocument()
 
     private fun createRevision(
         workspace: ResumeEditorWorkspaceEntity,
@@ -1642,7 +1650,7 @@ class ResumeEditorService(
         current: ResumeEditorDocumentDto,
         createdAt: java.time.Instant,
     ) {
-        val summary = buildChangeSummary(previous, current)
+        val summary = resumeEditorDiffService.buildChangeSummary(previous, current)
         resumeEditorWorkspaceRevisionRepository.save(
             ResumeEditorWorkspaceRevisionEntity(
                 resumeEditorWorkspaceId = workspace.id,
@@ -1785,22 +1793,7 @@ class ResumeEditorService(
                 currentNode == null && proposedNode != null && baseNode == null -> proposedNode
                 proposedNode == null && currentNode != null && baseNode == null -> currentNode
                 else -> {
-                    val conflictScopes = detectConflictScopes(baseNode, currentNode, proposedNode)
-                    conflicts += ResumeEditorMergeConflictDto(
-                        blockId = nodeId,
-                        nodeId = nodeId,
-                        conflictType = when {
-                            currentNode == null || proposedNode == null -> "deletion_conflict"
-                            else -> "content_conflict"
-                        },
-                        baseText = baseNode?.text,
-                        currentText = currentNode?.text,
-                        proposedText = proposedNode?.text,
-                        conflictScopes = conflictScopes,
-                        baseParentNodeId = baseNode?.parentNodeId,
-                        currentParentNodeId = currentNode?.parentNodeId,
-                        proposedParentNodeId = proposedNode?.parentNodeId,
-                    )
+                    conflicts += resumeEditorDiffService.buildConflict(nodeId, baseNode, currentNode, proposedNode)
                     currentNode
                 }
             }
@@ -1810,7 +1803,7 @@ class ResumeEditorService(
         }
 
         return MergeResult(
-            document = normalizeDocument(
+            document = resumeEditorDocumentModelService.normalizeDocument(
                 ResumeEditorDocumentDto(
                     astVersion = current.astVersion,
                     markdownSource = current.markdownSource ?: proposed.markdownSource,
@@ -1839,28 +1832,6 @@ class ResumeEditorService(
             ),
             conflicts = conflicts,
         )
-    }
-
-    private fun detectConflictScopes(
-        baseNode: ResumeEditorNodeDto?,
-        currentNode: ResumeEditorNodeDto?,
-        proposedNode: ResumeEditorNodeDto?,
-    ): List<String> {
-        val scopes = mutableListOf<String>()
-        if ((currentNode?.text != baseNode?.text) && (proposedNode?.text != baseNode?.text) && currentNode?.text != proposedNode?.text) {
-            scopes += "text"
-        }
-        if ((currentNode?.nodeType != baseNode?.nodeType) || (proposedNode?.nodeType != baseNode?.nodeType) ||
-            (currentNode?.collapsed != baseNode?.collapsed) || (proposedNode?.collapsed != baseNode?.collapsed)
-        ) {
-            scopes += "structure"
-        }
-        if ((currentNode?.parentNodeId != baseNode?.parentNodeId) || (proposedNode?.parentNodeId != baseNode?.parentNodeId) ||
-            (currentNode?.depth != baseNode?.depth) || (proposedNode?.depth != baseNode?.depth)
-        ) {
-            scopes += "move"
-        }
-        return scopes.distinct()
     }
 
     private fun requireBlockIndex(blocks: List<ResumeEditorBlockDto>, nodeId: String?): Int {
@@ -1982,7 +1953,7 @@ class ResumeEditorService(
 
     private fun ResumeEditorWorkspaceRevisionEntity.toDocument(): ResumeEditorDocumentDto {
         val stored = objectMapper.readValue(documentJson, ResumeEditorDocumentDto::class.java)
-        return normalizeDocument(stored.copy(
+        return resumeEditorDocumentModelService.normalizeDocument(stored.copy(
             markdownSource = markdownSource ?: stored.markdownSource ?: resumeEditorMarkdownService.render(stored.blocks),
             layoutMetadata = decodeMap(layoutMetadataJson).ifEmpty { stored.layoutMetadata },
         ))

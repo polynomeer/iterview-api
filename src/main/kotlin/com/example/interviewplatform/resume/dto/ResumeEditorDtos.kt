@@ -196,6 +196,8 @@ data class ResumeEditorTrackedChangeDto(
     val textChanged: Boolean = false,
     val structureChanged: Boolean = false,
     val moveRelated: Boolean = false,
+    val beforeTextLines: List<String> = emptyList(),
+    val afterTextLines: List<String> = emptyList(),
 )
 
 data class ResumeEditorMergePreviewDto(
@@ -219,6 +221,9 @@ data class ResumeEditorMergeConflictDto(
     val baseParentNodeId: String? = null,
     val currentParentNodeId: String? = null,
     val proposedParentNodeId: String? = null,
+    val baseTextLines: List<String> = emptyList(),
+    val currentTextLines: List<String> = emptyList(),
+    val proposedTextLines: List<String> = emptyList(),
 )
 
 data class ResumeEditorSelectionAnchorDto(

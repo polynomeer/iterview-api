@@ -6,27 +6,24 @@ import com.example.interviewplatform.resume.dto.ResumeEditorPrintPreviewPageDto
 import com.example.interviewplatform.resume.dto.ResumeEditorPrintPreviewDto
 import com.example.interviewplatform.resume.dto.ResumeEditorPrintPreviewSectionDto
 import org.springframework.stereotype.Service
-import kotlin.math.ceil
 
 @Service
-class ResumeEditorPrintPreviewService {
+class ResumeEditorPrintPreviewService(
+    private val layoutEstimator: ResumeEditorLayoutEstimator,
+) {
     fun build(
         resumeVersionId: Long,
         workspaceId: Long,
         title: String,
         blocks: List<ResumeEditorBlockDto>,
     ): ResumeEditorPrintPreviewDto {
-        val sections = blocks.map { block ->
-            ResumeEditorPrintPreviewSectionDto(
-                sectionKey = block.blockId,
-                title = block.title ?: block.blockType.replace('_', ' '),
-                lines = listOfNotNull(block.text?.takeIf { it.isNotBlank() }).plus(block.lines),
-            )
+        val sections = layoutEstimator.buildSections(blocks).map { section ->
+            ResumeEditorPrintPreviewSectionDto(section.sectionKey, section.title, section.lines)
         }
         val plainText = sections.joinToString("\n\n") { section ->
             listOf(section.title).plus(section.lines).joinToString("\n")
         }.trim()
-        val pageEstimate = ceil((plainText.length.coerceAtLeast(1)) / 1800.0).toInt().coerceAtLeast(1)
+        val pageEstimate = layoutEstimator.estimatePageCountFromPlainText(plainText)
         val pages = buildPages(sections)
         val layoutItems = buildLayoutItems(blocks)
         return ResumeEditorPrintPreviewDto(
@@ -52,7 +49,7 @@ class ResumeEditorPrintPreviewService {
             )
         }
         val pages = mutableListOf<ResumeEditorPrintPreviewPageDto>()
-        val maxLinesPerPage = 24
+        val maxLinesPerPage = ResumeEditorLayoutEstimator.maxLinesPerPage
         var pageNumber = 1
         var lineCount = 0
         var sectionKeys = mutableListOf<String>()
@@ -83,11 +80,11 @@ class ResumeEditorPrintPreviewService {
             return emptyList()
         }
         val items = mutableListOf<ResumeEditorPrintLayoutItemDto>()
-        val maxLinesPerPage = 24
+        val maxLinesPerPage = ResumeEditorLayoutEstimator.maxLinesPerPage
         var currentPage = 1
         var currentYOffset = 0
         blocks.forEach { block ->
-            val estimatedLineSpan = estimateLineSpan(block)
+            val estimatedLineSpan = layoutEstimator.estimateLineSpan(block)
             if (currentYOffset > 0 && currentYOffset + estimatedLineSpan > maxLinesPerPage) {
                 currentPage += 1
                 currentYOffset = 0
@@ -105,13 +102,4 @@ class ResumeEditorPrintPreviewService {
         return items
     }
 
-    private fun estimateLineSpan(block: ResumeEditorBlockDto): Int {
-        val titleLines = if (block.title.isNullOrBlank()) 0 else 1
-        val textLines = block.text?.let { estimateWrappedLineCount(it) } ?: 0
-        val listLines = block.lines.sumOf { estimateWrappedLineCount(it).coerceAtLeast(1) }
-        return (titleLines + textLines + listLines).coerceAtLeast(1)
-    }
-
-    private fun estimateWrappedLineCount(text: String): Int =
-        ceil(text.length.coerceAtLeast(1) / 72.0).toInt().coerceAtLeast(1)
 }

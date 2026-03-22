@@ -2484,6 +2484,10 @@ Live additive contract:
   - `document.tableOfContents[]`
 - comment, question-card, and suggestion payloads now accept additive `selectionAnchor`
 - tracked changes and merge preview now expose node-aware and structure-aware metadata
+- comment and question-card annotations now persist richer selection-anchor recovery fields behind the same public `selectionAnchor` contract
+- tracked changes now also expose `beforeTextLines[]` and `afterTextLines[]` for higher-fidelity compare UIs
+- merge preview conflicts now also expose `baseTextLines[]`, `currentTextLines[]`, and `proposedTextLines[]`
+- print preview and tailored PDF export now share the same server-side line wrapping estimator so page hints and exported sections stay closer together
 - `PUT /editor/document` and `POST /editor/import-markdown` remain supported
 
 Live additive DTOs:

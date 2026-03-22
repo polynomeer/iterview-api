@@ -121,6 +121,12 @@ Compatibility behavior:
 
 - legacy `blockId` payloads still work
 - if `selectionAnchor` is present, it is the preferred source of truth
+- comment threads and question cards now persist richer anchor recovery fields behind this DTO:
+  - `anchorPath`
+  - `anchorQuote`
+  - `sentenceIndex`
+
+This keeps the public shape stable while improving stale-selection recovery after node movement or moderate text edits.
 
 ## Operation Patch API
 
@@ -157,6 +163,8 @@ The response returns the updated workspace so the frontend can refresh revision 
 - `textChanged`
 - `structureChanged`
 - `moveRelated`
+- `beforeTextLines[]`
+- `afterTextLines[]`
 
 `POST /editor/merge-preview` now returns conflict rows with:
 
@@ -169,6 +177,9 @@ The response returns the updated workspace so the frontend can refresh revision 
 - `baseParentNodeId`
 - `currentParentNodeId`
 - `proposedParentNodeId`
+- `baseTextLines[]`
+- `currentTextLines[]`
+- `proposedTextLines[]`
 
 This is still optimistic-concurrency-based merge assistance, not CRDT or live multi-user editing.
 
@@ -181,6 +192,13 @@ Print preview remains a server-built read model and stays compatible with the ri
 - layout items
 
 These are layout hints only, not true PDF coordinates.
+
+The current backend now uses one shared line-estimation service for both:
+
+- editor print preview
+- tailored resume PDF export
+
+That does not make preview pixel-perfect, but it does reduce drift between preview grouping and exported content.
 
 ## Heatmap Alignment
 

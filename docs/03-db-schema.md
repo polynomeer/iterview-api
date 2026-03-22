@@ -180,10 +180,13 @@ Interpretation:
 - `resume_editor_workspace_id`
 - `resume_version_id`
 - `block_id`
+- `anchor_path`
 - `field_path`
 - `selection_start_offset`
 - `selection_end_offset`
 - `selected_text`
+- `anchor_quote`
+- `sentence_index`
 - `body`
 - `status`
 - `resolved_at`
@@ -193,6 +196,7 @@ Interpretation:
 Interpretation:
 - this is the persisted inline comment layer for one resume editor workspace
 - comments are additive annotations on top of a block/selection target and do not rewrite source resume text
+- the persisted anchor fields now preserve a richer `selectionAnchor` snapshot so stale node moves or text shifts can still be explained and recovered with better precision
 
 ### `resume_editor_comment_replies`
 - `id`
@@ -212,10 +216,13 @@ Interpretation:
 - `resume_editor_workspace_id`
 - `resume_version_id`
 - `block_id`
+- `anchor_path`
 - `field_path`
 - `selection_start_offset`
 - `selection_end_offset`
 - `selected_text`
+- `anchor_quote`
+- `sentence_index`
 - `title`
 - `question_text`
 - `question_type`
@@ -229,6 +236,7 @@ Interpretation:
 Interpretation:
 - this is the persisted question-card layer for one resume editor workspace
 - cards can be manually created from a selected block or sentence and may optionally link to a catalog question
+- like comment threads, question cards now persist a richer anchor snapshot so editor review and replay can survive moderate document reshaping
 
 ### `resume_editor_workspace_revisions`
 - `id`

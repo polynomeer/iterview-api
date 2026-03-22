@@ -2381,6 +2381,12 @@ components:
         afterBlockType: { type: string, nullable: true }
         beforeText: { type: string, nullable: true }
         afterText: { type: string, nullable: true }
+        beforeTextLines:
+          type: array
+          items: { type: string }
+        afterTextLines:
+          type: array
+          items: { type: string }
         fieldPath: { type: string, nullable: true }
         beforeParentNodeId: { type: string, nullable: true }
         afterParentNodeId: { type: string, nullable: true }
@@ -2413,6 +2419,15 @@ components:
         baseText: { type: string, nullable: true }
         currentText: { type: string, nullable: true }
         proposedText: { type: string, nullable: true }
+        baseTextLines:
+          type: array
+          items: { type: string }
+        currentTextLines:
+          type: array
+          items: { type: string }
+        proposedTextLines:
+          type: array
+          items: { type: string }
         conflictScopes:
           type: array
           items: { type: string }

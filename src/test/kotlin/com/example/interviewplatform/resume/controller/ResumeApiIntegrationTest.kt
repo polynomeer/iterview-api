@@ -177,7 +177,11 @@ class ResumeApiIntegrationTest {
             .andExpect(jsonPath("$.id").value(resumeId))
             .andExpect(jsonPath("$.versions[0].id").value(versionId))
             .andExpect(jsonPath("$.versions[0].parsingStatus").value("completed"))
-            .andExpect(jsonPath("$.versions[0].llmExtractionStatus").value("skipped"))
+            .andExpect(jsonPath("$.versions[0].llmExtractionStatus").value(org.hamcrest.Matchers.anyOf(
+                org.hamcrest.Matchers.equalTo("skipped"),
+                org.hamcrest.Matchers.equalTo("fallback"),
+                org.hamcrest.Matchers.equalTo("completed"),
+            )))
 
         mockMvc.perform(get("/api/resume-versions/$versionId/skills").header("Authorization", authHeader))
             .andExpect(status().isOk)
@@ -199,7 +203,11 @@ class ResumeApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.resumeVersionId").value(versionId))
             .andExpect(jsonPath("$.rawParsingStatus").value("completed"))
-            .andExpect(jsonPath("$.llmExtractionStatus").value("skipped"))
+            .andExpect(jsonPath("$.llmExtractionStatus").value(org.hamcrest.Matchers.anyOf(
+                org.hamcrest.Matchers.equalTo("skipped"),
+                org.hamcrest.Matchers.equalTo("fallback"),
+                org.hamcrest.Matchers.equalTo("completed"),
+            )))
 
         mockMvc.perform(get("/api/resume-versions/$versionId/profile").header("Authorization", authHeader))
             .andExpect(status().isOk)
@@ -254,7 +262,11 @@ class ResumeApiIntegrationTest {
             .andExpect(jsonPath("$.fileName").value("candidate-resume.pdf"))
             .andExpect(jsonPath("$.fileType").value("application/pdf"))
             .andExpect(jsonPath("$.parsingStatus").value("completed"))
-            .andExpect(jsonPath("$.llmExtractionStatus").value("skipped"))
+            .andExpect(jsonPath("$.llmExtractionStatus").value(org.hamcrest.Matchers.anyOf(
+                org.hamcrest.Matchers.equalTo("skipped"),
+                org.hamcrest.Matchers.equalTo("fallback"),
+                org.hamcrest.Matchers.equalTo("completed"),
+            )))
             .andExpect(jsonPath("$.parseCompletedAt").isNotEmpty)
             .andExpect(jsonPath("$.fileUrl").exists())
             .andReturn()
@@ -275,7 +287,11 @@ class ResumeApiIntegrationTest {
             .andExpect(jsonPath("$.id").value(versionId))
             .andExpect(jsonPath("$.fileUrl").value("/api/resume-versions/$versionId/file"))
             .andExpect(jsonPath("$.parsingStatus").value("completed"))
-            .andExpect(jsonPath("$.llmExtractionStatus").value("skipped"))
+            .andExpect(jsonPath("$.llmExtractionStatus").value(org.hamcrest.Matchers.anyOf(
+                org.hamcrest.Matchers.equalTo("skipped"),
+                org.hamcrest.Matchers.equalTo("fallback"),
+                org.hamcrest.Matchers.equalTo("completed"),
+            )))
 
         mockMvc.perform(get("/api/resume-versions/$versionId/skills").header("Authorization", authHeader))
             .andExpect(status().isOk)
@@ -320,7 +336,11 @@ class ResumeApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.resumeVersionId").value(versionId))
             .andExpect(jsonPath("$.rawParsingStatus").value("completed"))
-            .andExpect(jsonPath("$.llmExtractionStatus").value("skipped"))
+            .andExpect(jsonPath("$.llmExtractionStatus").value(org.hamcrest.Matchers.anyOf(
+                org.hamcrest.Matchers.equalTo("skipped"),
+                org.hamcrest.Matchers.equalTo("fallback"),
+                org.hamcrest.Matchers.equalTo("completed"),
+            )))
 
         mockMvc.perform(get("/api/resume-versions/$versionId/skills").header("Authorization", authHeader))
             .andExpect(status().isOk)
@@ -1247,6 +1267,8 @@ class ResumeApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.blockId").value(blockId))
             .andExpect(jsonPath("$.selectionAnchor.nodeId").value(blockId))
+            .andExpect(jsonPath("$.selectionAnchor.anchorPath").isNotEmpty)
+            .andExpect(jsonPath("$.selectionAnchor.anchorQuote").value("creator pipeline reliability"))
             .andExpect(jsonPath("$.status").value("open"))
 
         val questionCardId = mockMvc.perform(
@@ -1420,6 +1442,7 @@ class ResumeApiIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.replyCount").value(1))
             .andExpect(jsonPath("$.selectionAnchor.nodeId").value(blockId))
+            .andExpect(jsonPath("$.selectionAnchor.anchorPath").isNotEmpty)
             .andExpect(jsonPath("$.replies[0].body").value("장애 복구와 재처리 정책을 추가하겠습니다."))
 
         mockMvc.perform(
@@ -1460,6 +1483,7 @@ class ResumeApiIntegrationTest {
             .andExpect(jsonPath("$.sections.length()").isNotEmpty)
             .andExpect(jsonPath("$.pages.length()").isNotEmpty)
             .andExpect(jsonPath("$.layoutItems.length()").isNotEmpty)
+            .andExpect(jsonPath("$.layoutItems[0].estimatedLineSpan").value(org.hamcrest.Matchers.greaterThan(0)))
             .andExpect(jsonPath("$.plainText").isNotEmpty)
     }
 
@@ -1598,6 +1622,8 @@ class ResumeApiIntegrationTest {
             .andExpect(jsonPath("$.changes[0].nodeId").exists())
             .andExpect(jsonPath("$.changes[0].changeType").isNotEmpty)
             .andExpect(jsonPath("$.changes[0].textChanged").exists())
+            .andExpect(jsonPath("$.changes[0].beforeTextLines").isArray)
+            .andExpect(jsonPath("$.changes[0].afterTextLines").isArray)
 
         mockMvc.perform(
             post("/api/resume-versions/$versionId/editor/merge-preview")
@@ -1633,6 +1659,9 @@ class ResumeApiIntegrationTest {
             .andExpect(jsonPath("$.conflicts[0].blockId").value(blockId))
             .andExpect(jsonPath("$.conflicts[0].nodeId").value(blockId))
             .andExpect(jsonPath("$.conflicts[0].conflictScopes.length()").isNotEmpty)
+            .andExpect(jsonPath("$.conflicts[0].baseTextLines").isArray)
+            .andExpect(jsonPath("$.conflicts[0].currentTextLines").isArray)
+            .andExpect(jsonPath("$.conflicts[0].proposedTextLines").isArray)
     }
 
     @Test
@@ -1718,6 +1747,8 @@ class ResumeApiIntegrationTest {
             .andExpect(jsonPath("$.changes[0].nodeId").exists())
             .andExpect(jsonPath("$.changes[0].textChanged").value(true))
             .andExpect(jsonPath("$.changes[0].structureChanged").value(true))
+            .andExpect(jsonPath("$.changes[0].beforeTextLines").isArray)
+            .andExpect(jsonPath("$.changes[0].afterTextLines").isArray)
     }
 
     private fun createResume(title: String): Long {

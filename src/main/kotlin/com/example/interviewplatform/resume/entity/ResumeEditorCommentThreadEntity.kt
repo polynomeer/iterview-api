@@ -30,6 +30,12 @@ class ResumeEditorCommentThreadEntity(
     val selectionEndOffset: Int? = null,
     @Column(name = "selected_text")
     val selectedText: String? = null,
+    @Column(name = "anchor_path")
+    val anchorPath: String? = null,
+    @Column(name = "anchor_quote", columnDefinition = "TEXT")
+    val anchorQuote: String? = null,
+    @Column(name = "sentence_index")
+    val sentenceIndex: Int? = null,
     @Column(name = "body", nullable = false, columnDefinition = "TEXT")
     val body: String,
     @Column(name = "status", nullable = false)
